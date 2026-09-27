@@ -69,6 +69,7 @@ class Property(db.Model):
     contact_role = db.Column(db.String, nullable=False, default="owner", server_default="owner")
     publication_status = db.Column(db.String, nullable=False, default="draft", server_default="draft")
     availability_status = db.Column(db.String, nullable=False, default="available", server_default="available")
+    available_from_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now(), onupdate=utc_now)
 

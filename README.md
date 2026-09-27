@@ -1,7 +1,7 @@
 # Manazil | منازل
 
-Manazil is a Sudan-focused property rental marketplace. Stage 2A adds the
-Property model and database migrations to the working Stage 1 foundation.
+Manazil is a Sudan-focused property rental marketplace. Stage 2B adds an
+internal property creation form to the existing application and Property model.
 
 ## Stack
 
@@ -17,6 +17,9 @@ Manazil/
 │   ├── __init__.py          # Application factory and database configuration
 │   ├── routes.py            # Homepage and database health probe
 │   ├── models.py            # Property model and validation
+│   ├── admin.py             # Internal property creation routes
+│   ├── property_forms.py    # Form parsing and validation
+│   ├── templates/admin/property_form.html
 │   ├── templates/index.html
 │   └── static/
 │       ├── css/style.css
@@ -24,7 +27,8 @@ Manazil/
 ├── migrations/             # Alembic environment and versioned migrations
 ├── tests/
 │   ├── test_app.py
-│   └── test_properties.py
+│   ├── test_properties.py
+│   └── test_property_creation.py
 ├── .dockerignore
 ├── .env.example
 ├── .gitignore
@@ -164,6 +168,56 @@ SQLAlchemy automatically updates `updated_at` on model changes. Direct SQL
 updates outside SQLAlchemy must explicitly set that timestamp; no database
 trigger is installed.
 
+## Internal property creation (Stage 2B)
+
+Arabic is the permanent default (`lang="ar" dir="rtl"`). English is selected
+explicitly (`?lang=en`); no browser-language detection or saved language
+preference is used. An unqualified new visit always returns to Arabic. Both
+pages extend `base.html`, with Home, List Your Property, and language controls.
+
+The mobile-first interface uses subtle Sudan-inspired red actions, green
+accents, charcoal text, and light backgrounds. Shared styling provides large
+inputs, visible keyboard focus, rounded form sections, a two-step progress
+indicator, and responsive RTL/LTR layouts. Typography uses a local
+Arabic-compatible sans-serif font stack without external font services.
+
+The Arabic form step shows title, description, city, and area in Arabic. Next
+opens the English step for those four translations. The other language's values
+are carried as hidden fields, and shared property/contact fields appear only
+once per form and retain their values across steps. Language buttons submit
+the current entries without saving or requiring completed fields. Only the
+final Save creates a record, after validating both languages and shared fields.
+Switching works without JavaScript. Validation messages, options, navigation,
+and connection labels are translated, and direction follows the active language.
+
+Open http://localhost:5000/admin/properties/new to enter a property. The form
+posts to `/admin/properties`, validates on the server, and saves through
+SQLAlchemy. Every new property is forced to `draft`, regardless of submitted
+publication status. Amenities are entered one per line; blank lines are ignored.
+Successful saves redirect back with the new property ID in a confirmation.
+Validation errors preserve entries and show field errors (HTTP 422). Database
+failures roll back and redisplay the form with a retry message (HTTP 503).
+
+These are local internal development routes without authentication. The form
+uses a CSRF token, and requests with a missing or invalid token are rejected.
+The success message uses Flask's signed session cookie. `SECRET_KEY` can optionally
+be supplied through the environment; otherwise a random process-local key is
+generated, so pending messages do not survive an application restart.
+
+Creation tests reuse Stage 2A's isolated PostgreSQL migration fixture. They
+cover validation, draft enforcement, stored amenities, successful redirects,
+HTML escaping, and rollback after a failed commit. No schema change or new
+migration was required for the initial Stage 2B workflow.
+
+The state/date update uses the approved 10 Sudanese states as a fixed dropdown.
+The selected state's canonical English and Arabic names are stored in `city_en`
+and `city_ar`; arbitrary state text is rejected. Existing city data is retained.
+Availability timing is separate from the existing `available` / `rented`
+status: Available Now stores a null `available_from_date`, while Available
+From a Date requires today or a future date using Sudan's timezone. Apply
+`flask --app run db upgrade` in the web container to install migration
+`0002_available_from_date`, which adds only this nullable date column.
+
 ## Intentionally deferred
 
 Authentication, users, admin tools, listing management, property pages and
@@ -171,4 +225,4 @@ listings, search, photos and uploads, WhatsApp, tracking and analytics,
 payments, maps, reviews, ratings, notifications, AI, chat, favorites, and
 saved searches are not implemented. Azure deployment and the complete UI
 are also deferred. No listing UI or additional application tables are added.
-This project stops at Stage 2A.
+This project stops at Stage 2B.

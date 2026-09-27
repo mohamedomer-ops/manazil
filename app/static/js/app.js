@@ -2,6 +2,7 @@
 
 const apiStatus = document.getElementById("api-status");
 const databaseStatus = document.getElementById("database-status");
+const statusLabels = document.querySelector("[data-health-url]").dataset;
 
 function setStatus(element, label, state) {
   element.textContent = label;
@@ -18,12 +19,12 @@ async function checkHealth() {
     if (health.service !== "Manazil" || !["connected", "unavailable"].includes(health.database)) {
       throw new Error("Unexpected health response");
     }
-    setStatus(apiStatus, "Connected", "ok");
+    setStatus(apiStatus, statusLabels.connected, "ok");
     const connected = response.ok && health.database === "connected";
-    setStatus(databaseStatus, connected ? "Connected" : "Unavailable", connected ? "ok" : "error");
+    setStatus(databaseStatus, connected ? statusLabels.connected : statusLabels.unavailable, connected ? "ok" : "error");
   } catch {
-    setStatus(apiStatus, "Unavailable", "error");
-    setStatus(databaseStatus, "Unknown", "error");
+    setStatus(apiStatus, statusLabels.unavailable, "error");
+    setStatus(databaseStatus, statusLabels.unknown, "error");
   }
 }
 

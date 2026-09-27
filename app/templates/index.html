@@ -1,24 +1,32 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Manazil | منازل</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
-  </head>
-  <body>
-    <main>
-      <h1>Manazil <span lang="ar" dir="rtl">منازل</span></h1>
-      <p class="subtitle">Sudan Property Rental Platform</p>
-      <section aria-labelledby="system-title" data-health-url="{{ url_for('main.health') }}">
-        <h2 id="system-title">Manazil System</h2>
-        <div role="status" aria-live="polite">
-          <p>API: <span id="api-status">Checking…</span></p>
-          <p>Database: <span id="database-status">Checking…</span></p>
-        </div>
-        <noscript>Enable JavaScript to display live connection status.</noscript>
-      </section>
-    </main>
-  </body>
-</html>
+{% extends 'base.html' %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='js/app.js') }}"></script>{% endblock %}
+{% block content %}
+<main id="main-content" class="home-page">
+  <section class="home-hero" aria-labelledby="home-title">
+    <div class="hero-copy">
+      <p class="eyebrow">{{ t('Made for Sudan') }}</p>
+      <h1 id="home-title">{{ t('A clearer start for your property.') }}</h1>
+      <p class="subtitle">{{ t("Add your property's details in Arabic and English, with everything in one place.") }}</p>
+      <a class="primary-link" href="{{ url_for('admin.new_property', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('List Your Property') }}</a>
+      <p class="hero-note">{{ t('New properties are saved as Draft and are not publicly visible.') }}</p>
+    </div>
+    <div class="intro-panel">
+      <h2>{{ t('Clear details. Two languages. One property.') }}</h2>
+      <p>{{ t('Start with the Arabic details, then add the English translation.') }}</p>
+      <ol class="intro-steps">
+        <li><span class="step-number" aria-hidden="true">{{ '١' if language == 'ar' else '1' }}</span><div><h3>{{ t('Arabic details') }}</h3><p>{{ t("Your property's title, description and location.") }}</p></div></li>
+        <li><span class="step-number" aria-hidden="true">{{ '٢' if language == 'ar' else '2' }}</span><div><h3>{{ t('English translation') }}</h3><p>{{ t('Add the translation without entering the shared details again.') }}</p></div></li>
+      </ol>
+    </div>
+  </section>
+  <section class="system-status" aria-labelledby="system-title" data-health-url="{{ url_for('main.health') }}"
+           data-connected="{{ t('Connected') }}" data-unavailable="{{ t('Unavailable') }}" data-unknown="{{ t('Unknown') }}">
+    <h2 id="system-title">{{ t('Connection status') }}</h2>
+    <div class="status-items" role="status" aria-live="polite">
+      <p>{{ t('API') }}: <span id="api-status">{{ t('Checking…') }}</span></p>
+      <p>{{ t('Database') }}: <span id="database-status">{{ t('Checking…') }}</span></p>
+    </div>
+    <noscript>{{ t('Enable JavaScript to display live connection status.') }}</noscript>
+  </section>
+</main>
+{% endblock %}

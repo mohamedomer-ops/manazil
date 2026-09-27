@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('Create a property') }} | {{ t('Manazil') }}{% endblock %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='js/property-form.js') }}"></script>{% endblock %}
+{% block language_switcher %}
+  <button type="submit" form="property-form" name="_action" value="switch_ar" formnovalidate lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</button>
+  <span aria-hidden="true">|</span>
+  <button type="submit" form="property-form" name="_action" value="switch_en" formnovalidate lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</button>
+{% endblock %}
+{% macro error(name) -%}
+  {% if name in errors %}<p class="field-error" id="{{ name }}-error">{{ t(errors[name]) }}</p>{% endif %}
+{%- endmacro %}
+{% macro field(name, label, type='text', required=true, multiline=false) -%}
+  <div class="form-field{% if multiline %} full-width{% endif %}">
+    <label for="{{ name }}">{{ t(label) }}{% if required %} <span aria-hidden="true">*</span>{% else %} <span class="optional">{{ t('(optional)') }}</span>{% endif %}</label>
+    {% if multiline %}
+      <textarea id="{{ name }}" name="{{ name }}" rows="4" {% if required %}required{% endif %} {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>{{ values.get(name, '') }}</textarea>
+    {% else %}
+      <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values.get(name, '') }}" {% if required %}required{% endif %} {% if type == 'number' %}min="0" step="{{ '1' if name in ['bedrooms', 'bathrooms'] else 'any' }}"{% endif %} {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+    {% endif %}
+    {{ error(name) }}
+  </div>
+{%- endmacro %}
+{% macro select_field(name, label, options) -%}
+  <div class="form-field">
+    <label for="{{ name }}">{{ t(label) }} <span aria-hidden="true">*</span></label>
+    <select id="{{ name }}" name="{{ name }}" required {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+      <option value="">{{ t('Select an option') }}</option>
+      {% for value, text in options %}<option value="{{ value }}" {% if values.get(name) == value %}selected{% endif %}>{{ t(text) }}</option>{% endfor %}
+      {% if name == 'property_type' and values.get(name) and values.get(name) not in ['apartment', 'house', 'villa', 'office', 'shop', 'land'] %}
+        <option value="{{ values[name] }}" selected>{{ values[name] }}</option>
+      {% endif %}
+    </select>
+    {{ error(name) }}
+  </div>
+{%- endmacro %}
+{% block content %}
+<main id="main-content" class="property-form-page">
+  <p class="eyebrow">{{ t('Property information') }}</p>
+  <h1>{{ t('Create a property') }}</h1>
+  <p class="draft-note">{{ t('New properties are saved as Draft and are not publicly visible.') }}</p>
+  <ol class="form-progress" aria-label="{{ t('Form progress') }}">
+    <li {% if language == 'ar' %}aria-current="step"{% endif %}><span class="step-number" aria-hidden="true">{{ '١' if language == 'ar' else '1' }}</span><span>{{ t('Arabic details') }}</span></li>
+    <li {% if language == 'en' %}aria-current="step"{% endif %}><span class="step-number" aria-hidden="true">{{ '٢' if language == 'ar' else '2' }}</span><span>{{ t('English translation') }}</span></li>
+  </ol>
+  <p class="step-help">{{ t('Shared details stay with you when you switch languages.' if language == 'ar' else 'Complete the English translation, then save your property.') }}</p>
+  <p class="form-hint">{{ t('Fields marked * are required.') }}</p>
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <p class="form-success" role="status">{{ t(message.message).format(id=message.id) }}</p>
+  {% endfor %}
+  {% if save_error %}<p class="form-error-summary" role="alert">{{ t(save_error) }}</p>{% endif %}
+  {% if errors %}<p class="form-error-summary" role="alert">{{ t('The property was not saved. Please correct the highlighted fields.') }}</p>{% endif %}
+  <form id="property-form" method="post" action="{{ url_for('admin.create_property') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="_language" value="{{ language }}">
+    {% set other_language = 'en' if language == 'ar' else 'ar' %}
+    {% for key in ['title', 'description', 'city', 'area'] %}
+      <input type="hidden" name="{{ key }}_{{ other_language }}" value="{{ values.get(key ~ '_' ~ other_language, '') }}">
+      {{ error(key ~ '_' ~ other_language) }}
+    {% endfor %}
+    <fieldset data-language-step="{{ language }}">
+      <legend>{{ t('Basic Information') }}</legend>
+      <div class="form-grid">
+        {{ field('title_' ~ language, 'Title') }}
+        {{ field('description_' ~ language, 'Description', multiline=true) }}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>{{ t('Location') }}</legend>
+      <div class="form-grid">
+        {{ select_field('city_' ~ language, 'State', state_options) }}
+        {{ field('area_' ~ language, 'Area') }}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>{{ t('Property Details') }}</legend>
+      <div class="form-grid">
+        {{ select_field('property_type', 'Property type', [('apartment', 'Apartment'), ('house', 'House'), ('villa', 'Villa'), ('office', 'Office'), ('shop', 'Shop'), ('land', 'Land')]) }}
+        {{ field('monthly_rent', 'Monthly rent', type='number') }}
+        {{ field('currency', 'Currency') }}
+        {{ field('bedrooms', 'Bedrooms', type='number') }}
+        {{ field('bathrooms', 'Bathrooms', type='number') }}
+        {{ field('size', 'Size in square meters', type='number', required=false) }}
+        <div class="form-field full-width">
+          <label class="checkbox-label" for="furnished"><input type="checkbox" id="furnished" name="furnished" {% if values.get('furnished') == 'on' %}checked{% endif %}> {{ t('Furnished') }}</label>
+          {{ error('furnished') }}
+        </div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>{{ t('Amenities') }}</legend>
+      <p class="form-hint" id="amenities-hint">{{ t('Enter one amenity per line, such as Air conditioning, Parking, Kitchen, or Balcony.') }}</p>
+      <label for="amenities">{{ t('Amenities') }} <span class="optional">{{ t('(optional)') }}</span></label>
+      <textarea id="amenities" name="amenities" rows="4" aria-describedby="amenities-hint{% if 'amenities' in errors %} amenities-error{% endif %}" {% if 'amenities' in errors %}aria-invalid="true"{% endif %}>{{ values.get('amenities', '') }}</textarea>
+      {{ error('amenities') }}
+    </fieldset>
+    <fieldset>
+      <legend>{{ t('Contact Information') }}</legend>
+      <div class="form-grid">
+        {{ field('contact_name', 'Contact name') }}
+        {{ field('phone', 'Phone', type='tel') }}
+        {{ field('whatsapp', 'WhatsApp', type='tel', required=false) }}
+        {{ select_field('contact_role', 'Contact role', [('owner', 'Owner'), ('broker', 'Broker')]) }}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>{{ t('Availability') }}</legend>
+      <input type="hidden" name="availability_status" value="{{ values.get('availability_status', 'available') }}">
+      {{ error('availability_status') }}
+      {{ select_field('availability_mode', 'Availability', [('now', 'Available Now'), ('date', 'Available From a Date')]) }}
+      <div data-availability-date>
+        <label for="available_from_date">{{ t('Available from date') }}</label>
+        <input id="available_from_date" name="available_from_date" type="date" min="{{ today }}" value="{{ values.get('available_from_date', '') }}" {% if values.get('availability_mode') == 'date' %}required{% endif %} aria-describedby="availability-date-hint{% if 'available_from_date' in errors %} available_from_date-error{% endif %}" {% if 'available_from_date' in errors %}aria-invalid="true"{% endif %}>
+        <p id="availability-date-hint" class="form-hint">{{ t('Required only when the property is available from a specific date.') }}</p>
+        {{ error('available_from_date') }}
+      </div>
+    </fieldset>
+    <div class="form-actions">
+      {% if language == 'ar' %}
+        <button type="submit" name="_action" value="next">{{ t('Next: English') }}</button>
+      {% else %}
+        <button class="secondary-button" type="submit" name="_action" value="switch_ar" formnovalidate>{{ t('Back to Arabic') }}</button>
+        <button type="submit" name="_action" value="save">{{ t('Save Property') }}</button>
+      {% endif %}
+    </div>
+  </form>
+</main>
+{% endblock %}
