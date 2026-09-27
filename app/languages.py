@@ -1,7 +1,93 @@
 from flask import request
 
 
+ENGLISH_MONTHS = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+ARABIC_MONTHS = (
+    "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+    "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+)
+PROPERTY_TYPE_NAMES = {
+    "apartment": "Apartment", "house": "House", "villa": "Villa",
+    "office": "Office", "shop": "Shop", "land": "Land",
+}
+
+
 ARABIC = {
+    "Submitted properties are reviewed before publication.": "تُراجع العقارات المُرسلة قبل نشرها.",
+    "Submit for Review": "إرسال للمراجعة",
+    "Your property has been submitted for review successfully.": "تم إرسال العقار للمراجعة بنجاح.",
+    "Each category can contain up to 4 photos. Photos are optional.": "يمكن إضافة أربع صور كحد أقصى لكل فئة. الصور اختيارية.",
+    "Upload photos": "رفع الصور",
+    "Add photos": "إضافة الصور",
+    "Primary photo": "الصورة الرئيسية",
+    "Set primary": "اجعلها رئيسية",
+    "Move earlier": "تقديم الصورة",
+    "Move later": "تأخير الصورة",
+    "Delete": "حذف",
+    "No photos added.": "لم تُضف صور.",
+    "No photo available": "لا توجد صورة",
+    "Pending properties": "العقارات قيد المراجعة",
+    "Internal review": "المراجعة الداخلية",
+    "Submitted date": "تاريخ الإرسال",
+    "Status": "الحالة",
+    "Draft": "مسودة",
+    "Pending": "قيد المراجعة",
+    "Published": "منشور",
+    "Archived": "مؤرشف",
+    "Review property": "مراجعة العقار",
+    "No properties are pending review.": "لا توجد عقارات قيد المراجعة.",
+    "Approve & Publish": "موافقة ونشر",
+    "Reject / Needs Changes": "رفض / يحتاج إلى تعديلات",
+    "Property published successfully.": "تم نشر العقار بنجاح.",
+    "Property returned to Draft for changes.": "أُعيد العقار إلى المسودة للتعديل.",
+    "photos": "صور",
+    "Choose a file with a safe filename.": "اختر ملفاً باسم آمن.",
+    "Only JPEG, PNG, and WebP images are allowed.": "يُسمح فقط بصور JPEG وPNG وWebP.",
+    "The image type does not match its filename.": "نوع الصورة لا يطابق امتداد الملف.",
+    "The image file is empty.": "ملف الصورة فارغ.",
+    "The image exceeds the 5 MB limit.": "حجم الصورة يتجاوز حد 5 ميغابايت.",
+    "The image content is invalid.": "محتوى الصورة غير صالح.",
+    "The photo session is invalid or expired.": "انتهت صلاحية جلسة الصور أو أنها غير صالحة.",
+    "The photo reference is invalid.": "مرجع الصورة غير صالح.",
+    "The photo session could not be read.": "تعذرت قراءة جلسة الصور.",
+    "Choose a valid photo category.": "اختر فئة صور صالحة.",
+    "Choose at least one photo.": "اختر صورة واحدة على الأقل.",
+    "A category can contain at most 4 photos.": "يمكن إضافة أربع صور كحد أقصى لكل فئة.",
+    "Choose a valid photo.": "اختر صورة صالحة.",
+    "Choose a valid photo action.": "اختر إجراء صور صالحاً.",
+    "An uploaded photo is missing. Please upload it again.": "إحدى الصور المرفوعة مفقودة. يرجى رفعها مجدداً.",
+    "This property has already been submitted.": "أُرسل هذا العقار للمراجعة بالفعل.",
+    "Arabic title": "العنوان بالعربية",
+    "Arabic description": "الوصف بالعربية",
+    "Arabic city": "المدينة بالعربية",
+    "Arabic area": "المنطقة بالعربية",
+    "Add your property details once in Arabic, then review and save your draft.": "أدخل تفاصيل عقارك مرة واحدة بالعربية، ثم راجعها واحفظ المسودة.",
+    "One entry. Seven clear steps.": "إدخال واحد. سبع خطوات واضحة.",
+    "Complete the property details and review them before saving.": "أكمل تفاصيل العقار وراجعها قبل الحفظ.",
+    "Enter property details": "أدخل تفاصيل العقار",
+    "Review and save": "راجع واحفظ",
+    "Your Arabic details stay with you when you switch the interface language.": "تبقى بياناتك العربية محفوظة عند تبديل لغة الواجهة.",
+    "Price & Availability": "السعر والتوافر",
+    "Photos": "الصور",
+    "Review": "المراجعة",
+    "Step": "الخطوة",
+    "of": "من",
+    "Next": "التالي",
+    "Back": "السابق",
+    "Edit": "تعديل",
+    "Photos will be added in the next stage.": "ستُضاف الصور في المرحلة القادمة.",
+    "Properties": "العقارات",
+    "No properties are currently available.": "لا توجد عقارات متاحة حالياً.",
+    "Available from": "متاح من",
+    "Unfurnished": "غير مفروش",
+    "Furnishing": "التأثيث",
+    "Property details": "تفاصيل العقار",
+    "Contact Owner": "تواصل مع المالك",
+    "Contact Broker": "تواصل مع الوسيط",
+    "View Property": "عرض العقار",
     "State": "الولاية",
     "Choose a Sudanese state from the list.": "اختر ولاية سودانية من القائمة.",
     "Available Now": "متاح الآن", "Available From a Date": "متاح من تاريخ محدد",
@@ -62,6 +148,25 @@ def current_language():
 
 def translate(message, language):
     return ARABIC.get(message, message) if language == "ar" else message
+
+
+def availability_label(available_from_date, language, today):
+    if available_from_date is None or available_from_date <= today:
+        return translate("Available Now", language)
+    if language == "ar":
+        month = ARABIC_MONTHS[available_from_date.month - 1]
+        return f"{translate('Available from', language)} {available_from_date.day} {month} {available_from_date.year}"
+    month = ENGLISH_MONTHS[available_from_date.month - 1]
+    return f"Available from {month} {available_from_date.day}, {available_from_date.year}"
+
+
+def format_rent(amount):
+    formatted = format(amount, ",f")
+    return formatted.rstrip("0").rstrip(".") if "." in formatted else formatted
+
+
+def property_type_label(value, language):
+    return translate(PROPERTY_TYPE_NAMES.get(value, value), language)
 
 
 def template_language():

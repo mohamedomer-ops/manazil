@@ -6,122 +6,100 @@
   <span aria-hidden="true">|</span>
   <button type="submit" form="property-form" name="_action" value="switch_en" formnovalidate lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</button>
 {% endblock %}
-{% macro error(name) -%}
-  {% if name in errors %}<p class="field-error" id="{{ name }}-error">{{ t(errors[name]) }}</p>{% endif %}
-{%- endmacro %}
+{% macro error(name) -%}{% if name in errors %}<p class="field-error" id="{{ name }}-error">{{ t(errors[name]) }}</p>{% endif %}{%- endmacro %}
 {% macro field(name, label, type='text', required=true, multiline=false) -%}
   <div class="form-field{% if multiline %} full-width{% endif %}">
     <label for="{{ name }}">{{ t(label) }}{% if required %} <span aria-hidden="true">*</span>{% else %} <span class="optional">{{ t('(optional)') }}</span>{% endif %}</label>
-    {% if multiline %}
-      <textarea id="{{ name }}" name="{{ name }}" rows="4" {% if required %}required{% endif %} {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>{{ values.get(name, '') }}</textarea>
-    {% else %}
-      <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values.get(name, '') }}" {% if required %}required{% endif %} {% if type == 'number' %}min="0" step="{{ '1' if name in ['bedrooms', 'bathrooms'] else 'any' }}"{% endif %} {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
-    {% endif %}
+    {% if multiline %}<textarea id="{{ name }}" name="{{ name }}" rows="4" {% if required %}required{% endif %} {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>{{ values.get(name, '') }}</textarea>
+    {% else %}<input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ values.get(name, '') }}" {% if required %}required{% endif %} {% if type == 'number' %}min="0" step="{{ '1' if name in ['bedrooms', 'bathrooms'] else 'any' }}"{% endif %} {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>{% endif %}
     {{ error(name) }}
   </div>
 {%- endmacro %}
 {% macro select_field(name, label, options) -%}
-  <div class="form-field">
-    <label for="{{ name }}">{{ t(label) }} <span aria-hidden="true">*</span></label>
+  <div class="form-field"><label for="{{ name }}">{{ t(label) }} <span aria-hidden="true">*</span></label>
     <select id="{{ name }}" name="{{ name }}" required {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
       <option value="">{{ t('Select an option') }}</option>
       {% for value, text in options %}<option value="{{ value }}" {% if values.get(name) == value %}selected{% endif %}>{{ t(text) }}</option>{% endfor %}
-      {% if name == 'property_type' and values.get(name) and values.get(name) not in ['apartment', 'house', 'villa', 'office', 'shop', 'land'] %}
-        <option value="{{ values[name] }}" selected>{{ values[name] }}</option>
-      {% endif %}
-    </select>
-    {{ error(name) }}
+    </select>{{ error(name) }}
   </div>
 {%- endmacro %}
 {% block content %}
-<main id="main-content" class="property-form-page">
+<main id="main-content" class="property-form-page wizard-page">
   <p class="eyebrow">{{ t('Property information') }}</p>
   <h1>{{ t('Create a property') }}</h1>
-  <p class="draft-note">{{ t('New properties are saved as Draft and are not publicly visible.') }}</p>
-  <ol class="form-progress" aria-label="{{ t('Form progress') }}">
-    <li {% if language == 'ar' %}aria-current="step"{% endif %}><span class="step-number" aria-hidden="true">{{ '١' if language == 'ar' else '1' }}</span><span>{{ t('Arabic details') }}</span></li>
-    <li {% if language == 'en' %}aria-current="step"{% endif %}><span class="step-number" aria-hidden="true">{{ '٢' if language == 'ar' else '2' }}</span><span>{{ t('English translation') }}</span></li>
-  </ol>
-  <p class="step-help">{{ t('Shared details stay with you when you switch languages.' if language == 'ar' else 'Complete the English translation, then save your property.') }}</p>
-  <p class="form-hint">{{ t('Fields marked * are required.') }}</p>
-  {% for category, message in get_flashed_messages(with_categories=true) %}
-    <p class="form-success" role="status">{{ t(message.message).format(id=message.id) }}</p>
-  {% endfor %}
+  <p class="draft-note">{{ t('Submitted properties are reviewed before publication.') }}</p>
+  <nav class="wizard-progress" aria-label="{{ t('Form progress') }}"><ol>
+    {% for label in steps %}<li class="{% if loop.index < step %}completed{% elif loop.index == step %}current{% endif %}" {% if loop.index == step %}aria-current="step"{% endif %}><span class="step-number" aria-hidden="true">{{ loop.index }}</span><span>{{ t(label) }}</span></li>{% endfor %}
+  </ol></nav>
+  <div class="wizard-mobile-progress" aria-label="{{ t('Form progress') }}"><p>{{ t('Step') }} {{ step }} {{ t('of') }} {{ steps|length }}</p><strong>{{ t(steps[step - 1]) }}</strong><progress value="{{ step }}" max="{{ steps|length }}">{{ step }}/{{ steps|length }}</progress></div>
+  {% for category, message in get_flashed_messages(with_categories=true) %}<p class="form-success" role="status">{{ t(message.message).format(id=message.id) }}</p>{% endfor %}
   {% if save_error %}<p class="form-error-summary" role="alert">{{ t(save_error) }}</p>{% endif %}
+  {% if photo_error %}<p class="form-error-summary" role="alert">{{ t(photo_error) }}</p>{% endif %}
   {% if errors %}<p class="form-error-summary" role="alert">{{ t('The property was not saved. Please correct the highlighted fields.') }}</p>{% endif %}
-  <form id="property-form" method="post" action="{{ url_for('admin.create_property') }}" novalidate>
+  <form id="property-form" method="post" enctype="multipart/form-data" action="{{ url_for('admin.create_property') }}" novalidate>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="_wizard" value="1">
+    <input type="hidden" name="_step" value="{{ step }}">
     <input type="hidden" name="_language" value="{{ language }}">
-    {% set other_language = 'en' if language == 'ar' else 'ar' %}
-    {% for key in ['title', 'description', 'city', 'area'] %}
-      <input type="hidden" name="{{ key }}_{{ other_language }}" value="{{ values.get(key ~ '_' ~ other_language, '') }}">
-      {{ error(key ~ '_' ~ other_language) }}
-    {% endfor %}
-    <fieldset data-language-step="{{ language }}">
-      <legend>{{ t('Basic Information') }}</legend>
-      <div class="form-grid">
-        {{ field('title_' ~ language, 'Title') }}
-        {{ field('description_' ~ language, 'Description', multiline=true) }}
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>{{ t('Location') }}</legend>
-      <div class="form-grid">
-        {{ select_field('city_' ~ language, 'State', state_options) }}
-        {{ field('area_' ~ language, 'Area') }}
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>{{ t('Property Details') }}</legend>
-      <div class="form-grid">
-        {{ select_field('property_type', 'Property type', [('apartment', 'Apartment'), ('house', 'House'), ('villa', 'Villa'), ('office', 'Office'), ('shop', 'Shop'), ('land', 'Land')]) }}
-        {{ field('monthly_rent', 'Monthly rent', type='number') }}
-        {{ field('currency', 'Currency') }}
-        {{ field('bedrooms', 'Bedrooms', type='number') }}
-        {{ field('bathrooms', 'Bathrooms', type='number') }}
-        {{ field('size', 'Size in square meters', type='number', required=false) }}
-        <div class="form-field full-width">
-          <label class="checkbox-label" for="furnished"><input type="checkbox" id="furnished" name="furnished" {% if values.get('furnished') == 'on' %}checked{% endif %}> {{ t('Furnished') }}</label>
-          {{ error('furnished') }}
+    <input type="hidden" name="_photo_token" value="{{ photo_token }}">
+    {% for name in form_fields if name not in visible_fields %}<input type="hidden" name="{{ name }}" value="{{ values.get(name, '') }}">{% endfor %}
+    <fieldset class="wizard-panel"><legend>{{ t(steps[step - 1]) }}</legend>
+      {% if step == 1 %}
+        <div class="form-grid">{{ select_field('property_type', 'Property type', [('apartment','Apartment'),('house','House'),('villa','Villa'),('office','Office'),('shop','Shop'),('land','Land')]) }}{{ field('title_ar', 'Arabic title') }}{{ field('description_ar', 'Arabic description', multiline=true) }}</div>
+      {% elif step == 2 %}
+        <div class="form-grid">{{ select_field('state_' ~ language, 'State', state_options) }}{{ field('city_ar', 'Arabic city') }}{{ field('area_ar', 'Arabic area') }}</div>
+      {% elif step == 3 %}
+        <div class="form-grid">{{ field('bedrooms', 'Bedrooms', type='number') }}{{ field('bathrooms', 'Bathrooms', type='number') }}{{ field('size', 'Size in square meters', type='number', required=false) }}
+          <div class="form-field"><label class="checkbox-label" for="furnished"><input type="checkbox" id="furnished" name="furnished" {% if values.get('furnished') == 'on' %}checked{% endif %}> {{ t('Furnished') }}</label>{{ error('furnished') }}</div>
+          <div class="form-field full-width"><label for="amenities">{{ t('Amenities') }} <span class="optional">{{ t('(optional)') }}</span></label><p class="form-hint" id="amenities-hint">{{ t('Enter one amenity per line, such as Air conditioning, Parking, Kitchen, or Balcony.') }}</p><textarea id="amenities" name="amenities" rows="4" aria-describedby="amenities-hint{% if 'amenities' in errors %} amenities-error{% endif %}">{{ values.get('amenities', '') }}</textarea>{{ error('amenities') }}</div>
         </div>
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>{{ t('Amenities') }}</legend>
-      <p class="form-hint" id="amenities-hint">{{ t('Enter one amenity per line, such as Air conditioning, Parking, Kitchen, or Balcony.') }}</p>
-      <label for="amenities">{{ t('Amenities') }} <span class="optional">{{ t('(optional)') }}</span></label>
-      <textarea id="amenities" name="amenities" rows="4" aria-describedby="amenities-hint{% if 'amenities' in errors %} amenities-error{% endif %}" {% if 'amenities' in errors %}aria-invalid="true"{% endif %}>{{ values.get('amenities', '') }}</textarea>
-      {{ error('amenities') }}
-    </fieldset>
-    <fieldset>
-      <legend>{{ t('Contact Information') }}</legend>
-      <div class="form-grid">
-        {{ field('contact_name', 'Contact name') }}
-        {{ field('phone', 'Phone', type='tel') }}
-        {{ field('whatsapp', 'WhatsApp', type='tel', required=false) }}
-        {{ select_field('contact_role', 'Contact role', [('owner', 'Owner'), ('broker', 'Broker')]) }}
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>{{ t('Availability') }}</legend>
-      <input type="hidden" name="availability_status" value="{{ values.get('availability_status', 'available') }}">
-      {{ error('availability_status') }}
-      {{ select_field('availability_mode', 'Availability', [('now', 'Available Now'), ('date', 'Available From a Date')]) }}
-      <div data-availability-date>
-        <label for="available_from_date">{{ t('Available from date') }}</label>
-        <input id="available_from_date" name="available_from_date" type="date" min="{{ today }}" value="{{ values.get('available_from_date', '') }}" {% if values.get('availability_mode') == 'date' %}required{% endif %} aria-describedby="availability-date-hint{% if 'available_from_date' in errors %} available_from_date-error{% endif %}" {% if 'available_from_date' in errors %}aria-invalid="true"{% endif %}>
-        <p id="availability-date-hint" class="form-hint">{{ t('Required only when the property is available from a specific date.') }}</p>
-        {{ error('available_from_date') }}
-      </div>
-    </fieldset>
-    <div class="form-actions">
-      {% if language == 'ar' %}
-        <button type="submit" name="_action" value="next">{{ t('Next: English') }}</button>
+      {% elif step == 4 %}
+        <input type="hidden" name="availability_status" value="{{ values.get('availability_status', 'available') }}">
+        <div class="form-grid">{{ field('monthly_rent', 'Monthly rent', type='number') }}{{ field('currency', 'Currency') }}{{ error('availability_status') }}{{ select_field('availability_mode', 'Availability', [('now','Available Now'),('date','Available From a Date')]) }}
+          <div class="form-field" data-availability-date><label for="available_from_date">{{ t('Available from date') }}</label><input id="available_from_date" name="available_from_date" type="date" min="{{ today }}" value="{{ values.get('available_from_date', '') }}" {% if values.get('availability_mode') == 'date' %}required{% endif %} {% if 'available_from_date' in errors %}aria-invalid="true" aria-describedby="available_from_date-error"{% endif %}>{{ error('available_from_date') }}</div>
+        </div>
+      {% elif step == 5 %}
+        <p class="form-hint">{{ t('Each category can contain up to 4 photos. Photos are optional.') }}</p>
+        <div class="photo-upload-grid">{% for category in photo_categories %}
+          {% set category_photos = photos | selectattr('category', 'equalto', category) | list %}
+          <section class="photo-upload-box" aria-labelledby="category-{{ category }}">
+            <div class="photo-box-heading"><h2 id="category-{{ category }}">{{ category_label(category, language) }}</h2><span>{{ category_photos|length }} / 4</span></div>
+            <label for="photos-{{ category }}">{{ t('Upload photos') }}</label>
+            <input id="photos-{{ category }}" type="file" name="photos_{{ category }}" accept="image/jpeg,image/png,image/webp" multiple>
+            <button class="photo-upload-button" type="submit" name="_action" value="upload_{{ category }}" formnovalidate>{{ t('Add photos') }}</button>
+            {% if category_photos %}<ol class="photo-thumbnails">
+              {% for photo in category_photos|sort(attribute='display_order') %}<li>
+                <img src="{{ url_for('admin.staged_photo', token=photo_token, photo_id=photo.id) }}" alt="{{ category_label(category, language) }} {{ loop.index }}" loading="lazy">
+                <div class="photo-thumb-actions">
+                  {% if photo.is_primary %}<span class="primary-photo-label">{{ t('Primary photo') }}</span>{% else %}<button type="submit" name="_action" value="primary_{{ photo.id }}" formnovalidate>{{ t('Set primary') }}</button>{% endif %}
+                  <button type="submit" name="_action" value="up_{{ photo.id }}" formnovalidate aria-label="{{ t('Move earlier') }}">↑</button>
+                  <button type="submit" name="_action" value="down_{{ photo.id }}" formnovalidate aria-label="{{ t('Move later') }}">↓</button>
+                  <button type="submit" name="_action" value="delete_{{ photo.id }}" formnovalidate>{{ t('Delete') }}</button>
+                </div>
+              </li>{% endfor %}
+            </ol>{% endif %}
+          </section>
+        {% endfor %}</div>
+      {% elif step == 6 %}
+        <div class="form-grid">{{ field('contact_name', 'Contact name') }}{{ field('phone', 'Phone', type='tel') }}{{ field('whatsapp', 'WhatsApp', type='tel', required=false) }}{{ select_field('contact_role', 'Contact role', [('owner','Owner'),('broker','Broker')]) }}</div>
       {% else %}
-        <button class="secondary-button" type="submit" name="_action" value="switch_ar" formnovalidate>{{ t('Back to Arabic') }}</button>
-        <button type="submit" name="_action" value="save">{{ t('Save Property') }}</button>
+        {% set sections = [
+          ('Basic Information', [('Property type','property_type'), ('Arabic title', 'title_ar'), ('Arabic description', 'description_ar')]),
+          ('Location', [('State','state_' ~ language), ('Arabic city','city_ar'), ('Arabic area','area_ar')]),
+          ('Property Details', [('Bedrooms','bedrooms'), ('Bathrooms','bathrooms'), ('Size in square meters','size'), ('Furnished','furnished'), ('Amenities','amenities')]),
+          ('Price & Availability', [('Monthly rent','monthly_rent'), ('Currency','currency'), ('Availability','availability_mode'), ('Available from date','available_from_date')]),
+          ('Photos', []),
+          ('Contact Information', [('Contact name','contact_name'), ('Phone','phone'), ('WhatsApp','whatsapp'), ('Contact role','contact_role')])
+        ] %}
+        <div class="review-sections">{% for heading, items in sections %}<section class="review-section"><div class="review-heading"><h2>{{ t(heading) }}</h2><button type="submit" class="text-button" name="_action" value="go_{{ loop.index }}" formnovalidate>{{ t('Edit') }}</button></div>
+          {% if heading == 'Photos' %}
+            {% if photos %}<div class="review-photo-groups">{% for category in photo_categories %}{% set category_photos = photos | selectattr('category', 'equalto', category) | list %}{% if category_photos %}<div><h3>{{ category_label(category, language) }}</h3><div class="review-photo-row">{% for photo in category_photos|sort(attribute='display_order') %}<figure><img src="{{ url_for('admin.staged_photo', token=photo_token, photo_id=photo.id) }}" alt="{{ category_label(category, language) }} {{ loop.index }}" loading="lazy">{% if photo.is_primary %}<figcaption>{{ t('Primary photo') }}</figcaption>{% endif %}</figure>{% endfor %}</div></div>{% endif %}{% endfor %}</div>
+            {% else %}<p>{{ t('No photos added.') }}</p>{% endif %}
+          {% else %}<dl>{% for label, name in items %}<div><dt>{{ t(label) }}</dt><dd>{% if name == 'furnished' %}{{ t('Furnished' if values.get(name) == 'on' else 'Unfurnished') }}{% elif name == 'availability_mode' %}{{ t('Available From a Date' if values.get(name) == 'date' else 'Available Now') }}{% elif name == 'property_type' %}{{ t({'apartment':'Apartment','house':'House','villa':'Villa','office':'Office','shop':'Shop','land':'Land'}.get(values.get(name), values.get(name, ''))) }}{% elif name == 'contact_role' %}{{ t('Owner' if values.get(name) == 'owner' else 'Broker') }}{% else %}{{ values.get(name, '') or '—' }}{% endif %}</dd></div>{% endfor %}</dl>{% endif %}
+        </section>{% endfor %}</div>
       {% endif %}
-    </div>
+    </fieldset>
+    <div class="form-actions wizard-actions">{% if step > 1 %}<button class="secondary-button" type="submit" name="_action" value="back" formnovalidate><span aria-hidden="true">{{ '→' if language == 'ar' else '←' }}</span> {{ t('Back') }}</button>{% endif %}<button type="submit" name="_action" value="{{ 'submit' if step == 7 else 'next' }}">{{ t('Submit for Review' if step == 7 else 'Next') }}{% if step < 7 %} <span aria-hidden="true">{{ '←' if language == 'ar' else '→' }}</span>{% endif %}</button></div>
   </form>
 </main>
 {% endblock %}

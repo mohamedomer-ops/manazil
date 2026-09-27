@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% from 'components/photo_gallery.html' import photo_gallery %}
+{% set status_names = {'draft': 'Draft', 'pending': 'Pending', 'published': 'Published', 'archived': 'Archived'} %}
+{% block title %}{{ t('Review property') }} | {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="admin-review-page">
+  <a class="detail-back-link" href="{{ url_for('admin.pending_properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Pending properties') }}</a>
+  <header class="detail-hero">
+    <p class="eyebrow">{{ t('Internal review') }}</p>
+    <h1>{{ property.title_ar }}</h1>
+    <p class="detail-location">{{ property.state_ar }} · {{ property.city_ar }} · {{ property.area_ar }}</p>
+    <p><span class="status-badge status-{{ property.publication_status }}">{{ t(status_names[property.publication_status]) }}</span></p>
+  </header>
+  {{ photo_gallery(property.photos, photo_categories, category_label, language, 'admin.review_photo') }}
+  <div class="admin-review-sections">
+    <section class="detail-panel"><h2>{{ t('Basic Information') }}</h2><dl class="review-details">
+      <div><dt>{{ t('Property type') }}</dt><dd>{{ property_type_label(property.property_type, language) }}</dd></div>
+      <div><dt>{{ t('Arabic title') }}</dt><dd>{{ property.title_ar }}</dd></div>
+      <div><dt>{{ t('Arabic description') }}</dt><dd>{{ property.description_ar }}</dd></div>
+    </dl></section>
+    <section class="detail-panel"><h2>{{ t('Location') }}</h2><dl class="review-details">
+      <div><dt>{{ t('State') }}</dt><dd>{{ property.state_ar if language == 'ar' else property.state_en }}</dd></div>
+      <div><dt>{{ t('City') }}</dt><dd>{{ property.city_ar }}</dd></div>
+      <div><dt>{{ t('Area') }}</dt><dd>{{ property.area_ar }}</dd></div>
+    </dl></section>
+    <section class="detail-panel"><h2>{{ t('Property Details') }}</h2><dl class="review-details">
+      <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
+      <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
+      {% if property.size is not none %}<div><dt>{{ t('Size in square meters') }}</dt><dd>{{ format_rent(property.size) }}</dd></div>{% endif %}
+      <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished' if property.furnished else 'Unfurnished') }}</dd></div>
+      {% if property.amenities %}<div><dt>{{ t('Amenities') }}</dt><dd>{{ property.amenities|join(', ') }}</dd></div>{% endif %}
+    </dl></section>
+    <section class="detail-panel"><h2>{{ t('Price & Availability') }}</h2><dl class="review-details">
+      <div><dt>{{ t('Monthly rent') }}</dt><dd>{{ format_rent(property.monthly_rent) }} {{ property.currency }}</dd></div>
+      <div><dt>{{ t('Availability status') }}</dt><dd>{{ t('Available' if property.availability_status == 'available' else 'Rented') }}</dd></div>
+      <div><dt>{{ t('Availability') }}</dt><dd>{{ availability_label(property.available_from_date, language, today) }}</dd></div>
+    </dl></section>
+    <section class="detail-panel"><h2>{{ t('Photos') }}</h2><p>{{ property.photos|length }} {{ t('photos') }}</p>{% if not property.photos %}<p>{{ t('No photos added.') }}</p>{% endif %}</section>
+    <section class="detail-panel"><h2>{{ t('Contact Information') }}</h2><dl class="review-details">
+      <div><dt>{{ t('Contact name') }}</dt><dd>{{ property.contact_name }}</dd></div>
+      <div><dt>{{ t('Phone') }}</dt><dd dir="ltr">{{ property.phone }}</dd></div>
+      {% if property.whatsapp %}<div><dt>{{ t('WhatsApp') }}</dt><dd dir="ltr">{{ property.whatsapp }}</dd></div>{% endif %}
+      <div><dt>{{ t('Contact role') }}</dt><dd>{{ t('Owner' if property.contact_role == 'owner' else 'Broker') }}</dd></div>
+    </dl></section>
+  </div>
+  {% if property.publication_status == 'pending' %}<div class="review-decisions">
+    <form method="post" action="{{ url_for('admin.approve_property', property_id=property.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="_language" value="{{ language }}"><button class="primary-link" type="submit">{{ t('Approve & Publish') }}</button></form>
+    <form method="post" action="{{ url_for('admin.reject_property', property_id=property.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="_language" value="{{ language }}"><button class="secondary-button" type="submit">{{ t('Reject / Needs Changes') }}</button></form>
+  </div>{% endif %}
+</main>
+{% endblock %}

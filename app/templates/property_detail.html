@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% from 'components/availability_badge.html' import availability_badge %}
+{% from 'components/photo_gallery.html' import photo_gallery %}
+{% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
+{% set city = property.city_ar if language == 'ar' or not property.city_en else property.city_en %}
+{% set state = property.state_ar if language == 'ar' else property.state_en %}
+{% set area = property.area_ar if language == 'ar' or not property.area_en else property.area_en %}
+{% set description = property.description_ar if language == 'ar' or not property.description_en else property.description_en %}
+{% set contact_action = 'Contact Owner' if property.contact_role == 'owner' else 'Contact Broker' %}
+{% block title %}{{ title }} | {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="property-detail-page">
+  <a class="detail-back-link" href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Properties') }}</a>
+  <header class="detail-hero">
+    <p class="detail-location">{% if state != city %}{{ state }} · {% endif %}{{ city }} · {{ area }}</p>
+    <h1>{{ title }}</h1>
+    <p class="detail-type">{{ property_type_label(property.property_type, language) }}</p>
+    <div class="detail-price-row">
+      <div class="detail-price">
+        <span>{{ t('Monthly rent') }}</span>
+        <strong dir="ltr">{{ format_rent(property.monthly_rent) }} {{ property.currency }}</strong>
+      </div>
+      {{ availability_badge(property.available_from_date, language, today, availability_label, 'property-detail-availability') }}
+    </div>
+  </header>
+  {{ photo_gallery(property.photos, photo_categories, category_label, language, 'main.public_photo') }}
+  <div class="detail-layout">
+    <aside class="detail-contact" aria-labelledby="contact-heading">
+      <h2 id="contact-heading">{{ t('Contact Information') }}</h2>
+      <p class="detail-contact-name">{{ property.contact_name }}</p>
+      <p class="detail-contact-role">{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</p>
+      <dl class="detail-contact-numbers">
+        <div><dt>{{ t('Phone') }}</dt><dd dir="ltr">{{ property.phone }}</dd></div>
+        {% if property.whatsapp %}
+          <div><dt>{{ t('WhatsApp') }}</dt><dd dir="ltr">{% if whatsapp_url %}<a href="{{ whatsapp_url }}">{{ property.whatsapp }}</a>{% else %}{{ property.whatsapp }}{% endif %}</dd></div>
+        {% endif %}
+      </dl>
+      {% if phone_url %}
+        <a class="detail-contact-action" href="{{ phone_url }}">{{ t(contact_action) }}</a>
+      {% else %}
+        <button class="detail-contact-action" type="button" disabled>{{ t(contact_action) }}</button>
+      {% endif %}
+    </aside>
+    <div class="detail-main">
+      <section class="detail-panel" aria-labelledby="facts-heading">
+        <h2 id="facts-heading">{{ t('Property details') }}</h2>
+        <dl class="detail-facts">
+          <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
+          <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
+          {% if property.size is not none %}<div><dt>{{ t('Size in square meters') }}</dt><dd>{{ format_rent(property.size) }}</dd></div>{% endif %}
+          <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>
+        </dl>
+      </section>
+      <section class="detail-panel" aria-labelledby="description-heading">
+        <h2 id="description-heading">{{ t('Description') }}</h2>
+        <p class="detail-description">{{ description }}</p>
+      </section>
+      {% if property.amenities %}
+        <section class="detail-panel" aria-labelledby="amenities-heading">
+          <h2 id="amenities-heading">{{ t('Amenities') }}</h2>
+          <ul class="detail-amenities">{% for amenity in property.amenities %}<li dir="auto">{{ amenity }}</li>{% endfor %}</ul>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+</main>
+{% endblock %}

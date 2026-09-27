@@ -7,7 +7,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN useradd --create-home manazil && chown manazil:manazil /app
+RUN useradd --create-home manazil && mkdir -p /app/instance/property_photos && chown -R manazil:manazil /app/instance /app
 COPY --chown=manazil:manazil . .
 USER manazil
 

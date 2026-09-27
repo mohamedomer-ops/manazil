@@ -1,0 +1,3 @@
+{% macro availability_badge(available_from_date, language, today, availability_label, css_class) -%}
+  <p class="{{ css_class }}"><span class="availability-dot" aria-hidden="true"></span><span class="availability-text">{{ availability_label(available_from_date, language, today) }}</span></p>
+{%- endmacro %}

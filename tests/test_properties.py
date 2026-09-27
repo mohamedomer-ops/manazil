@@ -19,6 +19,7 @@ def values():
     return {
         "title_en": "Apartment in Khartoum", "title_ar": "شقة في الخرطوم",
         "description_en": "A spacious apartment", "description_ar": "شقة واسعة",
+        "state_en": "Khartoum", "state_ar": "الخرطوم",
         "city_en": "Khartoum", "city_ar": "الخرطوم",
         "area_en": "Al Riyadh", "area_ar": "الرياض",
         "property_type": "apartment", "monthly_rent": Decimal("125000.50"),
@@ -66,6 +67,17 @@ def test_model_and_defaults(values):
     other = Property(**values)
     property.amenities.append("Water")
     assert other.amenities == []
+
+
+def test_english_text_can_be_empty_through_publication(session, values):
+    english_fields = ("title_en", "description_en", "city_en", "area_en")
+    property = Property(**(values | {field: "" for field in english_fields}))
+    session.add(property)
+    session.commit()
+    assert all(getattr(property, field) == "" for field in english_fields)
+    property.publication_status = "published"
+    session.flush()
+    assert property.publication_status == "published"
 
 
 @pytest.mark.parametrize("role", ["owner", "broker"])
@@ -129,9 +141,9 @@ def test_required_numbers_and_boolean_reject_none(values, field):
 
 
 def test_missing_required_field_rejected_on_save(session, values):
-    del values["title_en"]
+    del values["title_ar"]
     session.add(Property(**values))
-    with pytest.raises(ValueError, match="title_en"):
+    with pytest.raises(ValueError, match="title_ar"):
         session.flush()
 
 
@@ -159,8 +171,8 @@ def test_zero_values_and_optional_fields(session, values):
 
 
 def test_migration_creates_table_and_version(migrated_connection):
-    assert set(inspect(migrated_connection).get_table_names()) == {"properties", "alembic_version"}
-    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0002_available_from_date"
+    assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "alembic_version"}
+    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0005_property_photos"
     columns = inspect(migrated_connection).get_columns("properties")
     assert {column["name"] for column in columns} == set(Property.__table__.columns.keys())
 
@@ -169,7 +181,7 @@ def test_migration_creates_table_and_version(migrated_connection):
     ("monthly_rent", -1), ("bedrooms", -1), ("bathrooms", -1), ("size", -1),
     ("contact_role", "admin"), ("publication_status", "invalid"),
     ("availability_status", "invalid"), ("property_type", " \t"),
-    ("title_en", ""), ("title_ar", None),
+    ("title_ar", ""), ("title_ar", None),
 ])
 def test_database_constraints_reject_bypassed_validation(migrated_connection, values, field, value):
     with pytest.raises(IntegrityError):

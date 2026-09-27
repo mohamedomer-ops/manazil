@@ -13,13 +13,14 @@
       <a class="site-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Manazil') }}</a>
       <nav aria-label="{{ 'التنقل الرئيسي' if language == 'ar' else 'Main navigation' }}">
         <a href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>{{ t('Home') }}</a>
+        <a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('main.properties', 'main.property_detail') %}aria-current="page"{% endif %}>{{ t('Properties') }}</a>
         <a href="{{ url_for('admin.new_property', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.blueprint == 'admin' %}aria-current="page"{% endif %}>{{ t('List Your Property') }}</a>
       </nav>
       <div class="language-switcher" aria-label="{{ 'اللغة' if language == 'ar' else 'Language' }}">
         {% block language_switcher %}
-          <a href="{{ url_for('main.index') }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a>
+          <a href="{{ url_for(request.endpoint, **(request.view_args or {})) }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a>
           <span aria-hidden="true">|</span>
-          <a href="{{ url_for('main.index', lang='en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
+          <a href="{{ url_for(request.endpoint, lang='en', **(request.view_args or {})) }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
         {% endblock %}
       </div>
     </header>

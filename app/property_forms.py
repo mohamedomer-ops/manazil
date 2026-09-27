@@ -3,13 +3,13 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from zoneinfo import ZoneInfo
 
-from app.models import CHOICES
+from app.models import CHOICES, DRAFT_OPTIONAL_TEXT_FIELDS
 from app.states import STATE_BY_NAME
 
 
 TEXT_FIELDS = (
     "title_en", "title_ar", "description_en", "description_ar",
-    "city_en", "city_ar", "area_en", "area_ar", "property_type",
+    "state_en", "state_ar", "city_en", "city_ar", "area_en", "area_ar", "property_type",
     "currency", "contact_name", "phone", "contact_role", "availability_status",
 )
 FORM_FIELDS = (*TEXT_FIELDS, "monthly_rent", "bedrooms", "bathrooms", "size",
@@ -21,7 +21,7 @@ def sudan_today():
     return datetime.now(ZoneInfo("Africa/Khartoum")).date()
 
 
-def validate_property_form(form, language="ar"):
+def validate_property_form(form, language="ar", fields=None):
     """Return display values, typed model values, and field-specific errors."""
     values = {key: form.get(key, "") for key in FORM_FIELDS}
     if "availability_mode" not in form:
@@ -29,17 +29,19 @@ def validate_property_form(form, language="ar"):
     data, errors = {}, {}
 
     for state_language in ("ar", "en"):
-        key = f"city_{state_language}"
+        key = f"state_{state_language}"
         if values[key].strip() and values[key].strip() not in STATE_BY_NAME[state_language]:
             errors[key] = "Choose a Sudanese state from the list."
-    selected_state = STATE_BY_NAME[language].get(values[f"city_{language}"].strip())
-    if selected_state and not any(key in errors for key in ("city_ar", "city_en")):
+    selected_state = STATE_BY_NAME[language].get(values[f"state_{language}"].strip())
+    if selected_state and not any(key in errors for key in ("state_ar", "state_en")):
         # The visible selection is authoritative; never store mismatched translations.
-        values["city_en"], values["city_ar"] = selected_state
+        values["state_en"], values["state_ar"] = selected_state
 
     for key in TEXT_FIELDS:
         value = values[key].strip()
-        if not value:
+        if not value and key in DRAFT_OPTIONAL_TEXT_FIELDS:
+            data[key] = ""
+        elif not value:
             errors[key] = "This field is required."
         elif key in CHOICES and value not in CHOICES[key]:
             errors[key] = "Choose one of the available options."
@@ -105,4 +107,6 @@ def validate_property_form(form, language="ar"):
                     data["available_from_date"] = available_from
             except ValueError:
                 errors["available_from_date"] = "Enter a valid date."
+    if fields is not None:
+        errors = {key: message for key, message in errors.items() if key in fields}
     return values, data, errors

@@ -1,0 +1,28 @@
+{% from 'components/availability_badge.html' import availability_badge %}
+{% macro property_card(property, language, t, today, availability_label, format_rent, property_type_label) -%}
+  {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
+  {% set city = property.city_ar if language == 'ar' or not property.city_en else property.city_en %}
+  {% set state = property.state_ar if language == 'ar' else property.state_en %}
+  {% set area = property.area_ar if language == 'ar' or not property.area_en else property.area_en %}
+  {% set primary_photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
+  <article class="property-card">
+    {% if primary_photo %}<img class="property-card-image" src="{{ url_for('main.public_photo', photo_id=primary_photo.id) }}" alt="{{ title }}" loading="lazy">
+    {% else %}<div class="property-card-image-placeholder" aria-label="{{ t('No photo available') }}">{{ t('No photo available') }}</div>{% endif %}
+    <div class="property-card-content">
+      <p class="property-card-location">{% if state != city %}{{ state }} · {% endif %}{{ city }} · {{ area }}</p>
+      <h2>{{ title }}</h2>
+      <p class="property-card-type">{{ property_type_label(property.property_type, language) }}</p>
+      <div class="property-card-price">
+        <span class="property-card-price-label">{{ t('Monthly rent') }}</span>
+        <strong dir="ltr">{{ format_rent(property.monthly_rent) }} {{ property.currency }}</strong>
+      </div>
+      {{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}
+      <dl class="property-card-facts">
+        <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
+        <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
+        <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>
+      </dl>
+    </div>
+    <a class="property-card-action" href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>
+  </article>
+{%- endmacro %}

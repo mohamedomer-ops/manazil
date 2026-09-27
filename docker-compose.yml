@@ -3,6 +3,8 @@ services:
     build: .
     ports:
       - "127.0.0.1:5000:5000"
+    volumes:
+      - photo_data:/app/instance/property_photos
     environment:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
     depends_on:
@@ -26,3 +28,4 @@ services:
 
 volumes:
   postgres_data:
+  photo_data:

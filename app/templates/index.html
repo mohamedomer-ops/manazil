@@ -6,16 +6,16 @@
     <div class="hero-copy">
       <p class="eyebrow">{{ t('Made for Sudan') }}</p>
       <h1 id="home-title">{{ t('A clearer start for your property.') }}</h1>
-      <p class="subtitle">{{ t("Add your property's details in Arabic and English, with everything in one place.") }}</p>
+      <p class="subtitle">{{ t('Add your property details once in Arabic, then review and save your draft.') }}</p>
       <a class="primary-link" href="{{ url_for('admin.new_property', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('List Your Property') }}</a>
-      <p class="hero-note">{{ t('New properties are saved as Draft and are not publicly visible.') }}</p>
+      <p class="hero-note">{{ t('Submitted properties are reviewed before publication.') }}</p>
     </div>
     <div class="intro-panel">
-      <h2>{{ t('Clear details. Two languages. One property.') }}</h2>
-      <p>{{ t('Start with the Arabic details, then add the English translation.') }}</p>
+      <h2>{{ t('One entry. Seven clear steps.') }}</h2>
+      <p>{{ t('Complete the property details and review them before saving.') }}</p>
       <ol class="intro-steps">
-        <li><span class="step-number" aria-hidden="true">{{ '١' if language == 'ar' else '1' }}</span><div><h3>{{ t('Arabic details') }}</h3><p>{{ t("Your property's title, description and location.") }}</p></div></li>
-        <li><span class="step-number" aria-hidden="true">{{ '٢' if language == 'ar' else '2' }}</span><div><h3>{{ t('English translation') }}</h3><p>{{ t('Add the translation without entering the shared details again.') }}</p></div></li>
+        <li><span class="step-number" aria-hidden="true">{{ '١' if language == 'ar' else '1' }}</span><div><h3>{{ t('Enter property details') }}</h3><p>{{ t("Your property's title, description and location.") }}</p></div></li>
+        <li><span class="step-number" aria-hidden="true">{{ '٢' if language == 'ar' else '2' }}</span><div><h3>{{ t('Review and save') }}</h3><p>{{ t('Your Arabic details stay with you when you switch the interface language.') }}</p></div></li>
       </ol>
     </div>
   </section>

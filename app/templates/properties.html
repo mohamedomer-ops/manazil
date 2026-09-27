@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% from 'components/property_card.html' import property_card %}
+{% block title %}{{ t('Properties') }} | {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="properties-page">
+  <h1>{{ t('Properties') }}</h1>
+  {% if properties %}
+    <section class="properties-grid" aria-label="{{ t('Properties') }}">
+      {% for property in properties %}
+        {{ property_card(property, language, t, today, availability_label, format_rent, property_type_label) }}
+      {% endfor %}
+    </section>
+  {% else %}
+    <div class="properties-empty"><p>{{ t('No properties are currently available.') }}</p></div>
+  {% endif %}
+</main>
+{% endblock %}

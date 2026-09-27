@@ -62,14 +62,17 @@ class SelectOptions(HTMLParser):
 
 @pytest.mark.parametrize("language,index", [("ar", 1), ("en", 0)])
 def test_all_10_states_are_localized_dropdown_options(client, language, index):
-    response = client.get(f"/admin/properties/new?lang={language}")
+    page = client.get(f"/admin/properties/new?lang={language}")
+    response = client.post("/admin/properties", data=FormHTML(page).values | {
+        "_wizard": "1", "_step": "2", "_action": "switch_" + language,
+    })
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    options = SelectOptions(html, f"city_{language}").options
+    options = SelectOptions(html, f"state_{language}").options
     options.pop("")
     assert len(options) == 10
     assert options == {state[index]: state[index] for state in EXPECTED_STATES}
-    heading = "المعلومات الأساسية" if language == "ar" else "Basic Information"
+    heading = "الموقع" if language == "ar" else "Location"
     assert f"<legend>{heading}</legend>" in html
     assert f"<legend>{heading} —" not in html
 
@@ -78,16 +81,16 @@ def test_all_10_states_are_localized_dropdown_options(client, language, index):
 @pytest.mark.parametrize("state", EXPECTED_STATES)
 def test_each_state_saves_its_canonical_bilingual_names(client, form_data, state, language, index):
     response = client.post("/admin/properties", data=form_data | {
-        "_language": language, f"city_{language}": state[index],
+        "_language": language, f"state_{language}": state[index],
     })
     assert response.status_code == 303
     assert property_count() == 1
     saved = db.session.scalar(select(Property))
-    assert (saved.city_en, saved.city_ar) == state
+    assert (saved.state_en, saved.state_ar) == state
     assert saved.publication_status == "draft"
 
 
-@pytest.mark.parametrize("field", ["city_ar", "city_en"])
+@pytest.mark.parametrize("field", ["state_ar", "state_en"])
 @pytest.mark.parametrize("value", ["Atlantis", "Port Sudan", "not-a-state"])
 def test_arbitrary_state_rejected_in_visible_or_hidden_field(client, form_data, field, value):
     response = client.post("/admin/properties", data=form_data | {field: value})
@@ -99,7 +102,7 @@ def test_arbitrary_state_rejected_in_visible_or_hidden_field(client, form_data, 
 @pytest.mark.parametrize("language,index", [("ar", 1), ("en", 0)])
 @pytest.mark.parametrize("state", EXCLUDED_STATES)
 def test_excluded_state_cannot_be_submitted(client, form_data, state, language, index):
-    field = f"city_{language}"
+    field = f"state_{language}"
     response = client.post("/admin/properties", data=form_data | {
         "_language": language, field: state[index],
     })
@@ -110,17 +113,17 @@ def test_excluded_state_cannot_be_submitted(client, form_data, state, language, 
 
 def test_state_selection_survives_switching_and_updates_other_translation(client, form_data):
     english = client.post("/admin/properties", data=form_data | {
-        "_language": "ar", "city_ar": "البحر الأحمر", "_action": "switch_en",
+        "_language": "ar", "state_ar": "البحر الأحمر", "_action": "switch_en",
     })
     carried = FormHTML(english).values
-    assert carried["city_en"] == "Red Sea"
-    assert carried["city_ar"] == "البحر الأحمر"
+    assert carried["state_en"] == "Red Sea"
+    assert carried["state_ar"] == "البحر الأحمر"
     arabic = client.post("/admin/properties", data=carried | {
-        "city_en": "Northern", "_action": "switch_ar",
+        "state_en": "Northern", "_action": "switch_ar",
     })
     returned = FormHTML(arabic).values
-    assert returned["city_ar"] == "الشمالية"
-    assert returned["city_en"] == "Northern"
+    assert returned["state_ar"] == "الشمالية"
+    assert returned["state_en"] == "Northern"
     assert property_count() == 0
 
 
@@ -180,7 +183,7 @@ def test_today_or_future_date_persists_in_postgresql(client, form_data, days_ahe
 def test_date_and_mode_survive_language_switch(client, form_data):
     future_date = (sudan_today() + timedelta(days=30)).isoformat()
     response = client.post("/admin/properties", data=form_data | {
-        "availability_mode": "date", "available_from_date": future_date, "_action": "switch_ar",
+        "availability_mode": "date", "available_from_date": future_date, "_action": "switch_ar", "_wizard": "1", "_step": "4",
     })
     parsed = FormHTML(response)
     assert parsed.values["availability_mode"] == "date"
@@ -211,12 +214,14 @@ def test_date_migration_preserves_existing_property(values):
             config.attributes["connection"] = connection
             command.upgrade(config, "0001_properties")
             old_table = Table("properties", MetaData(), autoload_with=connection)
-            old_values = values | {"city_en": "Port Sudan", "city_ar": "بورتسودان", "availability_status": "rented"}
+            old_values = {key: value for key, value in values.items() if not key.startswith("state_")} | {"city_en": "Port Sudan", "city_ar": "بورتسودان", "availability_status": "rented"}
             old_record = connection.execute(insert(old_table).values(**old_values).returning(old_table)).mappings().one()
             command.upgrade(config, "head")
             new_table = Table("properties", MetaData(), autoload_with=connection)
             saved = connection.execute(select(new_table)).mappings().one()
             assert saved["available_from_date"] is None
+            assert saved["state_en"] == "Port Sudan"
+            assert saved["state_ar"] == "بورتسودان"
             assert all(saved[key] == value for key, value in old_record.items())
         finally:
             transaction.rollback()

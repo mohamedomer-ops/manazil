@@ -1,0 +1,14 @@
+{% macro photo_gallery(photos, categories, category_label, language, endpoint) -%}
+  {% if photos %}
+    {% set primary = (photos | selectattr('is_primary') | first) or (photos | first) %}
+    <section class="photo-gallery" aria-label="{{ 'معرض الصور' if language == 'ar' else 'Photo gallery' }}">
+      <figure class="gallery-featured"><img src="{{ url_for(endpoint, photo_id=primary.id) }}" alt="{{ category_label(primary.category, language) }}" loading="eager"><figcaption>{{ category_label(primary.category, language) }} · {{ 'الصورة الرئيسية' if language == 'ar' else 'Primary photo' }}</figcaption></figure>
+      {% for category in categories %}
+        {% set additional = photos | selectattr('category', 'equalto', category) | rejectattr('is_primary') | list %}
+        {% if additional %}<div class="gallery-category"><h3>{{ category_label(category, language) }}</h3><div class="gallery-grid">
+          {% for photo in additional | sort(attribute='display_order') %}<img src="{{ url_for(endpoint, photo_id=photo.id) }}" alt="{{ category_label(category, language) }} {{ loop.index }}" loading="lazy">{% endfor %}
+        </div></div>{% endif %}
+      {% endfor %}
+    </section>
+  {% endif %}
+{%- endmacro %}

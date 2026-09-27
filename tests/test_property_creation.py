@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from app import db
-from app.models import Property
+from app.models import DRAFT_OPTIONAL_TEXT_FIELDS, Property
 from app.property_forms import FORM_FIELDS, TEXT_FIELDS
 from test_properties import migrated_connection, values
 
@@ -50,12 +50,14 @@ def test_creation_form(client):
     assert response.status_code == 200
     html = response.get_data(as_text=True)
     for name in FORM_FIELDS:
+        if name in DRAFT_OPTIONAL_TEXT_FIELDS:
+            assert f'name="{name}"' not in html
+            continue
         assert f'name="{name}"' in html
-    for section in ("Basic Information", "Location", "Property Details", "Amenities", "Contact Information", "Availability"):
+    for section in ("Basic Information", "Location", "Property Details", "Photos", "Contact Information", "Review"):
         assert section in html
     assert 'name="publication_status"' not in html
-    assert ">Owner</option>" in html
-    assert ">Broker</option>" in html
+    assert 'name="_wizard" value="1"' in html
     assert 'value="SDG"' in html
     assert 'lang="en" dir="ltr"' in html
 
@@ -111,10 +113,10 @@ def test_valid_post_creates_draft(client, form_data, role, availability):
     assert property_count() == 1
 
 
-@pytest.mark.parametrize("field", (*TEXT_FIELDS, "monthly_rent", "bedrooms", "bathrooms"))
+@pytest.mark.parametrize("field", (*(field for field in TEXT_FIELDS if field not in DRAFT_OPTIONAL_TEXT_FIELDS), "monthly_rent", "bedrooms", "bathrooms"))
 @pytest.mark.parametrize("value", [None, "", " \t\n"])
 def test_required_fields_rejected(client, form_data, field, value):
-    if field in ("city_ar", "city_en"):
+    if field in ("city_ar", "city_en", "state_ar", "state_en"):
         form_data["_language"] = field[-2:]
     if value is None:
         form_data.pop(field)
@@ -140,7 +142,7 @@ def test_invalid_values_do_not_save(client, form_data, field, value):
     assert response.status_code == 422
     html = response.get_data(as_text=True)
     assert f'id="{field}-error"' in html
-    assert form_data["title_en"] in html
+    assert form_data["title_ar"] in html
     assert form_data["description_ar"] in html
     assert property_count() == 0
 
@@ -160,7 +162,7 @@ def test_empty_optional_fields_and_zero_numbers(client, form_data):
 
 
 def test_redisplayed_values_are_escaped(client, form_data):
-    form_data.update(title_en='<script>alert("x")</script>', monthly_rent="invalid")
+    form_data.update(title_ar='<script>alert("x")</script>', monthly_rent="invalid")
     response = client.post("/admin/properties", data=form_data)
     assert response.status_code == 422
     html = response.get_data(as_text=True)
@@ -178,7 +180,7 @@ def test_database_failure_rolls_back_flushed_record(client, form_data):
     assert response.status_code == 503
     html = response.get_data(as_text=True)
     assert "could not be saved" in html
-    assert form_data["title_en"] in html
+    assert form_data["title_ar"] in html
     assert "private database details" not in html
     assert property_count() == 0
     assert client.post("/admin/properties", data=form_data).status_code == 303

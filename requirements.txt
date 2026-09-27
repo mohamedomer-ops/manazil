@@ -5,3 +5,4 @@ Flask-Migrate==4.1.0
 SQLAlchemy==2.0.43
 psycopg[binary]==3.2.10
 pytest==8.4.2
+Pillow==11.3.0

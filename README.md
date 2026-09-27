@@ -1,7 +1,7 @@
 # Manazil | منازل
 
-Manazil is a Sudan-focused property rental marketplace. Stage 2B adds an
-internal property creation form to the existing application and Property model.
+Manazil is a Sudan-focused property rental marketplace with a staged property
+submission, local photo storage, internal review, and public listings.
 
 ## Stack
 
@@ -175,26 +175,28 @@ explicitly (`?lang=en`); no browser-language detection or saved language
 preference is used. An unqualified new visit always returns to Arabic. Both
 pages extend `base.html`, with Home, List Your Property, and language controls.
 
-The mobile-first interface uses subtle Sudan-inspired red actions, green
-accents, charcoal text, and light backgrounds. Shared styling provides large
-inputs, visible keyboard focus, rounded form sections, a two-step progress
-indicator, and responsive RTL/LTR layouts. Typography uses a local
+The mobile-first interface uses green actions, charcoal text, and light
+backgrounds. Shared styling provides large inputs, visible keyboard focus,
+rounded form sections, a seven-step progress indicator, and responsive
+RTL/LTR layouts. Typography uses a local
 Arabic-compatible sans-serif font stack without external font services.
 
-The Arabic form step shows title, description, city, and area in Arabic. Next
-opens the English step for those four translations. The other language's values
-are carried as hidden fields, and shared property/contact fields appear only
-once per form and retain their values across steps. Language buttons submit
-the current entries without saving or requiring completed fields. Only the
-final Save creates a record, after validating both languages and shared fields.
+The wizard stages Basic Information, Location, Property Details, Price &
+Availability, Photos, Contact, and Review. Each Next validates only the current step.
+Back and language switching preserve entries without saving. The form asks for
+Arabic title, description, city, and area only; English switches the interface
+language without asking for duplicate property text. Review shows the entered
+information and provides section edit actions. The final Submit for Review
+creates one pending record after validating the entered fields. English text
+columns may remain empty; public English pages fall back to the Arabic values.
 Switching works without JavaScript. Validation messages, options, navigation,
 and connection labels are translated, and direction follows the active language.
 
 Open http://localhost:5000/admin/properties/new to enter a property. The form
 posts to `/admin/properties`, validates on the server, and saves through
-SQLAlchemy. Every new property is forced to `draft`, regardless of submitted
+SQLAlchemy. Wizard submissions are forced to `pending`, regardless of submitted
 publication status. Amenities are entered one per line; blank lines are ignored.
-Successful saves redirect back with the new property ID in a confirmation.
+Successful submissions redirect with a confirmation.
 Validation errors preserve entries and show field errors (HTTP 422). Database
 failures roll back and redisplay the form with a retry message (HTTP 503).
 
@@ -210,19 +212,53 @@ HTML escaping, and rollback after a failed commit. No schema change or new
 migration was required for the initial Stage 2B workflow.
 
 The state/date update uses the approved 10 Sudanese states as a fixed dropdown.
-The selected state's canonical English and Arabic names are stored in `city_en`
-and `city_ar`; arbitrary state text is rejected. Existing city data is retained.
+State is stored in `state_en` and `state_ar`, separately from city. Migration
+`0003_property_states` copies existing city values to state, preserving
+existing records. Arbitrary or excluded state names are rejected on submission.
 Availability timing is separate from the existing `available` / `rented`
 status: Available Now stores a null `available_from_date`, while Available
 From a Date requires today or a future date using Sudan's timezone. Apply
-`flask --app run db upgrade` in the web container to install migration
-`0002_available_from_date`, which adds only this nullable date column.
+`flask --app run db upgrade` in the web container to install the latest migration.
+
+Step 5 accepts optional JPEG, PNG, or WebP photos in seven categories, up to
+four per category and 5 MB per file. Images are decoded and re-encoded before
+storage. A signed wizard token carries temporary photo state between steps;
+the final submission copies files into persistent local storage and records
+metadata in `property_photos`. Docker Compose mounts `photo_data` at
+`/app/instance/property_photos`. Set `PHOTO_STORAGE_ROOT` to use another
+local location. `LocalPhotoStorage` isolates filesystem operations so a future
+storage backend can replace it. Abandoned temporary uploads currently need
+periodic cleanup.
+
+The internal queue is at `/admin/properties/pending`. Reviewers can inspect a
+pending property, approve it to `published`, or return it to `draft`.
+Approval does not change availability: only published and available properties
+are public. These admin routes intentionally have no authentication or owner
+permissions in this stage; deploy them only behind an external access control
+until those features are implemented.
+
+## Public property listings (Stage 2C.1)
+
+Open `/properties` to browse properties marked both `published` and `available`.
+The page is public and displays bilingual card details in the selected language.
+Properties with a future `available_from_date` remain listed with a localized
+availability date; null, current, and past dates display Available Now. Cards
+omit descriptions, contact details, and internal status fields. View Property
+links to the public details page.
+
+## Public property details (Stage 2C.2)
+
+`/properties/<property_id>` returns details only for properties marked both
+`published` and `available`; all other IDs return 404. The selected language
+controls title, location, description, labels, and availability dates. The page
+shows property facts, optional amenities, and contact information. Phone and
+WhatsApp links are built only from valid phone numbers. When present, the
+primary photo and categorized gallery are shown. Inquiry backend is deferred.
 
 ## Intentionally deferred
 
-Authentication, users, admin tools, listing management, property pages and
-listings, search, photos and uploads, WhatsApp, tracking and analytics,
+Authentication, users, listing management, search, WhatsApp integration,
+tracking and analytics,
 payments, maps, reviews, ratings, notifications, AI, chat, favorites, and
-saved searches are not implemented. Azure deployment and the complete UI
-are also deferred. No listing UI or additional application tables are added.
-This project stops at Stage 2B.
+saved searches are not implemented. Azure Blob Storage and deployment are
+deferred.

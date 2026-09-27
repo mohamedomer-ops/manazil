@@ -10,5 +10,7 @@ function updateAvailabilityDate() {
   availabilityDate.required = needsDate;
 }
 
-availabilityMode.addEventListener("change", updateAvailabilityDate);
-updateAvailabilityDate();
+if (availabilityMode && availabilityDate && dateField) {
+  availabilityMode.addEventListener("change", updateAvailabilityDate);
+  updateAvailabilityDate();
+}
