@@ -1,10 +1,12 @@
 import os
 
 from flask import Flask
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 
 db = SQLAlchemy()
+migrate = Migrate()
 
 
 def create_app(test_config=None):
@@ -23,6 +25,10 @@ def create_app(test_config=None):
     if not database_url or not database_url.startswith("postgresql+psycopg://"):
         raise ValueError("Set DATABASE_URL to a postgresql+psycopg:// connection URL.")
     db.init_app(app)
+
+    from app import models
+
+    migrate.init_app(app, db, render_as_batch=False)
 
     from app.routes import main
 
