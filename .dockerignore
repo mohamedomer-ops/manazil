@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+__pycache__
+*.py[cod]
+.pytest_cache
+.venv
+venv
+.vscode
+.coverage*
+htmlcov
+coverage.xml
+.docker
+*override.yml
+*override.yaml
+*.log

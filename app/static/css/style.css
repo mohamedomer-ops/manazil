@@ -1,0 +1,15 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #193e38;
+  background: #f4f5ef;
+}
+
+body { margin: 0; }
+main { max-width: 640px; margin: 12vh auto; padding: 24px; }
+h1 { font-size: clamp(2.5rem, 8vw, 4rem); margin-bottom: 16px; }
+h1 span { display: block; width: fit-content; }
+.subtitle { font-size: 1.2rem; line-height: 1.6; }
+section { background: #fff; border: 1px solid #d8e0da; border-radius: 12px; padding: 24px; margin-top: 40px; }
+h2 { margin-top: 0; font-size: 1.2rem; }
+[data-state="ok"] { color: #176035; }
+[data-state="error"] { color: #a12a25; }
