@@ -16,6 +16,10 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    "Phone Number": "رقم الهاتف", "Verified Phone Number": "رقم الهاتف الموثق",
+    "WhatsApp Number": "رقم WhatsApp", "Account Type": "نوع الحساب",
+    "Save Changes": "حفظ التغييرات",
+    "Account information updated successfully": "تم تحديث معلومات الحساب بنجاح",
     "Login": "تسجيل الدخول", "Phone number": "رقم الهاتف",
     "We'll send a verification code to your number.": "سنرسل رمز التحقق إلى رقمك.",
     "Continue": "متابعة", "Verification code": "رمز التحقق",

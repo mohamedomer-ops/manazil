@@ -45,12 +45,23 @@ def handle_csrf_error(error):
 @admin.get("/properties/new")
 @login_required
 def new_property():
-    return render_form(FORM_DEFAULTS, {}, current_language(), photo_token=LocalPhotoStorage().new_token())
+    if not g.user.contact_complete:
+        from flask import session
+        session['contact_next'] = request.full_path if request.query_string else request.path
+        return redirect(url_for('auth.account', **({'lang': 'en'} if current_language() == 'en' else {})))
+    defaults = FORM_DEFAULTS | {'contact_name': g.user.contact_name, 'phone': g.user.phone_number,
+                                'whatsapp': g.user.whatsapp,
+                                'agent': 'yes' if g.user.contact_role == 'broker' else 'no'}
+    return render_form(defaults, {}, current_language(), photo_token=LocalPhotoStorage().new_token())
 
 
 @admin.post("/properties")
 @login_required
 def create_property():
+    if not g.user.contact_complete:
+        from flask import session
+        session['contact_next'] = url_for('admin.new_property')
+        return redirect(url_for('auth.account'), code=303)
     language = current_language()
     action = request.form.get("_action", "submit")
     storage = LocalPhotoStorage()

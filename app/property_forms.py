@@ -4,6 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.states import STATE_BY_NAME
+from app.phone import normalize_phone
 
 FORM_FIELDS = (
     "transaction_type", "property_occupancy", "agent", "property_type", "title_ar",
@@ -74,7 +75,14 @@ def validate_posting(form, language="ar"):
     if values["furnished"] not in ("", "on"):
         errors["furnished"] = "Choose checked or unchecked."
     data["amenities"] = [item.strip() for item in values["amenities"].splitlines() if item.strip()]
-    data["whatsapp"] = values["whatsapp"].strip() or None
+    for key in ('phone', 'whatsapp'):
+        if key == 'whatsapp' and not values[key].strip():
+            data[key] = None
+            continue
+        try:
+            data[key] = normalize_phone(values[key])
+        except ValueError:
+            errors[key] = 'Enter a valid phone number.'
     for key in ("amenities", "whatsapp"):
         if "\x00" in values[key]:
             errors[key] = "Remove the invalid character from this field."

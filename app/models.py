@@ -191,12 +191,19 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(16), nullable=False, unique=True)
+    whatsapp = db.Column(db.String(16), nullable=True)
+    contact_name = db.Column(db.String, nullable=True)
+    contact_role = db.Column(db.String, nullable=True)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
     last_login_at = db.Column(db.DateTime(timezone=True))
     properties = db.relationship('Property', back_populates='owner')
+
+    @property
+    def contact_complete(self):
+        return bool(self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
 
 
 class OTPChallenge(db.Model):

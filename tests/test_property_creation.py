@@ -13,7 +13,8 @@ def client(migrated_connection, monkeypatch):
     sessions = scoped_session(sessionmaker(bind=migrated_connection, join_transaction_mode="create_savepoint"))
     monkeypatch.setattr(db, "session", sessions)
     try:
-        user = User(phone_number='+249912345678', is_verified=True, is_active=True)
+        user = User(phone_number='+249912345678', is_verified=True, is_active=True,
+                    contact_name='Ahmed', whatsapp='+249912345678', contact_role='owner')
         db.session.add(user)
         db.session.commit()
         test_client = current_app.test_client()
@@ -87,6 +88,24 @@ def test_completed_listing_is_public_immediately(client, form_data):
     assert client.get('/properties?lang=en').get_data(as_text=True).find('شقة') >= 0
     assert client.get(f'/properties/{saved.id}?lang=en').status_code == 200
     assert {item[0] for item in db.session.execute(select(Property.publication_status)).all()} == {'published'}
+
+
+def test_listing_contact_override_is_snapshot(client, form_data):
+    user = db.session.scalar(select(User))
+    data = form_data | {'contact_name': 'Ahmed Real Estate', 'phone': '0911111111',
+                        'whatsapp': '0912222222', 'agent': 'yes'}
+    assert client.post('/admin/properties', data=data).status_code == 303
+    saved = db.session.scalar(select(Property).order_by(Property.id.desc()))
+    assert saved.owner_id == user.id
+    assert (saved.contact_name, saved.phone, saved.whatsapp, saved.contact_role) == (
+        'Ahmed Real Estate', '+249911111111', '+249912222222', 'broker')
+    assert (user.contact_name, user.phone_number, user.whatsapp, user.contact_role) == (
+        'Ahmed', '+249912345678', '+249912345678', 'owner')
+    user.contact_name = 'Later Name'
+    user.whatsapp = '+249913333333'
+    db.session.commit()
+    db.session.refresh(saved)
+    assert saved.contact_name == 'Ahmed Real Estate' and saved.whatsapp == '+249912222222'
 
 
 def test_incomplete_submission_stays_unpublished(client, form_data):
