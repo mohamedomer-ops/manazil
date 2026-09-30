@@ -3,18 +3,23 @@
   {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
   {% set city = property.city_ar if language == 'ar' or not property.city_en else property.city_en %}
   {% set state = property.state_ar if language == 'ar' else property.state_en %}
-  {% set area = property.area_ar if language == 'ar' or not property.area_en else property.area_en %}
+  {% set area = property.neighborhood_ar or (property.area_ar if language == 'ar' or not property.area_en else property.area_en) %}
   {% set primary_photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
   <article class="property-card">
-    {% if primary_photo %}<img class="property-card-image" src="{{ url_for('main.public_photo', photo_id=primary_photo.id) }}" alt="{{ title }}" loading="lazy">
-    {% else %}<div class="property-card-image-placeholder" aria-label="{{ t('No photo available') }}">{{ t('No photo available') }}</div>{% endif %}
+    <div class="property-card-media">
+      <div class="property-card-image-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if primary_photo %}aria-hidden="true"{% endif %}>
+        <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 30 32 11l23 19"/><path d="M15 27v26h34V27M27 53V37h10v16"/></svg>
+      </div>
+      {% if primary_photo %}<img class="property-card-image" src="{{ url_for('main.public_photo', photo_id=primary_photo.id) }}" alt="{{ title }}" loading="lazy" decoding="async" onerror="this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true">
+      {% if property.photos|length > 1 %}<span class="property-card-photo-count" aria-label="{{ property.photos|length }} {{ t('photos') }}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg><span>{{ property.photos|length }}</span></span>{% endif %}{% endif %}
+    </div>
     <div class="property-card-content">
-      <p class="property-card-location">{% if state != city %}{{ state }} · {% endif %}{{ city }} · {{ area }}</p>
+      <p class="property-card-location">{% if city and state != city %}{{ state }} · {{ city }}{% else %}{{ state }}{% endif %}{% if area %} · {{ area }}{% endif %}</p>
       <h2>{{ title }}</h2>
       <p class="property-card-type">{{ property_type_label(property.property_type, language) }}</p>
       <div class="property-card-price">
-        <span class="property-card-price-label">{{ t('Monthly rent') }}</span>
-        <strong dir="ltr">{{ format_rent(property.monthly_rent) }} {{ property.currency }}</strong>
+        <span class="property-card-price-label">{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span>
+        <strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong>
       </div>
       {{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}
       <dl class="property-card-facts">

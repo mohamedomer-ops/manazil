@@ -10,7 +10,7 @@ from app import db
 
 
 REQUIRED_TEXT_FIELDS = (
-    "title_ar", "description_ar", "state_en", "state_ar", "city_ar", "area_ar", "property_type",
+    "title_ar", "description_ar", "state_en", "state_ar", "property_type",
     "currency", "contact_name", "phone", "contact_role",
     "publication_status", "availability_status",
 )
@@ -18,7 +18,9 @@ DRAFT_OPTIONAL_TEXT_FIELDS = ("title_en", "description_en", "city_en", "area_en"
 PHOTO_CATEGORIES = ("exterior", "entrance", "living_room", "bedroom", "kitchen", "bathroom", "other")
 CHOICES = {
     "contact_role": ("owner", "broker"),
-    "publication_status": ("draft", "pending", "published", "archived"),
+    "transaction_type": ("rent", "sale"),
+    "property_occupancy": ("room", "entire_property"),
+    "publication_status": ("draft", "published"),
     "availability_status": ("available", "rented"),
 }
 
@@ -37,11 +39,15 @@ class Property(db.Model):
             for field in REQUIRED_TEXT_FIELDS
         ),
         db.CheckConstraint("monthly_rent >= 0 AND monthly_rent < 'Infinity'::numeric", name="ck_properties_rent_nonnegative"),
+        db.CheckConstraint("price >= 0 AND price < 'Infinity'::numeric", name="ck_properties_price_nonnegative"),
+        db.CheckConstraint("transaction_type IN ('rent', 'sale')", name="ck_properties_transaction_type"),
+        db.CheckConstraint("property_occupancy IN ('room', 'entire_property')", name="ck_properties_property_occupancy"),
+        db.CheckConstraint("(transaction_type = 'rent' AND rent_period IN ('monthly', 'weekly')) OR (transaction_type = 'sale' AND rent_period IS NULL)", name="ck_properties_rent_period"),
         db.CheckConstraint("bedrooms >= 0", name="ck_properties_bedrooms_nonnegative"),
         db.CheckConstraint("bathrooms >= 0", name="ck_properties_bathrooms_nonnegative"),
         db.CheckConstraint("size >= 0 AND size < 'Infinity'::numeric", name="ck_properties_size_nonnegative"),
         db.CheckConstraint("contact_role IN ('owner', 'broker')", name="ck_properties_contact_role"),
-        db.CheckConstraint("publication_status IN ('draft', 'pending', 'published', 'archived')", name="ck_properties_publication_status"),
+        db.CheckConstraint("publication_status IN ('draft', 'published')", name="ck_properties_publication_status"),
         db.CheckConstraint("availability_status IN ('available', 'rented')", name="ck_properties_availability_status"),
         db.CheckConstraint("jsonb_typeof(amenities) = 'array'", name="ck_properties_amenities_array"),
     )
@@ -54,11 +60,16 @@ class Property(db.Model):
     state_en = db.Column(db.String, nullable=False)
     state_ar = db.Column(db.String, nullable=False)
     city_en = db.Column(db.String, nullable=False)
-    city_ar = db.Column(db.String, nullable=False)
+    city_ar = db.Column(db.String, nullable=True)
     area_en = db.Column(db.String, nullable=False)
-    area_ar = db.Column(db.String, nullable=False)
+    area_ar = db.Column(db.String, nullable=True)
+    neighborhood_ar = db.Column(db.String, nullable=True)
     property_type = db.Column(db.String, nullable=False)
-    monthly_rent = db.Column(db.Numeric, nullable=False)
+    transaction_type = db.Column(db.String, nullable=False, default="rent", server_default="rent")
+    property_occupancy = db.Column(db.String, nullable=False, default="entire_property", server_default="entire_property")
+    rent_period = db.Column(db.String, nullable=True)
+    price = db.Column(db.Numeric, nullable=False)
+    monthly_rent = db.Column(db.Numeric, nullable=True)
     currency = db.Column(db.String, nullable=False, default="SDG", server_default="SDG")
     bedrooms = db.Column(db.Integer, nullable=False)
     bathrooms = db.Column(db.Integer, nullable=False)
@@ -82,7 +93,12 @@ class Property(db.Model):
             "currency": "SDG", "furnished": False, "amenities": [],
             "contact_role": "owner", "publication_status": "draft",
             "availability_status": "available",
+            "transaction_type": "rent", "property_occupancy": "entire_property",
         }
+        if "price" not in kwargs and "monthly_rent" in kwargs:
+            kwargs["price"] = kwargs["monthly_rent"]
+        if "rent_period" not in kwargs:
+            kwargs["rent_period"] = "monthly" if kwargs.get("transaction_type", "rent") == "rent" else None
         super().__init__(**(defaults | kwargs))
 
     @validates(*REQUIRED_TEXT_FIELDS, *DRAFT_OPTIONAL_TEXT_FIELDS)
@@ -93,9 +109,9 @@ class Property(db.Model):
             raise ValueError(f"{key} must be one of {', '.join(CHOICES[key])}")
         return value
 
-    @validates("monthly_rent", "size")
+    @validates("monthly_rent", "price", "size")
     def validate_decimal(self, key, value):
-        if key == "size" and value is None:
+        if key in ("size", "monthly_rent") and value is None:
             return None
         try:
             number = Decimal(str(value))
@@ -132,8 +148,14 @@ def validate_property(mapper, connection, target):
         target.validate_text(key, getattr(target, key))
     for key in DRAFT_OPTIONAL_TEXT_FIELDS:
         target.validate_text(key, getattr(target, key))
-    for key in ("monthly_rent", "size"):
+    for key in ("price", "monthly_rent", "size"):
         target.validate_decimal(key, getattr(target, key))
+    for key in ("transaction_type", "property_occupancy"):
+        target.validate_text(key, getattr(target, key))
+    if (target.transaction_type == "rent" and target.rent_period not in ("monthly", "weekly")) or (target.transaction_type == "sale" and target.rent_period is not None):
+        raise ValueError("invalid rent period")
+    if target.neighborhood_ar is not None and not target.neighborhood_ar.strip():
+        raise ValueError("neighborhood must not be blank")
     for key in ("bedrooms", "bathrooms"):
         target.validate_integer(key, getattr(target, key))
     target.validate_boolean("furnished", target.furnished)

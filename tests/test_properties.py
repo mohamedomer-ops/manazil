@@ -116,7 +116,7 @@ def test_negative_numbers_rejected(values, field):
 
 
 @pytest.mark.parametrize("field,value", [
-    ("contact_role", "admin"), ("publication_status", "visible"),
+    ("contact_role", "admin"), ("publication_status", "visible"), ("publication_status", "pending"), ("publication_status", "archived"),
     ("availability_status", "unavailable"),
     ("monthly_rent", "NaN"), ("size", "Infinity"),
     ("bedrooms", 1.5), ("bathrooms", True), ("furnished", "false"),
@@ -172,14 +172,40 @@ def test_zero_values_and_optional_fields(session, values):
 
 def test_migration_creates_table_and_version(migrated_connection):
     assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "alembic_version"}
-    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0005_property_photos"
+    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0007_direct_publication"
     columns = inspect(migrated_connection).get_columns("properties")
     assert {column["name"] for column in columns} == set(Property.__table__.columns.keys())
 
 
+def test_direct_publication_migration_preserves_unpublished_records(values):
+    app = create_app({"TESTING": True})
+    with app.app_context(), db.engine.connect() as connection:
+        transaction = connection.begin()
+        try:
+            schema = f"test_lifecycle_{uuid4().hex}"
+            connection.execute(CreateSchema(schema))
+            connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
+            config = Config(str(Path("migrations/alembic.ini")))
+            config.set_main_option("script_location", "migrations")
+            config.attributes["connection"] = connection
+            command.upgrade(config, "0006_single_page_posting")
+            from sqlalchemy import MetaData, Table
+            table = Table("properties", MetaData(), autoload_with=connection)
+            for status in ("pending", "archived", "published", "draft"):
+                connection.execute(insert(table).values(**(values | {
+                    "price": values["monthly_rent"], "rent_period": "monthly",
+                    "publication_status": status,
+                })))
+            command.upgrade(config, "head")
+            statuses = connection.execute(text("SELECT publication_status FROM properties ORDER BY id")).scalars().all()
+            assert statuses == ["draft", "draft", "published", "draft"]
+        finally:
+            transaction.rollback()
+
+
 @pytest.mark.parametrize("field,value", [
     ("monthly_rent", -1), ("bedrooms", -1), ("bathrooms", -1), ("size", -1),
-    ("contact_role", "admin"), ("publication_status", "invalid"),
+    ("contact_role", "admin"), ("publication_status", "invalid"), ("publication_status", "pending"), ("publication_status", "archived"),
     ("availability_status", "invalid"), ("property_type", " \t"),
     ("title_ar", ""), ("title_ar", None),
 ])
@@ -194,7 +220,7 @@ def test_database_server_defaults(migrated_connection, values):
     from sqlalchemy import MetaData, Table
 
     table = Table("properties", MetaData(), autoload_with=migrated_connection)
-    saved = migrated_connection.execute(insert(table).values(**values).returning(table)).mappings().one()
+    saved = migrated_connection.execute(insert(table).values(**(values | {"price": values["monthly_rent"], "rent_period": "monthly"})).returning(table)).mappings().one()
     assert saved["currency"] == "SDG"
     assert saved["furnished"] is False
     assert saved["contact_role"] == "owner"

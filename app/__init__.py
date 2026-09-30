@@ -19,7 +19,7 @@ def create_app(test_config=None):
         SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL"),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         PHOTO_STORAGE_ROOT=os.environ.get("PHOTO_STORAGE_ROOT") or os.path.join(app.instance_path, "property_photos"),
-        MAX_CONTENT_LENGTH=22 * 1024 * 1024,
+        MAX_CONTENT_LENGTH=102 * 1024 * 1024,
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "connect_args": {"connect_timeout": 3},

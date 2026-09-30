@@ -24,7 +24,7 @@ def test_published_available_property_details_in_both_languages(client, values):
         assert response.status_code == 200
         assert title in html and city in html and area in html and description in html
         assert other_title not in html
-        assert f'class="detail-type">{type_name}</p>' in html
+        assert f'<dd>{type_name}</dd>' in html
         assert furnished in html
         assert "125,000.5 SDG" in html
         assert "120.5" in html
@@ -33,15 +33,16 @@ def test_published_available_property_details_in_both_languages(client, values):
         assert values["phone"] in html
         assert 'href="tel:+249123456789"' in html
         assert 'href="https://wa.me/249123456780"' in html
-        assert '<span class="availability-dot" aria-hidden="true"></span>' in html
+        assert 'class="detail-gallery"' in html or 'class="photo-gallery detail-gallery"' in html
         assert 'class="detail-contact-action"' in html
+        assert html.index('id="facts-heading"') < html.index('id="contact-heading"')
+        assert html.index('id="description-heading"') < html.index('id="facts-heading"')
     assert '<html lang="ar" dir="rtl">' in client.get(f"/properties/{property.id}").get_data(as_text=True)
     assert '<html lang="en" dir="ltr">' in client.get(f"/properties/{property.id}?lang=en").get_data(as_text=True)
 
 
 @pytest.mark.parametrize("publication,availability", [
-    ("draft", "available"), ("pending", "available"),
-    ("archived", "available"), ("published", "rented"),
+    ("draft", "available"), ("published", "rented"),
 ])
 def test_non_public_property_details_return_404(client, values, publication, availability):
     property = add_property(values, publication_status=publication, availability_status=availability)
@@ -68,8 +69,7 @@ def test_detail_availability_uses_listing_logic(client, values, monkeypatch, ava
     property = add_property(values, publication_status="published", available_from_date=available_date)
     for suffix, expected in (("?lang=en", english), ("", arabic)):
         html = client.get(f"/properties/{property.id}{suffix}").get_data(as_text=True)
-        assert '<span class="availability-dot" aria-hidden="true"></span>' in html
-        assert f'<span class="availability-text">{expected}</span>' in html
+        assert expected in html
 
 
 @pytest.mark.parametrize("role,english,arabic", [

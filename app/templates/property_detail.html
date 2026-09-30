@@ -1,67 +1,115 @@
 {% extends 'base.html' %}
-{% from 'components/availability_badge.html' import availability_badge %}
-{% from 'components/photo_gallery.html' import photo_gallery %}
 {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
 {% set city = property.city_ar if language == 'ar' or not property.city_en else property.city_en %}
 {% set state = property.state_ar if language == 'ar' else property.state_en %}
-{% set area = property.area_ar if language == 'ar' or not property.area_en else property.area_en %}
+{% set area = property.neighborhood_ar or (property.area_ar if language == 'ar' or not property.area_en else property.area_en) %}
 {% set description = property.description_ar if language == 'ar' or not property.description_en else property.description_en %}
 {% set contact_action = 'Contact Owner' if property.contact_role == 'owner' else 'Contact Broker' %}
 {% block title %}{{ title }} | {{ t('Manazil') }}{% endblock %}
 {% block content %}
 <main id="main-content" class="property-detail-page">
   <a class="detail-back-link" href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Properties') }}</a>
-  <header class="detail-hero">
-    <p class="detail-location">{% if state != city %}{{ state }} · {% endif %}{{ city }} · {{ area }}</p>
-    <h1>{{ title }}</h1>
-    <p class="detail-type">{{ property_type_label(property.property_type, language) }}</p>
-    <div class="detail-price-row">
-      <div class="detail-price">
-        <span>{{ t('Monthly rent') }}</span>
-        <strong dir="ltr">{{ format_rent(property.monthly_rent) }} {{ property.currency }}</strong>
-      </div>
-      {{ availability_badge(property.available_from_date, language, today, availability_label, 'property-detail-availability') }}
-    </div>
-  </header>
-  {{ photo_gallery(property.photos, photo_categories, category_label, language, 'main.public_photo') }}
   <div class="detail-layout">
-    <aside class="detail-contact" aria-labelledby="contact-heading">
-      <h2 id="contact-heading">{{ t('Contact Information') }}</h2>
-      <p class="detail-contact-name">{{ property.contact_name }}</p>
-      <p class="detail-contact-role">{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</p>
-      <dl class="detail-contact-numbers">
-        <div><dt>{{ t('Phone') }}</dt><dd dir="ltr">{{ property.phone }}</dd></div>
-        {% if property.whatsapp %}
-          <div><dt>{{ t('WhatsApp') }}</dt><dd dir="ltr">{% if whatsapp_url %}<a href="{{ whatsapp_url }}">{{ property.whatsapp }}</a>{% else %}{{ property.whatsapp }}{% endif %}</dd></div>
-        {% endif %}
-      </dl>
-      {% if phone_url %}
-        <a class="detail-contact-action" href="{{ phone_url }}">{{ t(contact_action) }}</a>
-      {% else %}
-        <button class="detail-contact-action" type="button" disabled>{{ t(contact_action) }}</button>
-      {% endif %}
-    </aside>
     <div class="detail-main">
-      <section class="detail-panel" aria-labelledby="facts-heading">
-        <h2 id="facts-heading">{{ t('Property details') }}</h2>
-        <dl class="detail-facts">
-          <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
-          <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
-          {% if property.size is not none %}<div><dt>{{ t('Size in square meters') }}</dt><dd>{{ format_rent(property.size) }}</dd></div>{% endif %}
-          <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>
-        </dl>
+      <header class="detail-hero">
+        <h1>{{ title }}</h1>
+        <p class="detail-location">{% if city and state != city %}{{ state }} · {{ city }}{% else %}{{ state }}{% endif %}{% if area %} · {{ area }}{% endif %}</p>
+        <p class="detail-price"><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></p>
+      </header>
+      {% set primary_photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
+      <section class="photo-gallery detail-gallery" aria-label="{{ 'معرض الصور' if language == 'ar' else 'Photo gallery' }}">
+        <div class="detail-gallery-media">
+          <div class="detail-gallery-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if primary_photo %}hidden{% endif %}>
+            <svg viewBox="0 0 64 64" width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 30 32 11l23 19"/><path d="M15 27v26h34V27M27 53V37h10v16"/></svg>
+          </div>
+          {% if primary_photo %}<img class="detail-gallery-image" src="{{ url_for('main.public_photo', photo_id=primary_photo.id) }}" alt="{{ category_label(primary_photo.category, language) }}" loading="eager" decoding="async">{% endif %}
+          {% if property.photos|length > 1 %}
+            <button class="detail-gallery-control detail-gallery-previous" type="button" data-step="-1" aria-label="{{ 'الصورة السابقة' if language == 'ar' else 'Previous photo' }}">‹</button>
+            <button class="detail-gallery-control detail-gallery-next" type="button" data-step="1" aria-label="{{ 'الصورة التالية' if language == 'ar' else 'Next photo' }}">›</button>
+            <span class="detail-gallery-counter" aria-live="polite" dir="ltr">1 / {{ property.photos|length }}</span>
+          {% endif %}
+        </div>
+        {% if primary_photo %}
+          {% set gallery_data = namespace(items=[]) %}
+          {% set gallery_data.items = gallery_data.items + [{'src': url_for('main.public_photo', photo_id=primary_photo.id), 'alt': category_label(primary_photo.category, language)}] %}
+          {% for photo in property.photos if photo.id != primary_photo.id %}
+            {% set gallery_data.items = gallery_data.items + [{'src': url_for('main.public_photo', photo_id=photo.id), 'alt': category_label(photo.category, language)}] %}
+          {% endfor %}
+          <script type="application/json" class="detail-gallery-data">{{ gallery_data.items | tojson }}</script>
+        {% endif %}
       </section>
       <section class="detail-panel" aria-labelledby="description-heading">
         <h2 id="description-heading">{{ t('Description') }}</h2>
         <p class="detail-description">{{ description }}</p>
       </section>
       {% if property.amenities %}
-        <section class="detail-panel" aria-labelledby="amenities-heading">
-          <h2 id="amenities-heading">{{ t('Amenities') }}</h2>
-          <ul class="detail-amenities">{% for amenity in property.amenities %}<li dir="auto">{{ amenity }}</li>{% endfor %}</ul>
-        </section>
+      <section class="detail-panel" aria-labelledby="amenities-heading">
+        <h2 id="amenities-heading">{{ t('Amenities') }}</h2>
+        <ul class="detail-amenities">{% for amenity in property.amenities %}<li dir="auto">{{ amenity }}</li>{% endfor %}</ul>
+      </section>
       {% endif %}
     </div>
+    <aside class="detail-sidebar">
+      <section class="detail-panel detail-sidebar-facts" aria-labelledby="facts-heading">
+        <h2 id="facts-heading">{{ t('Property details') }}</h2>
+        <dl class="detail-facts">
+          <div><dt>{{ t('Property type') }}</dt><dd>{{ property_type_label(property.property_type, language) }}</dd></div>
+          <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
+          <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
+          {% if property.size is not none %}<div><dt>{{ t('Size in square meters') }}</dt><dd>{{ format_rent(property.size) }}</dd></div>{% endif %}
+          <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>
+          <div><dt>{{ t('Availability') }}</dt><dd>{{ availability_label(property.available_from_date, language, today) }}</dd></div>
+          <div><dt>{{ t('Location') }}</dt><dd>{% if city and state != city %}{{ state }} · {{ city }}{% else %}{{ state }}{% endif %}{% if area %} · {{ area }}{% endif %}</dd></div>
+        </dl>
+      </section>
+      <section class="detail-contact" aria-labelledby="contact-heading">
+        <h2 id="contact-heading">{{ t('Contact Information') }}</h2>
+        <p class="detail-contact-name">{{ property.contact_name }}</p>
+        <p class="detail-contact-role">{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</p>
+        <dl class="detail-contact-numbers">
+          <div><dt>{{ t('Phone') }}</dt><dd dir="ltr">{{ property.phone }}</dd></div>
+          {% if property.whatsapp %}
+          <div><dt>{{ t('WhatsApp') }}</dt><dd dir="ltr">{% if whatsapp_url %}<a href="{{ whatsapp_url }}">{{ property.whatsapp }}</a>{% else %}{{ property.whatsapp }}{% endif %}</dd></div>
+          {% endif %}
+        </dl>
+        {% if phone_url %}<a class="detail-contact-action" href="{{ phone_url }}">{{ t(contact_action) }}</a>
+        {% else %}<button class="detail-contact-action" type="button" disabled>{{ t(contact_action) }}</button>{% endif %}
+        <div class="detail-secondary-actions">
+          <button type="button" disabled title="{{ 'غير متاح حالياً' if language == 'ar' else 'Not available yet' }}">{{ 'حفظ العقار' if language == 'ar' else 'Save/Favorite' }}</button>
+          <button type="button" disabled title="{{ 'غير متاح حالياً' if language == 'ar' else 'Not available yet' }}">{{ 'الإبلاغ عن الإعلان' if language == 'ar' else 'Report listing' }}</button>
+        </div>
+      </section>
+    </aside>
   </div>
 </main>
+<script>
+  const gallery = document.querySelector('.detail-gallery');
+  const data = gallery.querySelector('.detail-gallery-data');
+  if (data) {
+    const photos = JSON.parse(data.textContent);
+    const image = gallery.querySelector('.detail-gallery-image');
+    const counter = gallery.querySelector('.detail-gallery-counter');
+    let index = 0;
+    const showPhoto = (step) => {
+      index = (index + step + photos.length) % photos.length;
+      image.src = photos[index].src;
+      image.alt = photos[index].alt;
+      if (counter) counter.textContent = `${index + 1} / ${photos.length}`;
+    };
+    gallery.querySelectorAll('.detail-gallery-control').forEach((button) => {
+      button.addEventListener('click', () => showPhoto(Number(button.dataset.step)));
+    });
+    let touchStartX = null;
+    const media = gallery.querySelector('.detail-gallery-media');
+    media.addEventListener('touchstart', (event) => {
+      touchStartX = event.changedTouches[0].screenX;
+    }, { passive: true });
+    media.addEventListener('touchend', (event) => {
+      if (touchStartX === null || photos.length < 2) return;
+      const distance = event.changedTouches[0].screenX - touchStartX;
+      if (Math.abs(distance) > 50) showPhoto(distance < 0 ? 1 : -1);
+      touchStartX = null;
+    }, { passive: true });
+  }
+</script>
 {% endblock %}

@@ -14,7 +14,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from app.models import PHOTO_CATEGORIES
 
 
-MAX_PHOTOS_PER_CATEGORY = 4
+MAX_PHOTOS_PER_PROPERTY = 20
 MAX_PHOTO_BYTES = 5 * 1024 * 1024
 MAX_IMAGE_PIXELS = 25_000_000
 FORMATS = {
@@ -147,9 +147,9 @@ class LocalPhotoStorage:
             raise PhotoError("This property has already been submitted.")
         if not uploads:
             raise PhotoError("Choose at least one photo.")
-        current = [photo for photo in data["photos"] if photo["category"] == category]
-        if len(current) + len(uploads) > MAX_PHOTOS_PER_CATEGORY:
-            raise PhotoError("A category can contain at most 4 photos.")
+        current = list(data["photos"])
+        if len(current) + len(uploads) > MAX_PHOTOS_PER_PROPERTY:
+            raise PhotoError("A property can contain at most 20 photos.")
         checked = [validate_image(upload) for upload in uploads]
         written = []
         try:
@@ -187,8 +187,7 @@ class LocalPhotoStorage:
             raise PhotoError("Choose a valid photo.")
         if action == "delete":
             photos.remove(selected)
-            category_photos = [photo for photo in photos if photo["category"] == selected["category"]]
-            for index, photo in enumerate(category_photos):
+            for index, photo in enumerate(sorted(photos, key=lambda item: item["display_order"])):
                 photo["display_order"] = index
             if selected["is_primary"] and photos:
                 photos[0]["is_primary"] = True
@@ -199,7 +198,7 @@ class LocalPhotoStorage:
                 photo["is_primary"] = photo["id"] == photo_id
             self._write(token, data)
         elif action in ("up", "down"):
-            siblings = sorted((photo for photo in photos if photo["category"] == selected["category"]), key=lambda photo: photo["display_order"])
+            siblings = sorted(photos, key=lambda photo: photo["display_order"])
             index = siblings.index(selected)
             destination = index + (-1 if action == "up" else 1)
             if 0 <= destination < len(siblings):
@@ -212,6 +211,8 @@ class LocalPhotoStorage:
 
     def prepare_property_photos(self, token, property_id):
         photos = self.read(token)["photos"]
+        if len(photos) > MAX_PHOTOS_PER_PROPERTY:
+            raise PhotoError("A property can contain at most 20 photos.")
         prepared = []
         copied = []
         try:

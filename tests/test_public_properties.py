@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from app import db, routes
-from app.models import Property
+from app.models import Property, PropertyPhoto
 from test_properties import migrated_connection, values
 from test_property_creation import client
 
@@ -35,8 +35,6 @@ def test_only_published_available_properties_appear(client, values):
     cases = [
         ("published", "available", "Public home"),
         ("draft", "available", "Draft secret"),
-        ("pending", "available", "Pending secret"),
-        ("archived", "available", "Archived secret"),
         ("published", "rented", "Rented secret"),
     ]
     for publication, availability, title in cases:
@@ -113,3 +111,30 @@ def test_user_content_is_escaped(client, values):
     html = client.get("/properties?lang=en").get_data(as_text=True)
     assert "<script>unsafe</script>" not in html
     assert "&lt;script&gt;unsafe&lt;/script&gt;" in html
+
+
+@pytest.mark.parametrize("count", [0, 1, 2, 5])
+def test_card_photo_primary_count_and_languages(client, values, count):
+    property = add_property(values, publication_status="published")
+    for index in range(count):
+        db.session.add(PropertyPhoto(
+            property_id=property.id, category="exterior",
+            storage_key=f"properties/{property.id}/{index:032x}.jpg",
+            original_filename=f"{index}.jpg", content_type="image/jpeg",
+            file_size=1, display_order=index, is_primary=index == count - 1,
+        ))
+    db.session.commit()
+    for suffix, language, title in (("", "ar", values["title_ar"]), ("?lang=en", "en", values["title_en"])):
+        html = client.get("/properties" + suffix).get_data(as_text=True)
+        assert f'<html lang="{language}" dir="{"rtl" if language == "ar" else "ltr"}">' in html
+        assert 'class="property-card-media"' in html
+        assert 'class="property-card-image-placeholder" role="img"' in html
+        if count:
+            primary = property.photos[-1]
+            assert f'src="/properties/photos/{primary.id}" alt="{title}" loading="lazy" decoding="async"' in html
+            assert "onerror=\"this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true\"" in html
+        else:
+            assert 'class="property-card-image"' not in html
+        assert ('class="property-card-photo-count"' in html) == (count > 1)
+        if count > 1:
+            assert f'<span>{count}</span>' in html
