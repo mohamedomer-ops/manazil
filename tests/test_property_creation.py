@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import scoped_session, sessionmaker
 from app import db
-from app.models import Property
+from app.models import Property, User
 from app.property_forms import FORM_DEFAULTS
 from test_properties import migrated_connection
 
@@ -13,7 +13,13 @@ def client(migrated_connection, monkeypatch):
     sessions = scoped_session(sessionmaker(bind=migrated_connection, join_transaction_mode="create_savepoint"))
     monkeypatch.setattr(db, "session", sessions)
     try:
-        yield current_app.test_client()
+        user = User(phone_number='+249912345678', is_verified=True, is_active=True)
+        db.session.add(user)
+        db.session.commit()
+        test_client = current_app.test_client()
+        with test_client.session_transaction() as auth_session:
+            auth_session['user_id'] = user.id
+        yield test_client
     finally:
         sessions.remove()
 
@@ -49,6 +55,7 @@ def test_submit_for_review(client, form_data, transaction, period, occupancy, ag
     assert response.status_code == 303
     saved = db.session.scalar(select(Property).order_by(Property.id.desc()))
     assert saved.publication_status == 'published'
+    assert saved.owner_id is not None
     assert saved.transaction_type == transaction and saved.rent_period == (period or None)
     assert saved.property_occupancy == occupancy
     assert saved.contact_role == ('broker' if agent == 'yes' else 'owner')

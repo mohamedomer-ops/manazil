@@ -8,6 +8,8 @@ from app.property_forms import FORM_DEFAULTS, FORM_FIELDS, validate_posting
 from app.languages import current_language, translate
 from app.states import STATE_BY_NAME, state_options
 from app.photo_storage import LocalPhotoStorage, PhotoError
+from app.auth import login_required
+from flask import g
 
 
 admin = Blueprint("admin", __name__, url_prefix="/admin")
@@ -41,11 +43,13 @@ def handle_csrf_error(error):
 
 
 @admin.get("/properties/new")
+@login_required
 def new_property():
     return render_form(FORM_DEFAULTS, {}, current_language(), photo_token=LocalPhotoStorage().new_token())
 
 
 @admin.post("/properties")
+@login_required
 def create_property():
     language = current_language()
     action = request.form.get("_action", "submit")
@@ -81,7 +85,7 @@ def create_property():
         return render_form(values, errors, language, photo_token=token), 422
     copied = []
     try:
-        property = Property(**data, publication_status="published")
+        property = Property(**data, owner_id=g.user.id, publication_status="published")
         db.session.add(property)
         db.session.flush()
         prepared, copied = storage.prepare_property_photos(token, property.id)

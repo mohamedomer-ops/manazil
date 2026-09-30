@@ -20,6 +20,9 @@ def create_app(test_config=None):
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         PHOTO_STORAGE_ROOT=os.environ.get("PHOTO_STORAGE_ROOT") or os.path.join(app.instance_path, "property_photos"),
         MAX_CONTENT_LENGTH=102 * 1024 * 1024,
+        OTP_DEVELOPMENT_MODE=os.environ.get('OTP_DEVELOPMENT_MODE') == '1',
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "connect_args": {"connect_timeout": 3},
@@ -39,9 +42,25 @@ def create_app(test_config=None):
 
     from app.routes import main
     from app.admin import admin
+    from app.auth import auth
     from app.languages import template_language
 
     app.register_blueprint(main)
     app.register_blueprint(admin)
+    app.register_blueprint(auth)
     app.context_processor(template_language)
+    @app.cli.command('dev-otp')
+    @__import__('click').argument('phone')
+    def dev_otp(phone):
+        """Read a code in an explicitly configured development environment."""
+        if not (app.config['OTP_DEVELOPMENT_MODE'] or app.testing):
+            raise __import__('click').ClickException('Development OTP access is disabled.')
+        import hashlib
+        from app.phone import normalize_phone
+        from pathlib import Path
+        normalized = normalize_phone(phone)
+        path = Path(app.instance_path) / 'dev_otps' / hashlib.sha256(normalized.encode()).hexdigest()
+        if not path.is_file():
+            raise __import__('click').ClickException('No development OTP for that number.')
+        __import__('click').echo(path.read_text())
     return app

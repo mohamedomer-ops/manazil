@@ -53,6 +53,8 @@ class Property(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    owner = db.relationship('User', back_populates='properties')
     title_en = db.Column(db.String, nullable=False)
     title_ar = db.Column(db.String, nullable=False)
     description_en = db.Column(db.Text, nullable=False)
@@ -183,3 +185,26 @@ class PropertyPhoto(db.Model):
     is_primary = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())
     property = db.relationship("Property", back_populates="photos")
+
+
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(16), nullable=False, unique=True)
+    is_verified = db.Column(db.Boolean, nullable=False, default=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+    last_login_at = db.Column(db.DateTime(timezone=True))
+    properties = db.relationship('Property', back_populates='owner')
+
+
+class OTPChallenge(db.Model):
+    __tablename__ = 'otp_challenges'
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(16), nullable=False, index=True)
+    otp_hash = db.Column(db.String(255), nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    consumed_at = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)

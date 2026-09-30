@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('My Account') }} · {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="form-page">
+  <h1>{{ t('My Account') }}</h1>
+  <dl>
+    <dt>{{ t('Phone number') }}</dt><dd>{{ current_user.phone_number }}</dd>
+    <dt>{{ t('Verification status') }}</dt><dd>{{ t('Verified') if current_user.is_verified else t('Unverified') }}</dd>
+    <dt>{{ t('Account creation date') }}</dt><dd>{{ current_user.created_at.strftime('%Y-%m-%d') }}</dd>
+  </dl>
+</main>
+{% endblock %}

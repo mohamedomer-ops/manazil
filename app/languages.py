@@ -16,6 +16,19 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    "Login": "تسجيل الدخول", "Phone number": "رقم الهاتف",
+    "We'll send a verification code to your number.": "سنرسل رمز التحقق إلى رقمك.",
+    "Continue": "متابعة", "Verification code": "رمز التحقق",
+    "Enter the 6-digit verification code.": "أدخل رمز التحقق المكون من 6 أرقام.",
+    "Verify": "تحقق", "Resend code": "إعادة إرسال الرمز",
+    "Change phone number": "تغيير رقم الهاتف", "My Account": "حسابي",
+    "Logout": "تسجيل الخروج", "Verification status": "حالة التحقق",
+    "Verified": "تم التحقق", "Unverified": "لم يتم التحقق",
+    "Account creation date": "تاريخ إنشاء الحساب",
+    "Enter a valid phone number.": "أدخل رقم هاتف صالحًا.",
+    "Invalid or expired verification code.": "رمز التحقق غير صالح أو منتهي الصلاحية.",
+    "Unable to sign in.": "تعذر تسجيل الدخول.",
+    "If the number is valid, a verification code will be sent.": "إذا كان الرقم صالحًا، سيتم إرسال رمز التحقق.",
     "Publish Property": "انشر العقار",
     "Category": "التصنيف", "For Rent": "للإيجار", "For Sale": "للبيع",
     "What are you renting?": "ماذا تعرض؟", "Rooms": "غرف", "Entire Property": "عقار كامل",

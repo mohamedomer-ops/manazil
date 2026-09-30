@@ -262,3 +262,17 @@ tracking and analytics,
 payments, maps, reviews, ratings, notifications, AI, chat, favorites, and
 saved searches are not implemented. Azure Blob Storage and deployment are
 deferred.
+# Development phone login
+
+The local Docker Compose web service enables the development OTP provider. After
+requesting a code on `/login`, retrieve it from the container with:
+
+```sh
+docker compose exec web flask --app run dev-otp +249912345678
+```
+
+Use the phone number entered on the login page (the command accepts Sudanese
+local format too). This command and the provider's local code file are disabled
+unless `OTP_DEVELOPMENT_MODE=1` (or the app is in testing mode). Do not enable
+that setting in a production deployment. Configure a production delivery
+provider through `OTP_DELIVERY_PROVIDER` before offering phone login there.

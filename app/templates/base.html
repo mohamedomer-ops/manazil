@@ -15,6 +15,12 @@
         <a href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>{{ t('Home') }}</a>
         <a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('main.properties', 'main.property_detail') %}aria-current="page"{% endif %}>{{ t('Properties') }}</a>
         <a href="{{ url_for('admin.new_property', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.blueprint == 'admin' %}aria-current="page"{% endif %}>{{ t('List Your Property') }}</a>
+        {% if current_user %}
+          <a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>
+          <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('Logout') }}</button></form>
+        {% else %}
+          <a href="{{ url_for('auth.login', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login') }}</a>
+        {% endif %}
       </nav>
       <div class="language-switcher" aria-label="{{ 'اللغة' if language == 'ar' else 'Language' }}">
         {% block language_switcher %}
