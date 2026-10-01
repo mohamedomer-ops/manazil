@@ -1,0 +1,9 @@
+{% if facebook_auth_enabled %}
+<form class="auth-facebook" method="post" action="{{ url_for('facebook.start') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <input type="hidden" name="_language" value="{{ language }}">
+  <button class="button-secondary" type="submit">{{ t('Continue with Facebook') }}</button>
+  <p class="auth-support auth-development-note">{{ t('Development simulation only. No connection to Facebook.') }}</p>
+</form>
+{% endif %}

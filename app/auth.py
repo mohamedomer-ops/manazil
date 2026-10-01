@@ -17,14 +17,21 @@ auth = Blueprint('auth', __name__)
 def load_user():
     user_id = session.get('user_id') or session.get('pending_setup_user_id')
     g.user = db.session.get(User, user_id) if user_id else None
-    if g.user and (not g.user.is_active or not g.user.is_verified):
+    if g.user and (not g.user.is_active or not g.user.has_authenticated_identity):
+        csrf_value = session.get('csrf_token')
         session.clear()
+        if csrf_value:
+            session['csrf_token'] = csrf_value
         g.user = None
 
 
 @auth.app_context_processor
 def auth_template_context():
-    return {'current_user': g.get('user')}
+    from flask import current_app
+    from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
+    provider = current_app.extensions.get('facebook_auth_provider')
+    enabled = bool(provider) and (not isinstance(provider, DevelopmentFacebookAuthProvider) or development_enabled(current_app.config))
+    return {'current_user': g.get('user'), 'facebook_auth_enabled': enabled}
 
 
 def login_required(view):
@@ -42,6 +49,15 @@ def login_required(view):
 def safe_next(value):
     parsed = urlsplit(value or '')
     return value if value and value.startswith('/') and not value.startswith('//') and '\\' not in value and not any(ord(char) < 32 for char in value) and not parsed.scheme and not parsed.netloc else url_for('auth.account')
+
+
+def establish_session(user, destination):
+    csrf_value = session.get('csrf_token')
+    session.clear()
+    if csrf_value:
+        session['csrf_token'] = csrf_value
+    session['user_id'] = user.id
+    return redirect(safe_next(destination), code=303)
 
 
 def contact_values(user):
@@ -164,12 +180,7 @@ def verify_post():
         return render_template('auth/login.html', next=auth_destination(),
                                error='An account with this number already exists. Please log in.'), 409
     destination = safe_next(session.get('auth_next'))
-    csrf_value = session.get('csrf_token')
-    session.clear()
-    if csrf_value:
-        session['csrf_token'] = csrf_value
-    session['user_id'] = user.id
-    return redirect(destination, code=303)
+    return establish_session(user, destination)
 
 
 @auth.post('/auth/resend')
@@ -206,6 +217,6 @@ def account_post():
     destination = session.pop('contact_next', None)
     if session.pop('pending_setup_user_id', None):
         session['user_id'] = g.user.id
-    if destination:
+    if destination and g.user.contact_complete:
         return redirect(safe_next(destination), code=303)
     return render_template('auth/account.html', values=contact_values(g.user), errors={}, saved=True)

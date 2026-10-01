@@ -171,8 +171,8 @@ def test_zero_values_and_optional_fields(session, values):
 
 
 def test_migration_creates_table_and_version(migrated_connection):
-    assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "users", "otp_challenges", "saved_properties", "alembic_version"}
-    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0010_saved_properties"
+    assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "users", "otp_challenges", "saved_properties", "user_identities", "alembic_version"}
+    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0011_facebook_identity"
     columns = inspect(migrated_connection).get_columns("properties")
     assert {column["name"] for column in columns} == set(Property.__table__.columns.keys())
 

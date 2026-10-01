@@ -276,3 +276,31 @@ local format too). This command and the provider's local code file are disabled
 unless `OTP_DEVELOPMENT_MODE=1` (or the app is in testing mode). Do not enable
 that setting in a production deployment. Configure a production delivery
 provider through `OTP_DELIVERY_PROVIDER` before offering phone login there.
+
+## Development Facebook authentication
+
+Local Docker Compose explicitly sets `MANAZIL_ENV=development` and
+`FACEBOOK_DEVELOPMENT_MODE=1`. The authentication cards offer Continue with
+Facebook and a clearly labeled simulation confirmation page. No Meta API,
+Facebook credentials, email matching or automatic account linking is used.
+The fake account ID is stable (`development-facebook-user`); optional server
+configuration `FACEBOOK_DEVELOPMENT_USER_ID` and
+`FACEBOOK_DEVELOPMENT_DISPLAY_NAME` selects a different test identity.
+Never expose this development deployment to untrusted users: all visitors
+can authenticate as the configured fake account.
+
+The default environment is production, where the simulation routes and UI
+are absent even if `FACEBOOK_DEVELOPMENT_MODE=1`. Explicit `TESTING=True`
+also enables the simulation for isolated tests. Debug mode and the OTP
+development flag alone do not enable Facebook authentication. Real Meta
+authentication is not implemented; production Facebook login fails closed.
+
+`FacebookAuthProvider` defines authorization URL and identity authentication
+methods. Future Meta delivery can implement that boundary while reusing the
+identity lookup and session logic. Provider identities use a unique composite
+key `(provider, provider_user_id)`; names are not account identifiers.
+Facebook-only accounts have no verified phone, WhatsApp or contact role.
+The existing phone/contact requirements for posting remain in place for this
+stage; account linking and property-specific contact verification are deferred.
+Phone/OTP login remains available independently. Both login methods preserve
+safe local `next` destinations and never automatically save a property.

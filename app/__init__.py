@@ -21,6 +21,10 @@ def create_app(test_config=None):
         PHOTO_STORAGE_ROOT=os.environ.get("PHOTO_STORAGE_ROOT") or os.path.join(app.instance_path, "property_photos"),
         MAX_CONTENT_LENGTH=102 * 1024 * 1024,
         OTP_DEVELOPMENT_MODE=os.environ.get('OTP_DEVELOPMENT_MODE') == '1',
+        ENVIRONMENT=os.environ.get('MANAZIL_ENV', 'production'),
+        FACEBOOK_DEVELOPMENT_MODE=os.environ.get('FACEBOOK_DEVELOPMENT_MODE') == '1',
+        FACEBOOK_DEVELOPMENT_USER_ID=os.environ.get('FACEBOOK_DEVELOPMENT_USER_ID', 'development-facebook-user'),
+        FACEBOOK_DEVELOPMENT_DISPLAY_NAME=os.environ.get('FACEBOOK_DEVELOPMENT_DISPLAY_NAME', 'Development Facebook User'),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SQLALCHEMY_ENGINE_OPTIONS={
@@ -52,6 +56,8 @@ def create_app(test_config=None):
     app.register_blueprint(auth)
     app.register_blueprint(ownership)
     app.register_blueprint(saved)
+    from app.facebook_provider import configure_facebook
+    configure_facebook(app)
     app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])
     app.context_processor(template_language)
     @app.cli.command('dev-otp')

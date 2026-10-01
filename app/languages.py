@@ -16,6 +16,14 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    'Continue with Facebook': 'المتابعة باستخدام فيسبوك',
+    'Cancel': 'إلغاء',
+    'Development simulation only. No connection to Facebook.': 'محاكاة للتطوير فقط. لا يوجد اتصال بفيسبوك.',
+    'Development Facebook Login': 'دخول فيسبوك التجريبي',
+    'This is a simulated identity for local testing, not real Facebook authentication.': 'هذه هوية تجريبية للاختبار المحلي، وليست مصادقة حقيقية من فيسبوك.',
+    'Development account': 'حساب تجريبي',
+    'Sign in with development account': 'الدخول بالحساب التجريبي',
+    'No verified phone number. Property posting currently requires a phone-verified contact profile.': 'لا يوجد رقم هاتف موثق. إضافة العقارات تتطلب حالياً بيانات اتصال برقم هاتف موثق.',
     'Saved Properties': 'العقارات المحفوظة',
     'Save Property': 'حفظ العقار',
     'Saved': 'محفوظ',

@@ -191,7 +191,7 @@ class PropertyPhoto(db.Model):
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(16), nullable=False, unique=True)
+    phone_number = db.Column(db.String(16), nullable=True, unique=True)
     whatsapp = db.Column(db.String(16), nullable=True)
     contact_name = db.Column(db.String, nullable=True)
     contact_role = db.Column(db.String, nullable=True)
@@ -202,10 +202,25 @@ class User(db.Model):
     last_login_at = db.Column(db.DateTime(timezone=True))
     properties = db.relationship('Property', back_populates='owner')
     saved_properties = db.relationship('Property', secondary='saved_properties', back_populates='saved_by', passive_deletes=True)
+    identities = db.relationship('UserIdentity', back_populates='user', cascade='all, delete-orphan')
+
+    @property
+    def has_authenticated_identity(self):
+        return self.is_verified or bool(self.identities)
 
     @property
     def contact_complete(self):
-        return bool(self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
+        return bool(self.phone_number and self.is_verified and self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
+
+
+class UserIdentity(db.Model):
+    __tablename__ = 'user_identities'
+    provider = db.Column(db.String(32), primary_key=True)
+    provider_user_id = db.Column(db.String(255), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    display_name = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())
+    user = db.relationship('User', back_populates='identities')
 
 
 class OTPChallenge(db.Model):

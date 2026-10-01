@@ -7,6 +7,7 @@
 {% block content %}
 <main id="main-content" class="form-page auth-page">
 <h1>{{ t('Create Account') }}</h1>
+{% include 'auth/_facebook.html' %}
 <form method="post" action="{{ url_for('auth.signup_post') }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="next" value="{{ next }}">

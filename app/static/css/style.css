@@ -282,6 +282,8 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .auth-page .auth-choice .button { margin-block-start: 10px; }
 .auth-page .button-secondary { color: var(--green); background: #fff; border-color: var(--border); }
 .auth-page .button-secondary:hover { color: var(--green); background: #f4f8f5; border-color: var(--green); }
+.auth-page .auth-facebook { padding-block-end: 14px; margin-block-end: 14px; border-block-end: 1px solid var(--border); }
+.auth-page .auth-development-note { margin-block: 8px 0; font-size: 12px; text-align: center; }
 .auth-page .auth-footer { margin: 20px 0 0; padding-block-start: 16px; border-block-start: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
 .auth-page .auth-footer a, .auth-page .auth-change-phone { color: var(--green); font-weight: 600; text-underline-offset: 3px; }
 .auth-page .auth-footer a { display: inline-block; padding-block: 6px; }

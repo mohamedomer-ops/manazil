@@ -10,9 +10,9 @@
     <label for="contact_name">{{ t('Name') }}</label>
     <input id="contact_name" name="contact_name" value="{{ values.contact_name }}" required>
     {% if errors.contact_name %}<p role="alert">{{ t(errors.contact_name) }}</p>{% endif %}
-    <label for="phone_number">{{ t('Phone Number') if setup else t('Verified Phone Number') }}</label>
-    <input id="phone_number" type="tel" value="{{ current_user.phone_number }}" readonly aria-describedby="phone-verified">
-    <p id="phone-verified">{{ t('Verified') }}</p>
+    <label for="phone_number">{{ t('Verified Phone Number') if current_user.is_verified else t('Phone Number') }}</label>
+    <input id="phone_number" type="tel" value="{{ current_user.phone_number or '' }}" readonly aria-describedby="phone-verified">
+    <p id="phone-verified">{{ t('Verified') if current_user.is_verified else t('No verified phone number. Property posting currently requires a phone-verified contact profile.') }}</p>
     <label for="whatsapp">{{ t('WhatsApp Number') }}</label>
     <input id="whatsapp" name="whatsapp" type="tel" value="{{ values.whatsapp }}" required>
     {% if errors.whatsapp %}<p role="alert">{{ t(errors.whatsapp) }}</p>{% endif %}
