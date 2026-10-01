@@ -3,7 +3,6 @@ import secrets
 import time
 
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app import db

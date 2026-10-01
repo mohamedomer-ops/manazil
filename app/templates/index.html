@@ -22,31 +22,22 @@
   <section class="home-section" aria-labelledby="home-discover-title">
     <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Explore Manazil') }}</p><h2 id="home-discover-title">{{ t('Find what fits you') }}</h2></div></div>
     <div class="home-discovery-grid">
-      <a class="home-discovery-card home-discovery-rent" href="{{ url_for('main.properties', transaction='rent', **({'lang': 'en'} if language == 'en' else {})) }}"><span class="home-discovery-icon" aria-hidden="true">⌂</span><span><strong>{{ t('Properties for Rent') }}</strong><small>{{ t('Explore homes available to rent.') }}</small></span><span class="home-link-arrow" aria-hidden="true">↗</span></a>
-      <a class="home-discovery-card home-discovery-sale" href="{{ url_for('main.properties', transaction='sale', **({'lang': 'en'} if language == 'en' else {})) }}"><span class="home-discovery-icon" aria-hidden="true">⌂</span><span><strong>{{ t('Properties for Sale') }}</strong><small>{{ t('Explore properties available to buy.') }}</small></span><span class="home-link-arrow" aria-hidden="true">↗</span></a>
+      <a class="home-discovery-card home-discovery-rent" href="{{ url_for('main.properties', transaction='rent', **({'lang': 'en'} if language == 'en' else {})) }}"><span class="home-discovery-icon" aria-hidden="true"><svg class="home-discovery-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M6 21 24 7l18 14M11 18v23h26V18"/><circle cx="19" cy="29" r="3"/><path d="M22 29h10m-5 0v4m5-4v4"/></svg></span><span><strong>{{ t('Properties for Rent') }}</strong><small>{{ t('Explore homes available to rent.') }}</small></span></a>
+      <a class="home-discovery-card home-discovery-sale" href="{{ url_for('main.properties', transaction='sale', **({'lang': 'en'} if language == 'en' else {})) }}"><span class="home-discovery-icon" aria-hidden="true"><svg class="home-discovery-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M6 21 24 7l18 14M11 18v23h26V18"/><path d="M16 25h12l6 5-6 5H16z"/><circle cx="20" cy="30" r="1"/></svg></span><span><strong>{{ t('Properties for Sale') }}</strong><small>{{ t('Explore properties available to buy.') }}</small></span></a>
     </div>
   </section>
 
   <section class="home-section home-latest" aria-labelledby="home-latest-title">
-    <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Discover homes') }}</p><h2 id="home-latest-title">{{ t('Latest Properties') }}</h2></div><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View all properties') }} <span class="home-link-arrow" aria-hidden="true">↗</span></a></div>
+    <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Discover homes') }}</p><h2 id="home-latest-title">{{ t('Latest Properties') }}</h2></div><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View all properties') }}</a></div>
     {% if latest_properties %}
     <div class="home-latest-grid">
       {% for property in latest_properties %}
-        {{ property_result(property, language, t, today, availability_label, format_rent, property_type_label, {}, current_user, property.id in saved_ids, 'home', true) }}
+        {{ property_result(property, language, t, today, availability_label, format_rent, {}, current_user, property.id in saved_ids, 'home', true) }}
       {% endfor %}
     </div>
     {% else %}
     <div class="home-empty"><p>{{ t('No properties are currently available.') }}</p><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Browse Properties') }}</a></div>
     {% endif %}
-  </section>
-
-  <section class="home-section" aria-labelledby="home-states-title">
-    <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Explore Sudan') }}</p><h2 id="home-states-title">{{ t('Browse by State') }}</h2></div></div>
-    <div class="home-state-grid">
-      {% for slug, english, arabic in state_options %}
-      <a class="home-state-card" href="{{ url_for('main.properties', state=slug, **({'lang': 'en'} if language == 'en' else {})) }}"><img src="{{ url_for('static', filename='images/states/' ~ slug ~ '.webp') }}" alt="" width="640" height="360" loading="lazy" decoding="async"><span class="home-state-name">{{ arabic if language == 'ar' else english }}</span></a>
-      {% endfor %}
-    </div>
   </section>
 
   <section class="home-post-cta" aria-labelledby="home-post-title"><div><h2 id="home-post-title">{{ t('Have a property?') }}</h2><p>{{ t('List your property on Manazil and make it easier for people to find it.') }}</p></div><a class="primary-link" href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a></section>

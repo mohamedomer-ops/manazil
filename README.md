@@ -1,306 +1,121 @@
-# Manazil | منازل
+# Manazil
 
-Manazil is a Sudan-focused property rental marketplace with a staged property
-submission, local photo storage, internal review, and public listings.
+Manazil is a Sudan-focused property marketplace for rent and sale. Visitors can browse, search, and view listings without an account. Accounts support property posting and management, saved properties, and contact profiles. Arabic is the default language, with an English switch and RTL/LTR layouts.
 
-## Stack
+## Stack and structure
 
-Python 3, Flask, Flask-SQLAlchemy / SQLAlchemy, Flask-Migrate / Alembic, psycopg, PostgreSQL 17,
-server-rendered Jinja2 HTML, CSS, vanilla JavaScript, Docker Compose, and pytest.
-Git and VS Code can be used for development. No cloud services are required.
-
-## Structure
+Manazil uses Python 3.13, Flask and Jinja2, HTML/CSS and vanilla JavaScript, Flask-SQLAlchemy/SQLAlchemy, Flask-Migrate/Alembic, PostgreSQL 17 via psycopg, Pillow for image processing, Docker Compose, and pytest.
 
 ```text
-Manazil/
-├── app/
-│   ├── __init__.py          # Application factory and database configuration
-│   ├── routes.py            # Homepage and database health probe
-│   ├── models.py            # Property model and validation
-│   ├── admin.py             # Internal property creation routes
-│   ├── property_forms.py    # Form parsing and validation
-│   ├── templates/admin/property_form.html
-│   ├── templates/index.html
-│   └── static/
-│       ├── css/style.css
-│       └── js/app.js
-├── migrations/             # Alembic environment and versioned migrations
-├── tests/
-│   ├── test_app.py
-│   ├── test_properties.py
-│   └── test_property_creation.py
-├── .dockerignore
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-├── pytest.ini
-├── run.py
-└── README.md
+app/
+  __init__.py             Application factory, configuration, extensions, CLI
+  routes.py               Homepage, public properties, photo serving, health check
+  admin.py                Current single-page property posting and staged uploads
+  property_forms.py       Property form validation
+  ownership.py            Owner-only property management and photo actions
+  auth.py, otp.py, phone.py
+                          Phone authentication, OTP, phone normalization
+  facebook_auth.py, facebook_provider.py
+                          Development Facebook authentication
+  saved.py                Saved-property routes
+  property_filters.py     Public listing filters
+  models.py               Users, identities, properties, photos, OTPs, saves
+  photo_storage.py        Image validation and local storage
+  states.py, languages.py Supported states and interface translations
+  templates/              Jinja pages and reusable property components
+  static/                 CSS, vanilla JavaScript, local images
+migrations/versions/      Alembic schema revisions
+tests/                    pytest coverage
+run.py                    Flask entry point
+docker-compose.yml        Web and PostgreSQL services
 ```
 
-## Start locally
+## Run locally
 
-Install and start Docker Desktop with Linux containers and Docker Compose.
-From the project directory, copy the example configuration:
+From the repository root in PowerShell, with Docker Compose available:
 
 ```powershell
 Copy-Item .env.example .env
-```
-
-On macOS/Linux, use `cp .env.example .env` instead. Edit `.env` and replace
-the example password in both variables with the same local password.
-URL-encode special characters in the password used inside `DATABASE_URL`.
-The real `.env` is ignored by Git and excluded from the Docker build context.
-
-```sh
-docker compose up --build
-```
-
-Open http://localhost:5000. The page displays API and database status on load
-and refreshes it every 15 seconds. Flask's development server is intentional
-for this local stage; deployment configuration belongs to a later stage.
-Source is copied into the image; rerun the build after editing files.
-
-To run in the background, use `docker compose up --build -d`.
-After the containers start, apply the database migration (also required on a fresh database):
-
-```sh
+docker compose up -d --build
 docker compose exec web flask --app run db upgrade
 ```
 
-Application startup does not create or modify tables. To verify the migration:
-
-```sh
-docker compose exec web flask --app run db current
-docker compose exec web flask --app run db check
-docker compose exec db psql -U manazil -d manazil -c "\dt"
-```
-
-To view logs, use `docker compose logs web db`.
-
-## Stop
-
-```sh
-docker compose down
-```
-
-The named PostgreSQL volume persists across stops and container rebuilds.
-`docker compose down --volumes` deletes database data; use it only when an
-intentional local database reset is needed.
-
-## Health and tests
-
-Open http://localhost:5000/api/health, or run:
+Open <http://127.0.0.1:5000>. The example environment file supplies the PostgreSQL connection used by Compose; change its development password before sharing an environment. Check services and logs with:
 
 ```powershell
-Invoke-RestMethod http://localhost:5000/api/health
+docker compose ps
+docker compose logs web db
 ```
 
-With curl: `curl http://localhost:5000/api/health`.
-Each request executes `SELECT 1` against PostgreSQL. A successful connection
-returns HTTP 200 with `status: ok`, `service: Manazil`, and
-`database: connected`. Connection failure returns HTTP 503 with
-`status: error` and `database: unavailable`, without exposing credentials.
-An API that responds with a database failure still appears reachable in the UI.
+Schema changes are managed by Flask-Migrate/Alembic. Apply all existing migrations with `docker compose exec web flask --app run db upgrade`; the repository contains revisions beyond the original property table, including users, OTP challenges, photos, saved-property relationships, and Facebook identities.
 
-With Compose running:
+## Homepage and public browsing
 
-```sh
-docker compose exec web pytest
-```
+The homepage has a Sudan-focused hero and search form, Rent/Sale discovery links, the newest four public properties, and a Post Property action. Search uses the same GET filters as `/properties`.
 
-The original four tests cover the homepage, health JSON contract, live PostgreSQL
-connection, and a simulated database outage. Property tests cover defaults,
-validation, saving and retrieval, timestamps, and database constraints.
-Each database test applies the actual migration to a fresh, isolated PostgreSQL
-schema inside a transaction. Test records, tables, and schemas are rolled back
-afterward; existing application data is never deleted. Tests require the
-configured PostgreSQL database and permission to create schemas (provided by
-the local Compose database owner). SQLite is not used.
+`GET /properties` displays only **published and available** properties. Its validated query parameters are:
 
-## Database configuration
+| Parameter | Values | Meaning |
+| --- | --- | --- |
+| `transaction` | `rent`, `sale` | Rent or sale |
+| `state` | One of the supported state slugs, such as `khartoum` | State |
+| `bedrooms` | `1` through `5` | Minimum bedroom count |
+| `seller` | `owner`, `broker` | Contact role |
+| `property_type` | `apartment`, `house`, `villa`, `office`, `shop`, `land` | Property type |
 
-Compose runs PostgreSQL with database and username `manazil`. Its password
-comes from `POSTGRES_PASSWORD` in `.env`. The web service receives
-`DATABASE_URL` through its environment; the hostname `db` resolves to the
-PostgreSQL service on the private Compose network, using port 5432.
-The database port is not exposed to the host. Only localhost port 5000 is published.
+For example, `/properties?transaction=rent&state=khartoum&bedrooms=2&seller=owner` finds available published rentals matching all four filters. Results use responsive cards with price, bed and bath counts, and State · Neighborhood location. The photo carousel has independent previous/next controls and touch swipe; Save/Unsave is separate from opening a listing. Property type remains a filter, although it is not shown in result-card metadata.
 
-Compose waits for `pg_isready` before starting Flask. SQLAlchemy opens
-connections on demand with a three-second connection timeout and checks
-pooled connections before reuse. The homepage can render during an outage;
-the health endpoint reports failure and can recover when PostgreSQL returns.
+`GET /properties/<property_id>` shows a public property's gallery, description, price, property details, amenities, location, and its listing-specific contact information, including phone and WhatsApp when provided. Draft and rented listings are not publicly accessible through this route. Photos are served only according to the same public visibility rules; an owner can manage their own photos from the edit page.
 
-PostgreSQL initializes credentials only when the volume is first created.
-Changing `.env` alone does not change a password in an existing database.
-The initial migration `0001_properties` creates `properties`, the only
-application table. Alembic also maintains its internal `alembic_version` table.
-Applying an already-applied migration is safe and does not recreate the table.
+## Properties and posting
 
-## Property foundation
+A property records its Rent/Sale transaction, Rooms/Entire Property occupancy where applicable, property type, bedroom and bathroom counts, optional size, furnished status, amenities, price and optional rent period, state and neighborhood, listing contact name/phone/optional WhatsApp, and Owner/Broker role. It also has an owner, photos, and two distinct statuses:
 
-Import the model with `from app.models import Property`. It stores bilingual
-titles, descriptions, city and area; property type, monthly rent, currency,
-bedrooms, bathrooms, optional size in square meters, furnished status,
-amenities, contact details, and separate publication and availability statuses.
+- **Publication:** `draft` or `published`. A valid new submission is published directly.
+- **Availability:** `available` or `rented`. A rented listing remains in its owner's management area but leaves public browsing.
 
-Required text rejects null, empty, and whitespace-only values. Rent and size
-use PostgreSQL NUMERIC / Python Decimal without an arbitrary precision limit;
-they must be finite and nonnegative. Bedrooms and bathrooms must be nonnegative
-integers. Size and WhatsApp are optional. Property type must be nonempty; the
-example types are not treated as a closed list.
+The current posting form at `/properties/new` is one page, ordered as Category (Rent/Sale), rental occupancy and seller role, Photos, Property Details, Contact Details, Location, then **Publish Property**. The form includes Arabic title and description, optional English content, the property details above, and an approved state plus Arabic neighborhood. City/Area columns remain for older records; they are not part of the current posting form. Posting requires authentication and a complete contact profile with a verified phone. The form prepopulates contact fields from the user's profile, but each property stores its own contact snapshot; editing a listing's contact does not edit the account.
 
-Defaults are `SDG`, `furnished=False`, an independent empty amenities list,
-`contact_role=owner`, `publication_status=draft`, and
-`availability_status=available`. Defaults exist on both the model and database.
-Amenities use JSONB and must be a list of strings; in-place list edits are tracked.
+The posting dropdown accepts these ten states from `app/states.py`: Khartoum, Al Jazirah, Red Sea, Kassala, Gedaref, Sennar, Blue Nile, White Nile, Northern, and River Nile. Other states are not currently accepted for new postings.
 
-Contact role accepts only `owner` (Owner / مالك) or `broker` (Broker / وسيط).
-It describes the contact shown to renters, not a future user or staff role.
-Publication status accepts `draft`, `pending`, `published`, or `archived`;
-availability accepts `available` or `rented`. Model validation and named database
-constraints enforce required values, nonnegative numbers, and allowed statuses.
+### Photos
 
-Timezone-aware `created_at` and `updated_at` are populated on insert.
-SQLAlchemy automatically updates `updated_at` on model changes. Direct SQL
-updates outside SQLAlchemy must explicitly set that timestamp; no database
-trigger is installed.
+Properties support up to **20 photos total**, with additional upload and individual deletion while editing. Accepted uploads are JPEG/JPG, PNG, and WebP, up to **5 MB per file**. The server checks the file type and image contents, processes images with Pillow, and stores them using generated safe names through a local-storage abstraction. Docker Compose persists photos in the `photo_data` volume. The storage root can be configured with `PHOTO_STORAGE_ROOT`.
 
-## Internal property creation (Stage 2B)
+An owner can set the primary photo, move photos in display order, and delete them. If the primary photo is deleted, another remaining photo becomes primary; with no photos, public cards use the existing placeholder. Public listings, the homepage carousel, and the details gallery use the current property photos.
 
-Arabic is the permanent default (`lang="ar" dir="rtl"`). English is selected
-explicitly (`?lang=en`); no browser-language detection or saved language
-preference is used. An unqualified new visit always returns to Arabic. Both
-pages extend `base.html`, with Home, List Your Property, and language controls.
+## Accounts and authentication
 
-The mobile-first interface uses green actions, charcoal text, and light
-backgrounds. Shared styling provides large inputs, visible keyboard focus,
-rounded form sections, a seven-step progress indicator, and responsive
-RTL/LTR layouts. Typography uses a local
-Arabic-compatible sans-serif font stack without external font services.
+`/auth` offers Login and Sign Up. Phone login verifies a normalized phone number by OTP and returns the same existing account; Sign Up collects name, phone, WhatsApp, and Owner/Broker role, then creates the account only after OTP verification. Authentication preserves a safe local `next` destination, such as `/properties/new` or a property detail URL. Logout ends the session.
 
-The wizard stages Basic Information, Location, Property Details, Price &
-Availability, Photos, Contact, and Review. Each Next validates only the current step.
-Back and language switching preserve entries without saving. The form asks for
-Arabic title, description, city, and area only; English switches the interface
-language without asking for duplicate property text. Review shows the entered
-information and provides section edit actions. The final Submit for Review
-creates one pending record after validating the entered fields. English text
-columns may remain empty; public English pages fall back to the Arabic values.
-Switching works without JavaScript. Validation messages, options, navigation,
-and connection labels are translated, and direction follows the active language.
+The current OTP delivery is a **development provider**. It stores the code locally for development; it does **not** send a real WhatsApp message. OTP codes are hashed in the database and protected by expiry, attempt limits, single use, and request throttling. After requesting a code locally, inspect it with:
 
-Open http://localhost:5000/admin/properties/new to enter a property. The form
-posts to `/admin/properties`, validates on the server, and saves through
-SQLAlchemy. Wizard submissions are forced to `pending`, regardless of submitted
-publication status. Amenities are entered one per line; blank lines are ignored.
-Successful submissions redirect with a confirmation.
-Validation errors preserve entries and show field errors (HTTP 422). Database
-failures roll back and redisplay the form with a retry message (HTTP 503).
-
-These are local internal development routes without authentication. The form
-uses a CSRF token, and requests with a missing or invalid token are rejected.
-The success message uses Flask's signed session cookie. `SECRET_KEY` can optionally
-be supplied through the environment; otherwise a random process-local key is
-generated, so pending messages do not survive an application restart.
-
-Creation tests reuse Stage 2A's isolated PostgreSQL migration fixture. They
-cover validation, draft enforcement, stored amenities, successful redirects,
-HTML escaping, and rollback after a failed commit. No schema change or new
-migration was required for the initial Stage 2B workflow.
-
-The state/date update uses the approved 10 Sudanese states as a fixed dropdown.
-State is stored in `state_en` and `state_ar`, separately from city. Migration
-`0003_property_states` copies existing city values to state, preserving
-existing records. Arbitrary or excluded state names are rejected on submission.
-Availability timing is separate from the existing `available` / `rented`
-status: Available Now stores a null `available_from_date`, while Available
-From a Date requires today or a future date using Sudan's timezone. Apply
-`flask --app run db upgrade` in the web container to install the latest migration.
-
-Step 5 accepts optional JPEG, PNG, or WebP photos in seven categories, up to
-four per category and 5 MB per file. Images are decoded and re-encoded before
-storage. A signed wizard token carries temporary photo state between steps;
-the final submission copies files into persistent local storage and records
-metadata in `property_photos`. Docker Compose mounts `photo_data` at
-`/app/instance/property_photos`. Set `PHOTO_STORAGE_ROOT` to use another
-local location. `LocalPhotoStorage` isolates filesystem operations so a future
-storage backend can replace it. Abandoned temporary uploads currently need
-periodic cleanup.
-
-The internal queue is at `/admin/properties/pending`. Reviewers can inspect a
-pending property, approve it to `published`, or return it to `draft`.
-Approval does not change availability: only published and available properties
-are public. These admin routes intentionally have no authentication or owner
-permissions in this stage; deploy them only behind an external access control
-until those features are implemented.
-
-## Public property listings (Stage 2C.1)
-
-Open `/properties` to browse properties marked both `published` and `available`.
-The page is public and displays bilingual card details in the selected language.
-Properties with a future `available_from_date` remain listed with a localized
-availability date; null, current, and past dates display Available Now. Cards
-omit descriptions, contact details, and internal status fields. View Property
-links to the public details page.
-
-## Public property details (Stage 2C.2)
-
-`/properties/<property_id>` returns details only for properties marked both
-`published` and `available`; all other IDs return 404. The selected language
-controls title, location, description, labels, and availability dates. The page
-shows property facts, optional amenities, and contact information. Phone and
-WhatsApp links are built only from valid phone numbers. When present, the
-primary photo and categorized gallery are shown. Inquiry backend is deferred.
-
-## Intentionally deferred
-
-Authentication, users, listing management, search, WhatsApp integration,
-tracking and analytics,
-payments, maps, reviews, ratings, notifications, AI, chat, favorites, and
-saved searches are not implemented. Azure Blob Storage and deployment are
-deferred.
-# Development phone login
-
-The local Docker Compose web service enables the development OTP provider. After
-requesting a code on `/login`, retrieve it from the container with:
-
-```sh
+```powershell
 docker compose exec web flask --app run dev-otp +249912345678
 ```
 
-Use the phone number entered on the login page (the command accepts Sudanese
-local format too). This command and the provider's local code file are disabled
-unless `OTP_DEVELOPMENT_MODE=1` (or the app is in testing mode). Do not enable
-that setting in a production deployment. Configure a production delivery
-provider through `OTP_DELIVERY_PROVIDER` before offering phone login there.
+Manazil also has **simulated development Facebook authentication**. With the explicit development/test configuration in Compose, Continue with Facebook uses a stable fake provider identity, creates or reuses its associated Manazil account, and preserves `next`. It does not contact Meta, require Facebook credentials, or constitute production Facebook Login. The simulated endpoints are disabled outside configured development/testing mode. Phone OTP remains available independently. A Facebook-only account can exist without a verified phone, but current property posting still requires a complete verified-phone contact profile; that linking/verification flow is not implemented.
 
-## Development Facebook authentication
+`/account` displays account identity and contact information. Users can edit contact name, WhatsApp number, and Owner/Broker role; the verified login phone is read-only. The page links to Saved Properties and Post Property. My Properties remains available in authenticated navigation. Arabic interface text is the default on each request; the language switch selects English (`lang=en`) or Arabic, with RTL Arabic and LTR English. Optional English property title/description fall back to Arabic content when absent.
 
-Local Docker Compose explicitly sets `MANAZIL_ENV=development` and
-`FACEBOOK_DEVELOPMENT_MODE=1`. The authentication cards offer Continue with
-Facebook and a clearly labeled simulation confirmation page. No Meta API,
-Facebook credentials, email matching or automatic account linking is used.
-The fake account ID is stable (`development-facebook-user`); optional server
-configuration `FACEBOOK_DEVELOPMENT_USER_ID` and
-`FACEBOOK_DEVELOPMENT_DISPLAY_NAME` selects a different test identity.
-Never expose this development deployment to untrusted users: all visitors
-can authenticate as the configured fake account.
+## Manage and save properties
 
-The default environment is production, where the simulation routes and UI
-are absent even if `FACEBOOK_DEVELOPMENT_MODE=1`. Explicit `TESTING=True`
-also enables the simulation for isolated tests. Debug mode and the OTP
-development flag alone do not enable Facebook authentication. Real Meta
-authentication is not implemented; production Facebook login fails closed.
+`GET /my-properties` requires an account and lists only that user's properties. Owners can edit listing fields and photos, mark a property rented, or make it available again. Management changes use owner-protected POST actions. A published property becomes public again when made available.
 
-`FacebookAuthProvider` defines authorization URL and identity authentication
-methods. Future Meta delivery can implement that boundary while reusing the
-identity lookup and session logic. Provider identities use a unique composite
-key `(provider, provider_user_id)`; names are not account identifiers.
-Facebook-only accounts have no verified phone, WhatsApp or contact role.
-The existing phone/contact requirements for posting remain in place for this
-stage; account linking and property-specific contact verification are deferred.
-Phone/OTP login remains available independently. Both login methods preserve
-safe local `next` destinations and never automatically save a property.
+Browsing does not require an account; saving does. On a public detail page, a logged-out Save action enters Login/Sign Up and returns to that same detail URL after authentication, without saving automatically. Save and Unsave use POST actions. `GET /saved-properties` shows only the signed-in user's saves; the database prevents duplicate relationships. A saved relationship remains if a listing later becomes unavailable, but the saved page labels it **No longer available**, avoids exposing private listing details, and allows removal.
+
+## Security and tests
+
+Flask-WTF CSRF protection covers state-changing forms. Server-side validation, SQLAlchemy queries, Jinja autoescaping, owner checks, safe local redirect handling, POST-only management/save actions, OTP protections, and image validation protect the current workflows. These controls do not by themselves constitute a production security review.
+
+Run the complete suite with:
+
+```powershell
+docker compose exec web pytest
+```
+
+The tests cover authentication and redirects, account ownership, posting and editing, photos, public visibility and filters, saved properties, language rendering, and responsive template behavior. The full suite should pass before committing or deploying.
+
+## Not yet implemented
+
+The repository has no real Meta Facebook Login, production WhatsApp/OTP delivery, Facebook-to-verified-phone linking, or per-property WhatsApp contact verification. Photo storage is local; Azure Blob Storage and production Azure deployment are not configured. Maps, payments, and AI features are not part of the current application.

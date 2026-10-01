@@ -9,7 +9,7 @@
 {% macro result_price(property, language, t, today, availability_label, format_rent) -%}
 <div class="market-result-bottom"><p class="market-result-price"><span>{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></p>{{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}</div>
 {%- endmacro %}
-{% macro property_result(property, language, t, today, availability_label, format_rent, property_type_label, filters, current_user, is_saved, return_to='listing', home_layout=false) -%}
+{% macro property_result(property, language, t, today, availability_label, format_rent, filters, current_user, is_saved, return_to='listing', home_layout=false) -%}
   {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
   {% set state = property.state_ar if language == 'ar' else property.state_en %}
   {% set photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
@@ -38,7 +38,7 @@
         {% endif %}
         {{ result_facts(property, state, t) }}
         {% if home_layout %}<p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>{% else %}{{ result_price(property, language, t, today, availability_label, format_rent) }}{% endif %}
-        <span class="market-result-open">{{ t('View Property') }} <span aria-hidden="true">›</span></span>
+        {% if not home_layout %}<span class="market-result-open">{{ t('View Property') }} <span aria-hidden="true">›</span></span>{% endif %}
       </div>
     </a>
     {% if carousel.photos|length > 1 %}

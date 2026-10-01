@@ -24,7 +24,7 @@
   {% if properties %}
     <section class="market-results" aria-label="{{ t('Properties') }}">
       {% for property in properties %}
-        {{ property_result(property, language, t, today, availability_label, format_rent, property_type_label, filters, current_user, property.id in saved_ids) }}
+        {{ property_result(property, language, t, today, availability_label, format_rent, filters, current_user, property.id in saved_ids) }}
       {% endfor %}
     </section>
   {% else %}

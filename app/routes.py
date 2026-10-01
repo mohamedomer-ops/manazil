@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app import db
 from app.languages import PROPERTY_TYPE_NAMES, availability_label, format_rent, property_type_label
-from app.models import PHOTO_CATEGORIES, Property, PropertyPhoto, SavedProperty
+from app.models import Property, PropertyPhoto, SavedProperty
 from app.property_filters import STATE_OPTIONS, apply_filters, validated_filters
 from app.photo_storage import LocalPhotoStorage, PhotoError, category_label
 from app.property_forms import sudan_today
@@ -26,7 +26,6 @@ def index():
         "index.html", latest_properties=latest, saved_ids=saved_ids,
         state_options=STATE_OPTIONS, property_types=PROPERTY_TYPE_NAMES, today=sudan_today(),
         availability_label=availability_label, format_rent=format_rent,
-        property_type_label=property_type_label,
     )
 
 
@@ -57,7 +56,6 @@ def properties():
         "properties.html", properties=listings, filters=filters, saved_ids=saved_ids,
         state_options=STATE_OPTIONS, property_types=PROPERTY_TYPE_NAMES, today=sudan_today(),
         availability_label=availability_label, format_rent=format_rent,
-        property_type_label=property_type_label,
     )
 
 
@@ -90,8 +88,7 @@ def property_detail(property_id):
         property_type_label=property_type_label,
         phone_url=f"tel:{phone}" if phone else None,
         whatsapp_url=f"https://wa.me/{whatsapp.lstrip('+')}" if whatsapp else None,
-        category_label=category_label,
-        photo_categories=PHOTO_CATEGORIES, is_saved=is_saved,
+        category_label=category_label, is_saved=is_saved,
     ))
     response.headers['Cache-Control'] = 'private, no-store'
     return response

@@ -27,7 +27,7 @@ def homepage_titles(html):
     return re.findall(r'<div class="market-result-info">\s*<h2>(.*?)</h2>', section)
 
 
-def test_homepage_languages_search_discovery_states_and_footer(client):
+def test_homepage_languages_search_discovery_and_footer(client):
     for suffix, direction, heading, rent, sale in (
         ('', 'rtl', 'ابحث عن بيتك القادم', 'عقارات للإيجار', 'عقارات للبيع'),
         ('?lang=en', 'ltr', 'Find your next home', 'Properties for Rent', 'Properties for Sale'),
@@ -44,7 +44,6 @@ def test_homepage_languages_search_discovery_states_and_footer(client):
             assert f'href="/properties?transaction={value}' in html
         for slug, english, arabic in STATE_OPTIONS:
             assert f'<option value="{slug}">' in html
-            assert f'href="/properties?state={slug}' in html
             assert (arabic if direction == 'rtl' else english) in html
         for property_type in PROPERTY_TYPE_NAMES:
             assert f'<option value="{property_type}">' in html
@@ -55,7 +54,6 @@ def test_homepage_languages_search_discovery_states_and_footer(client):
         assert 'href="#"' not in html
         if suffix:
             assert '<input type="hidden" name="lang" value="en">' in html
-            assert 'href="/properties?state=khartoum&amp;lang=en"' in html
 
 
 def test_hero_search_uses_marketplace_filters(client, values):
@@ -70,22 +68,42 @@ def test_hero_search_uses_marketplace_filters(client, values):
     assert 'Matching' in page.text and 'Wrong type' not in page.text
 
 
-def test_state_cards_have_local_images_and_keep_filter_links(client):
-    for suffix, language in (('', 'ar'), ('?lang=en', 'en')):
+def test_homepage_removes_state_discovery_and_keeps_search_and_images(client):
+    for suffix in ('', '?lang=en'):
         html = client.get('/' + suffix).text
-        section = html.split('<section class="home-section" aria-labelledby="home-states-title">', 1)[1].split('</section>', 1)[0]
-        cards = re.findall(r'<a class="home-state-card" href="([^"]+)"><img src="([^"]+)" alt="" width="640" height="360" loading="lazy" decoding="async"><span class="home-state-name">([^<]+)</span></a>', section)
-        assert len(cards) == len(STATE_OPTIONS) == 10
-        assert 'home-link-arrow' not in section
-        assert 'http://' not in section and 'https://' not in section
-        for (link, image, name), (slug, english, arabic) in zip(cards, STATE_OPTIONS):
-            assert urlsplit(unescape(link)).path == '/properties'
-            assert parse_qs(urlsplit(unescape(link)).query)['state'] == [slug]
-            assert image == f'/static/images/states/{slug}.webp'
-            assert name == (arabic if language == 'ar' else english)
-            asset = Path('app/static/images/states') / f'{slug}.webp'
-            assert asset.is_file() and asset.stat().st_size < 100_000
-            assert asset.read_bytes()[:4] == b'RIFF' and asset.read_bytes()[8:12] == b'WEBP'
+        assert 'home-states-title' not in html
+        assert 'home-state-grid' not in html and 'home-state-card' not in html
+        assert 'images/states/' not in html
+        assert 'Browse by State' not in html and 'تصفح حسب الولاية' not in html
+        assert html.index('home-latest-title') < html.index('home-post-title')
+        for slug, _, _ in STATE_OPTIONS:
+            assert f'<option value="{slug}">' in html
+    for slug, _, _ in STATE_OPTIONS:
+        asset = Path('app/static/images/states') / f'{slug}.webp'
+        assert asset.is_file() and asset.stat().st_size < 100_000
+        assert asset.read_bytes()[:4] == b'RIFF' and asset.read_bytes()[8:12] == b'WEBP'
+
+
+def test_homepage_discovery_icons_and_no_decorative_arrows(client, values):
+    public_property(values, 'A listing')
+    for suffix in ('', '?lang=en'):
+        html = client.get('/' + suffix).text
+        rent = re.search(r'<a class="home-discovery-card home-discovery-rent".*?</a>', html).group()
+        sale = re.search(r'<a class="home-discovery-card home-discovery-sale".*?</a>', html).group()
+        assert 'href="/properties?transaction=rent' in rent
+        assert 'href="/properties?transaction=sale' in sale
+        for card in (rent, sale):
+            assert '<svg class="home-discovery-svg"' in card
+            assert 'stroke="currentColor" stroke-width="2"' in card
+            assert '<span class="home-discovery-icon" aria-hidden="true">' in card
+            assert '⌂' not in card
+        assert '<circle cx="19" cy="29" r="3"/>' in rent
+        assert '<path d="M22 29h10m-5 0v4m5-4v4"/>' in rent
+        assert '<path d="M16 25h12l6 5-6 5H16z"/>' in sale
+        assert '<circle cx="20" cy="30" r="1"/>' in sale
+        assert 'home-link-arrow' not in html and '↗' not in html
+        assert 'class="market-result-open"' not in html
+        assert 'class="market-carousel-previous"' not in html
 
 
 def test_latest_properties_visibility_order_limit_and_links(client, values):
