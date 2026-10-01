@@ -18,20 +18,41 @@ main = Blueprint("main", __name__)
 
 @main.get("/")
 def index():
-    return render_template("index.html")
+    latest = db.session.scalars(
+        public_properties().order_by(Property.created_at.desc(), Property.id.desc()).limit(4)
+    ).all()
+    saved_ids = saved_property_ids(latest)
+    return render_template(
+        "index.html", latest_properties=latest, saved_ids=saved_ids,
+        state_options=STATE_OPTIONS, property_types=PROPERTY_TYPE_NAMES, today=sudan_today(),
+        availability_label=availability_label, format_rent=format_rent,
+        property_type_label=property_type_label,
+    )
+
+
+def public_properties():
+    return select(Property).options(selectinload(Property.photos)).where(
+        Property.publication_status == "published", Property.availability_status == "available"
+    )
+
+
+def saved_property_ids(listings):
+    if not g.get('user') or not listings:
+        return set()
+    return set(db.session.scalars(select(SavedProperty.property_id).where(
+        SavedProperty.user_id == g.user.id,
+        SavedProperty.property_id.in_([listing.id for listing in listings]),
+    )).all())
 
 
 @main.get("/properties")
 def properties():
     filters = validated_filters(request.args)
     listings = db.session.scalars(
-        apply_filters(select(Property).options(selectinload(Property.photos))
-                      .where(Property.publication_status == "published", Property.availability_status == "available"), filters)
+        apply_filters(public_properties(), filters)
         .order_by(Property.created_at.desc(), Property.id.desc())
     ).all()
-    saved_ids = set(db.session.scalars(select(SavedProperty.property_id).where(
-        SavedProperty.user_id == g.user.id, SavedProperty.property_id.in_([listing.id for listing in listings]))).all()) \
-        if g.get('user') and listings else set()
+    saved_ids = saved_property_ids(listings)
     return render_template(
         "properties.html", properties=listings, filters=filters, saved_ids=saved_ids,
         state_options=STATE_OPTIONS, property_types=PROPERTY_TYPE_NAMES, today=sudan_today(),

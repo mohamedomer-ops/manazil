@@ -14,10 +14,44 @@ category.forEach(input => input.addEventListener("change", updatePeriod));
 updatePeriod();
 const photos = document.getElementById("photos");
 const countError = document.getElementById("photo-count-error");
-const existingCount = document.querySelectorAll(".photo-thumbnails li").length;
-photos?.addEventListener("change", () => {
-  const exceeded = existingCount + photos.files.length > 20;
+const count = document.getElementById("photo-total-count");
+const previews = document.getElementById("selected-photo-previews");
+const existingCount = Number(count?.dataset.currentCount || 0);
+let previewUrls = [];
+function updateSelectedPhotos() {
+  previewUrls.forEach(url => URL.revokeObjectURL(url));
+  previewUrls = [];
+  previews.replaceChildren();
+  const selected = Array.from(photos.files);
+  count.textContent = String(existingCount + selected.length);
+  const exceeded = existingCount + selected.length > 20;
   countError.hidden = !exceeded;
-  photos.setCustomValidity(exceeded ? "Maximum 20 photos" : "");
-  if (exceeded) photos.value = "";
-});
+  photos.setCustomValidity(exceeded ? countError.textContent.trim() : "");
+  selected.forEach((file, index) => {
+    const item = document.createElement("li");
+    const image = document.createElement("img");
+    const url = URL.createObjectURL(file);
+    previewUrls.push(url);
+    image.src = url;
+    image.alt = file.name;
+    const actions = document.createElement("div");
+    actions.className = "photo-thumb-actions";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = previews.dataset.removeLabel;
+    remove.setAttribute("aria-label", `${previews.dataset.removeLabel}: ${file.name}`);
+    remove.addEventListener("click", () => {
+      const remaining = new DataTransfer();
+      selected.forEach((candidate, position) => {
+        if (position !== index) remaining.items.add(candidate);
+      });
+      photos.files = remaining.files;
+      updateSelectedPhotos();
+    });
+    actions.append(remove);
+    item.append(image, actions);
+    previews.append(item);
+  });
+  previews.hidden = selected.length === 0;
+}
+photos?.addEventListener("change", updateSelectedPhotos);

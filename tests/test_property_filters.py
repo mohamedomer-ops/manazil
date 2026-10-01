@@ -44,6 +44,34 @@ def test_default_results_and_visibility(client, values):
     assert 'href="/properties/1?lang=en"' in page.text
 
 
+@pytest.mark.parametrize('language,bed_label,bath_label,state', [
+    ('en', '3 bedrooms', '2 bathrooms', 'Khartoum'),
+    ('ar', '3 غرف نوم', '2 حمام', 'الخرطوم'),
+])
+def test_result_facts_use_icons_counts_and_location_without_property_type(
+        client, values, language, bed_label, bath_label, state):
+    listing(values, 'With neighborhood', bedrooms=3, bathrooms=2,
+            neighborhood_ar='الرياض', property_type='villa')
+    listing(values, 'State only', bedrooms=1, bathrooms=0,
+            property_type='apartment')
+    page = client.get('/properties', query_string={'lang': language})
+    cards = re.findall(r'<article class="market-result">(.*?)</article>', page.text, re.S)
+    assert len(cards) == 2
+    with_neighborhood = next(card for card in cards if 'With neighborhood' in card)
+    state_only = next(card for card in cards if 'State only' in card)
+    assert 'class="market-result-facts"' in with_neighborhood
+    assert f'role="img" aria-label="{bed_label}"' in with_neighborhood
+    assert f'role="img" aria-label="{bath_label}"' in with_neighborhood
+    assert f'; {bed_label}; {bath_label}; {state} · الرياض"' in with_neighborhood
+    assert with_neighborhood.count('stroke="currentColor"') >= 3
+    assert f'<bdi>{state} · الرياض</bdi>' in with_neighborhood
+    assert f'<bdi>{state}</bdi>' in state_only
+    assert 'class="property-card-type"' not in page.text
+    assert ('For Rent' if language == 'en' else 'للإيجار') in with_neighborhood
+    assert ('Owner' if language == 'en' else 'مالك') in with_neighborhood
+    assert 'Al Riyadh' not in with_neighborhood
+
+
 @pytest.mark.parametrize('transaction,expected', [('rent', 'Rent home'), ('sale', 'Sale home')])
 def test_transaction_filter(client, values, transaction, expected):
     listing(values, 'Rent home')

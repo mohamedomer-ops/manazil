@@ -30,7 +30,7 @@ def test_upload_twenty_and_reject_twenty_first(photo_client, form_data):
         response = photo_client.post('/admin/properties', data=form_data | {'_action':'upload','photos':image_file(f'{i}.jpg')})
         assert response.status_code == 200, (i, response.get_data(as_text=True)[-1000:])
     page = response.get_data(as_text=True)
-    assert '20/20' in page or '20 /20' in page or '20 / 20' in page
+    assert '>20</span> of 20 photos' in page
     response = photo_client.post('/admin/properties', data=form_data | {'_action':'upload','photos':image_file('extra.jpg')})
     assert response.status_code == 422
     assert '20 photos' in response.get_data(as_text=True)

@@ -1,5 +1,15 @@
 {% from 'components/availability_badge.html' import availability_badge %}
-{% macro property_result(property, language, t, today, availability_label, format_rent, property_type_label, filters, current_user, is_saved) -%}
+{% macro result_facts(property, state, t) -%}
+<div class="market-result-facts">
+  <span class="market-result-fact" role="img" aria-label="{{ property.bedrooms }} {{ t('bedrooms') }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 20V5m0 11h18v4M3 10h18v6M7 10V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/></svg><span aria-hidden="true">{{ property.bedrooms }}</span></span>
+  <span class="market-result-fact" role="img" aria-label="{{ property.bathrooms }} {{ t('bathrooms') }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 13h18v2a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-2Zm3 0V6a3 3 0 0 1 6 0M5 21l1-2m13 2-1-2"/></svg><span aria-hidden="true">{{ property.bathrooms }}</span></span>
+  <span class="market-result-fact market-result-fact-location"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg><bdi>{{ state }}{% if property.neighborhood_ar %} · {{ property.neighborhood_ar }}{% endif %}</bdi></span>
+</div>
+{%- endmacro %}
+{% macro result_price(property, language, t, today, availability_label, format_rent) -%}
+<div class="market-result-bottom"><p class="market-result-price"><span>{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></p>{{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}</div>
+{%- endmacro %}
+{% macro property_result(property, language, t, today, availability_label, format_rent, property_type_label, filters, current_user, is_saved, return_to='listing', home_layout=false) -%}
   {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
   {% set state = property.state_ar if language == 'ar' else property.state_en %}
   {% set photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
@@ -12,7 +22,7 @@
   {% endif %}
   {% set detail_url = url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) %}
   <article class="market-result">
-    <a class="market-result-link" href="{{ detail_url }}" aria-label="{{ t('View Property') }}: {{ title }}" draggable="false">
+    <a class="market-result-link" href="{{ detail_url }}" aria-label="{{ t('View Property') }}: {{ title }}; {{ property.bedrooms }} {{ t('bedrooms') }}; {{ property.bathrooms }} {{ t('bathrooms') }}; {{ state }}{% if property.neighborhood_ar %} · {{ property.neighborhood_ar }}{% endif %}" draggable="false">
       <div class="property-card-media">
         <div class="property-card-image-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if photo %}aria-hidden="true"{% endif %}>
           <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 30 32 11l23 19"/><path d="M15 27v26h34V27M27 53V37h10v16"/></svg>
@@ -22,9 +32,12 @@
       </div>
       <div class="market-result-info">
         <h2>{{ title }}</h2>
-        <p class="market-result-location"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg><bdi>{{ state }}{% if property.neighborhood_ar %} · {{ property.neighborhood_ar }}{% endif %}</bdi></p>
-        <p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span class="property-card-type">{{ property_type_label(property.property_type, language) }}</span><span>{{ property.bedrooms }} {{ t('Bedrooms') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>
-        <div class="market-result-bottom"><p class="market-result-price"><span>{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></p>{{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}</div>
+        {% if home_layout %}{{ result_price(property, language, t, today, availability_label, format_rent) }}{% endif %}
+        {% if not home_layout %}
+        <p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>
+        {% endif %}
+        {{ result_facts(property, state, t) }}
+        {% if home_layout %}<p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>{% else %}{{ result_price(property, language, t, today, availability_label, format_rent) }}{% endif %}
         <span class="market-result-open">{{ t('View Property') }} <span aria-hidden="true">›</span></span>
       </div>
     </a>
@@ -40,7 +53,7 @@
       <form method="post" action="{{ url_for('saved.unsave_property' if is_saved else 'saved.save_property', property_id=property.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="_language" value="{{ language }}">
-        <input type="hidden" name="return_to" value="listing">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
         {% for key, value in filters.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
         <button type="submit" {% if is_saved %}aria-label="{{ t('Remove from Saved') }}"{% endif %}><span aria-hidden="true">{{ '♥' if is_saved else '♡' }}</span> {{ t('Saved') if is_saved else t('Save Property') }}</button>
       </form>

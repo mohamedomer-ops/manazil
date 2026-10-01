@@ -142,7 +142,9 @@ def test_primary_photo_and_private_access_and_edit_preserves_photos(client, form
     assert client.get(f'/properties/photos/{identity}').status_code == 404
     edit = client.get(f'/properties/{property.id}/edit?lang=en')
     assert f'/my-properties/photos/{identity}' in edit.text
-    assert client.post(f'/properties/{property.id}/edit', data=form_data | {'csrf_token': token(edit)}).status_code == 303
+    edit_token = re.search(r'name="_photo_token" value="([^"]+)"', edit.text).group(1)
+    assert client.post(f'/properties/{property.id}/edit', data=form_data | {
+        'csrf_token': token(edit), '_photo_token': edit_token}).status_code == 303
     db.session.refresh(photo)
     assert photo.id == identity and photo.storage_key == key and LocalPhotoStorage().path(key).is_file()
     other = User(phone_number='+249911111111', is_verified=True)

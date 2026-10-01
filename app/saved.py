@@ -31,6 +31,10 @@ def listing_destination():
                    **({'lang': 'en'} if current_language() == 'en' else {}))
 
 
+def home_destination():
+    return url_for('main.index', **({'lang': 'en'} if current_language() == 'en' else {}))
+
+
 @saved.get('/saved-properties')
 @login_required
 def saved_properties():
@@ -64,7 +68,9 @@ def save_property(property_id):
         db.session.rollback()
         current_app.logger.warning('Saving property failed.')
         abort(503)
-    destination = listing_destination() if request.form.get('return_to') == 'listing' else detail_destination(property_id)
+    return_to = request.form.get('return_to')
+    destination = (home_destination() if return_to == 'home' else
+                   listing_destination() if return_to == 'listing' else detail_destination(property_id))
     return redirect(destination, code=303)
 
 
@@ -84,4 +90,6 @@ def unsave_property(property_id):
         return redirect(detail_destination(property_id), code=303)
     if request.form.get('return_to') == 'listing':
         return redirect(listing_destination(), code=303)
+    if request.form.get('return_to') == 'home':
+        return redirect(home_destination(), code=303)
     return redirect(url_for('saved.saved_properties', **({'lang': 'en'} if current_language() == 'en' else {})), code=303)

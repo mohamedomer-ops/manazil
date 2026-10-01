@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 import pytest
@@ -72,9 +73,15 @@ def test_availability_dates_keep_property_visible(client, values, monkeypatch, a
     ("land", "Land", "أرض"),
 ])
 def test_property_type_is_localized(client, values, property_type, english, arabic):
-    add_property(values, publication_status="published", property_type=property_type)
-    assert f'class="property-card-type">{english}</span>' in client.get("/properties?lang=en").get_data(as_text=True)
-    assert f'class="property-card-type">{arabic}</span>' in client.get("/properties").get_data(as_text=True)
+    property = add_property(values, publication_status="published", property_type=property_type)
+    english_results = client.get("/properties?lang=en").get_data(as_text=True)
+    arabic_results = client.get("/properties").get_data(as_text=True)
+    assert re.search(fr'<option value="{property_type}"[^>]*>{english}</option>', english_results)
+    assert re.search(fr'<option value="{property_type}"[^>]*>{arabic}</option>', arabic_results)
+    assert 'class="property-card-type"' not in english_results
+    assert 'class="property-card-type"' not in arabic_results
+    assert english in client.get(f"/properties/{property.id}?lang=en").text
+    assert arabic in client.get(f"/properties/{property.id}").text
 
 
 @pytest.mark.parametrize("furnished,english,arabic", [

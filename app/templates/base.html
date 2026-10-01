@@ -38,6 +38,6 @@
       </button>
     </header>
     {% block content %}{% endblock %}
-    <footer class="site-footer">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan Property Rental Platform') }}</footer>
+    {% block footer %}<footer class="site-footer">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan Property Rental Platform') }}</footer>{% endblock %}
   </body>
 </html>

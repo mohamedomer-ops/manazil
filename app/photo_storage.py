@@ -139,7 +139,7 @@ class LocalPhotoStorage:
         temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
         temporary.replace(directory / "manifest.json")
 
-    def add(self, token, category, uploads):
+    def add(self, token, category, uploads, *, max_photos=MAX_PHOTOS_PER_PROPERTY, auto_primary=True):
         if category not in PHOTO_CATEGORIES:
             raise PhotoError("Choose a valid photo category.")
         data = self.read(token)
@@ -148,7 +148,7 @@ class LocalPhotoStorage:
         if not uploads:
             raise PhotoError("Choose at least one photo.")
         current = list(data["photos"])
-        if len(current) + len(uploads) > MAX_PHOTOS_PER_PROPERTY:
+        if len(current) + len(uploads) > max_photos:
             raise PhotoError("A property can contain at most 20 photos.")
         checked = [validate_image(upload) for upload in uploads]
         written = []
@@ -165,7 +165,7 @@ class LocalPhotoStorage:
                     "id": photo_id, "category": category, "storage_key": key,
                     "original_filename": filename, "content_type": content_type,
                     "file_size": len(image_bytes), "display_order": len(current),
-                    "is_primary": not any(photo["is_primary"] for photo in data["photos"]),
+                    "is_primary": auto_primary and not any(photo["is_primary"] for photo in data["photos"]),
                 })
                 current.append(data["photos"][-1])
             self._write(token, data)
@@ -208,6 +208,14 @@ class LocalPhotoStorage:
         else:
             raise PhotoError("Choose a valid photo action.")
         return photos
+
+    def clear_primary(self, token):
+        data = self.read(token)
+        if data.get("submitted_property_id"):
+            raise PhotoError("This property has already been submitted.")
+        for photo in data["photos"]:
+            photo["is_primary"] = False
+        self._write(token, data)
 
     def prepare_property_photos(self, token, property_id):
         photos = self.read(token)["photos"]

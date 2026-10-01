@@ -1,32 +1,57 @@
 {% extends 'base.html' %}
-{% block scripts %}<script defer src="{{ url_for('static', filename='js/app.js') }}"></script>{% endblock %}
+{% from 'components/property_result.html' import property_result %}
+{% block title %}{{ t('Find your next home') }} | {{ t('Manazil') }}{% endblock %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='js/properties.js') }}"></script>{% endblock %}
 {% block content %}
 <main id="main-content" class="home-page">
   <section class="home-hero" aria-labelledby="home-title">
-    <div class="hero-copy">
-      <p class="eyebrow">{{ t('Made for Sudan') }}</p>
-      <h1 id="home-title">{{ t('A clearer start for your property.') }}</h1>
-      <p class="subtitle">{{ t('Add your property details once in Arabic, then review and save your draft.') }}</p>
-      <a class="primary-link" href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a>
-      <p class="hero-note">{{ t('Submitted properties are reviewed before publication.') }}</p>
+    <div class="home-hero-copy">
+      <p class="home-kicker">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan') }}</p>
+      <h1 id="home-title">{{ t('Find your next home') }}</h1>
+      <p>{{ t('Properties for rent and sale across Sudan') }}</p>
     </div>
-    <div class="intro-panel">
-      <h2>{{ t('One entry. Seven clear steps.') }}</h2>
-      <p>{{ t('Complete the property details and review them before saving.') }}</p>
-      <ol class="intro-steps">
-        <li><span class="step-number" aria-hidden="true">{{ '١' if language == 'ar' else '1' }}</span><div><h3>{{ t('Enter property details') }}</h3><p>{{ t("Your property's title, description and location.") }}</p></div></li>
-        <li><span class="step-number" aria-hidden="true">{{ '٢' if language == 'ar' else '2' }}</span><div><h3>{{ t('Review and save') }}</h3><p>{{ t('Your Arabic details stay with you when you switch the interface language.') }}</p></div></li>
-      </ol>
+    <form class="home-search" method="get" action="{{ url_for('main.properties') }}" role="search" aria-label="{{ t('Search properties') }}">
+      {% if language == 'en' %}<input type="hidden" name="lang" value="en">{% endif %}
+      <div class="home-search-field"><label for="home-transaction">{{ t('Transaction') }}</label><select id="home-transaction" name="transaction"><option value="rent">{{ t('For Rent') }}</option><option value="sale">{{ t('For Sale') }}</option></select></div>
+      <div class="home-search-field"><label for="home-state">{{ t('State') }}</label><select id="home-state" name="state"><option value="">{{ t('Any') }}</option>{% for slug, english, arabic in state_options %}<option value="{{ slug }}">{{ arabic if language == 'ar' else english }}</option>{% endfor %}</select></div>
+      <div class="home-search-field"><label for="home-property-type">{{ t('Property type') }}</label><select id="home-property-type" name="property_type"><option value="">{{ t('Any') }}</option>{% for value, label in property_types.items() %}<option value="{{ value }}">{{ t(label) }}</option>{% endfor %}</select></div>
+      <button type="submit">{{ t('Search') }}</button>
+    </form>
+  </section>
+
+  <section class="home-section" aria-labelledby="home-discover-title">
+    <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Explore Manazil') }}</p><h2 id="home-discover-title">{{ t('Find what fits you') }}</h2></div></div>
+    <div class="home-discovery-grid">
+      <a class="home-discovery-card home-discovery-rent" href="{{ url_for('main.properties', transaction='rent', **({'lang': 'en'} if language == 'en' else {})) }}"><span class="home-discovery-icon" aria-hidden="true">⌂</span><span><strong>{{ t('Properties for Rent') }}</strong><small>{{ t('Explore homes available to rent.') }}</small></span><span class="home-link-arrow" aria-hidden="true">↗</span></a>
+      <a class="home-discovery-card home-discovery-sale" href="{{ url_for('main.properties', transaction='sale', **({'lang': 'en'} if language == 'en' else {})) }}"><span class="home-discovery-icon" aria-hidden="true">⌂</span><span><strong>{{ t('Properties for Sale') }}</strong><small>{{ t('Explore properties available to buy.') }}</small></span><span class="home-link-arrow" aria-hidden="true">↗</span></a>
     </div>
   </section>
-  <section class="system-status" aria-labelledby="system-title" data-health-url="{{ url_for('main.health') }}"
-           data-connected="{{ t('Connected') }}" data-unavailable="{{ t('Unavailable') }}" data-unknown="{{ t('Unknown') }}">
-    <h2 id="system-title">{{ t('Connection status') }}</h2>
-    <div class="status-items" role="status" aria-live="polite">
-      <p>{{ t('API') }}: <span id="api-status">{{ t('Checking…') }}</span></p>
-      <p>{{ t('Database') }}: <span id="database-status">{{ t('Checking…') }}</span></p>
+
+  <section class="home-section home-latest" aria-labelledby="home-latest-title">
+    <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Discover homes') }}</p><h2 id="home-latest-title">{{ t('Latest Properties') }}</h2></div><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View all properties') }} <span class="home-link-arrow" aria-hidden="true">↗</span></a></div>
+    {% if latest_properties %}
+    <div class="home-latest-grid">
+      {% for property in latest_properties %}
+        {{ property_result(property, language, t, today, availability_label, format_rent, property_type_label, {}, current_user, property.id in saved_ids, 'home', true) }}
+      {% endfor %}
     </div>
-    <noscript>{{ t('Enable JavaScript to display live connection status.') }}</noscript>
+    {% else %}
+    <div class="home-empty"><p>{{ t('No properties are currently available.') }}</p><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Browse Properties') }}</a></div>
+    {% endif %}
   </section>
+
+  <section class="home-section" aria-labelledby="home-states-title">
+    <div class="home-section-heading"><div><p class="home-section-kicker">{{ t('Explore Sudan') }}</p><h2 id="home-states-title">{{ t('Browse by State') }}</h2></div></div>
+    <div class="home-state-grid">
+      {% for slug, english, arabic in state_options %}
+      <a class="home-state-card" href="{{ url_for('main.properties', state=slug, **({'lang': 'en'} if language == 'en' else {})) }}"><img src="{{ url_for('static', filename='images/states/' ~ slug ~ '.webp') }}" alt="" width="640" height="360" loading="lazy" decoding="async"><span class="home-state-name">{{ arabic if language == 'ar' else english }}</span></a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="home-post-cta" aria-labelledby="home-post-title"><div><h2 id="home-post-title">{{ t('Have a property?') }}</h2><p>{{ t('List your property on Manazil and make it easier for people to find it.') }}</p></div><a class="primary-link" href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a></section>
 </main>
+{% endblock %}
+{% block footer %}
+<footer class="site-footer home-footer"><div class="home-footer-inner"><div><a class="home-footer-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Manazil') }}</a><p>{{ t('A Sudanese property marketplace') }}</p></div><nav aria-label="{{ t('Footer navigation') }}"><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Properties') }}</a><a href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a>{% if current_user %}<a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>{% else %}<a href="{{ url_for('auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login / Sign Up') }}</a>{% endif %}</nav></div></footer>
 {% endblock %}
