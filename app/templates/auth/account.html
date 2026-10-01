@@ -1,29 +1,67 @@
 {% extends 'base.html' %}
 {% block title %}{{ t('My Account') }} · {{ t('Manazil') }}{% endblock %}
 {% block content %}
-<main id="main-content" class="form-page">
-  <h1>{{ t('Contact Details') if setup else t('My Account') }}</h1>
-  {% if saved %}<p role="status">{{ t('Account information updated successfully') }}</p>{% endif %}
-  <form method="post" action="{{ url_for('auth.account_post') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="_language" value="{{ language }}">
-    <label for="contact_name">{{ t('Name') }}</label>
-    <input id="contact_name" name="contact_name" value="{{ values.contact_name }}" required>
-    {% if errors.contact_name %}<p role="alert">{{ t(errors.contact_name) }}</p>{% endif %}
-    <label for="phone_number">{{ t('Verified Phone Number') if current_user.is_verified else t('Phone Number') }}</label>
-    <input id="phone_number" type="tel" value="{{ current_user.phone_number or '' }}" readonly aria-describedby="phone-verified">
-    <p id="phone-verified">{{ t('Verified') if current_user.is_verified else t('No verified phone number. Property posting currently requires a phone-verified contact profile.') }}</p>
-    <label for="whatsapp">{{ t('WhatsApp Number') }}</label>
-    <input id="whatsapp" name="whatsapp" type="tel" value="{{ values.whatsapp }}" required>
-    {% if errors.whatsapp %}<p role="alert">{{ t(errors.whatsapp) }}</p>{% endif %}
-    <label for="contact_role">{{ t('Account Type') }}</label>
-    <select id="contact_role" name="contact_role" required>
-      <option value="">{{ t('Select an option') }}</option>
-      <option value="owner" {% if values.contact_role == 'owner' %}selected{% endif %}>{{ t('Owner') }}</option>
-      <option value="broker" {% if values.contact_role == 'broker' %}selected{% endif %}>{{ t('Broker') }}</option>
-    </select>
-    {% if errors.contact_role %}<p role="alert">{{ t(errors.contact_role) }}</p>{% endif %}
-    <button type="submit">{{ t('Save Changes') }}</button>
-  </form>
+{% set suffix = {'lang': 'en'} if language == 'en' else {} %}
+<main id="main-content" class="account-page">
+  <header class="account-header account-card">
+    <div class="account-header-identity">
+    <span class="account-avatar" aria-hidden="true">{{ profile_name[:1]|upper if profile_name else '○' }}</span>
+    <div>
+      <h1>{{ t('My Account') }}</h1>
+      {% if profile_name %}<p class="account-name"><bdi>{{ profile_name }}</bdi></p>{% endif %}
+      <p class="account-muted">{{ t('Manage your account information.') }}</p>
+    </div>
+    </div>
+    <div class="account-shortcuts">
+        <a href="{{ url_for('saved.saved_properties', **suffix) }}">{{ t('Saved Properties') }}</a>
+        <a href="{{ url_for('property_new', **suffix) }}">{{ t('Post Property') }}</a>
+    </div>
+  </header>
+  {% if saved %}<p class="account-notice" role="status">{{ t('Account information updated successfully') }}</p>{% endif %}
+  {% if setup %}<p class="account-notice">{{ t('Complete your contact details to continue posting.') }}</p>{% endif %}
+  <div class="account-layout">
+    <section class="account-card account-profile" aria-labelledby="account-profile-heading">
+      <h2 id="account-profile-heading">{{ t('Profile Information') }}</h2>
+      <p class="account-muted account-section-note">{{ t('Your contact details help prefill new property listings.') }}</p>
+      <form method="post" action="{{ url_for('auth.account_post') }}" class="account-profile-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="_language" value="{{ language }}">
+        <div class="account-field">
+          <label for="contact_name">{{ t('Name') }}</label>
+          <input id="contact_name" name="contact_name" autocomplete="name" value="{{ values.contact_name }}" {% if errors.contact_name %}aria-invalid="true" aria-describedby="contact-name-error"{% endif %} required>
+          {% if errors.contact_name %}<p id="contact-name-error" role="alert">{{ t(errors.contact_name) }}</p>{% endif %}
+        </div>
+        <div class="account-field">
+          <label for="phone_number">{{ t('Verified Phone Number') if current_user.is_verified else t('Phone Number') }} <span class="account-readonly-label">{{ t('Read-only') }}</span></label>
+          <input id="phone_number" type="tel" value="{{ current_user.phone_number or '' }}" readonly aria-describedby="phone-verified">
+          <p id="phone-verified" class="account-field-help">{{ t('Verified') if current_user.is_verified else t('No verified phone number. Property posting currently requires a phone-verified contact profile.') }}</p>
+        </div>
+        <div class="account-field">
+          <label for="whatsapp">{{ t('WhatsApp Number') }}</label>
+          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" {% if errors.whatsapp %}aria-invalid="true" aria-describedby="whatsapp-error"{% endif %} required>
+          {% if errors.whatsapp %}<p id="whatsapp-error" role="alert">{{ t(errors.whatsapp) }}</p>{% endif %}
+        </div>
+        <div class="account-field">
+          <label for="contact_role">{{ t('Account Type') }}</label>
+          <select id="contact_role" name="contact_role" {% if errors.contact_role %}aria-invalid="true" aria-describedby="contact-role-error"{% endif %} required>
+            <option value="">{{ t('Select an option') }}</option>
+            <option value="owner" {% if values.contact_role == 'owner' %}selected{% endif %}>{{ t('Owner') }}</option>
+            <option value="broker" {% if values.contact_role == 'broker' %}selected{% endif %}>{{ t('Broker') }}</option>
+          </select>
+          {% if errors.contact_role %}<p id="contact-role-error" role="alert">{{ t(errors.contact_role) }}</p>{% endif %}
+        </div>
+        <button class="account-save" type="submit">{{ t('Save Changes') }}</button>
+      </form>
+    </section>
+    <section class="account-card account-security" aria-labelledby="account-security-heading">
+      <h2 id="account-security-heading">{{ t('Account & Security') }}</h2>
+      {% if current_user.is_verified %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Phone login') }}</strong><p class="account-muted">{{ t('Verified phone number') }}</p></div></div>{% endif %}
+      {% if facebook_connected %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Facebook account') }}</strong><p class="account-muted">{{ t('Development simulation') }}</p></div></div>{% endif %}
+      <form method="post" action="{{ url_for('auth.logout') }}" class="account-logout-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">{{ t('Logout') }}</button>
+      </form>
+    </section>
+  </div>
 </main>
 {% endblock %}

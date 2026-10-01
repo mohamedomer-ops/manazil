@@ -203,8 +203,14 @@ def logout():
 @auth.get('/account')
 @login_required
 def account():
-    return render_template('auth/account.html', values=contact_values(g.user), errors={},
-                           setup='contact_next' in session)
+    return render_account(contact_values(g.user), {}, setup='contact_next' in session)
+
+
+def render_account(values, errors, **options):
+    facebook_identity = next((identity for identity in g.user.identities if identity.provider == 'facebook'), None)
+    profile_name = (g.user.contact_name or '').strip() or (facebook_identity.display_name if facebook_identity else '')
+    return render_template('auth/account.html', values=values, errors=errors,
+                           profile_name=profile_name, facebook_connected=bool(facebook_identity), **options)
 
 
 @auth.post('/account')
@@ -212,11 +218,10 @@ def account():
 def account_post():
     values, errors = save_contact(g.user, request.form)
     if errors:
-        return render_template('auth/account.html', values=values, errors=errors,
-                               setup='contact_next' in session), 422
+        return render_account(values, errors, setup='contact_next' in session), 422
     destination = session.pop('contact_next', None)
     if session.pop('pending_setup_user_id', None):
         session['user_id'] = g.user.id
     if destination and g.user.contact_complete:
         return redirect(safe_next(destination), code=303)
-    return render_template('auth/account.html', values=contact_values(g.user), errors={}, saved=True)
+    return render_account(contact_values(g.user), {}, saved=True)

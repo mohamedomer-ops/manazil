@@ -339,3 +339,51 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .saved-remove-form button { width: 100%; min-height: 44px; padding: 8px 12px; color: var(--green); background: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; }
 .saved-remove-form button:hover, .property-save-link:hover { background: #edf7f0; }
 .saved-unavailable { min-height: 160px; }
+
+/* Account dashboard only; marketplace pages and navigation keep their layout. */
+.account-page { width: min(960px, calc(100% - 24px)); margin: 20px auto 40px; text-align: start; }
+.account-page .account-card { min-width: 0; padding: 20px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 2px 10px rgb(27 37 31 / 3%); }
+.account-page .account-header { margin-block-end: 16px; }
+.account-header-identity { display: flex; align-items: center; gap: 14px; }
+.account-header-identity > div { min-width: 0; }
+.account-page h1 { font-size: 23px; line-height: 1.4; margin: 0 0 4px; }
+.account-page h2 { font-size: 18px; line-height: 1.5; margin: 0 0 12px; }
+.account-page p { margin: 0; }
+.account-page .account-name { font-size: 16px; font-weight: 600; }
+.account-page .account-muted { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.account-avatar { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 50%; background: #edf7f0; color: var(--green); font-size: 23px; font-weight: 700; }
+.account-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 16px; }
+.account-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 10px; }
+.account-shortcuts a { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--green); font-size: 13px; font-weight: 600; line-height: 1.4; text-decoration: none; }
+.account-shortcuts a:hover { background: #f4f8f5; border-color: var(--green); }
+.account-page .account-section-note { margin-block: -4px 18px; }
+.account-field { margin-block-end: 16px; }
+.account-field label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-block-end: 6px; font-size: 14px; font-weight: 600; }
+.account-readonly-label { color: var(--muted); font-size: 12px; font-weight: 400; }
+.account-field input, .account-field select { display: block; width: 100%; min-width: 0; height: 46px; padding: 10px 12px; border: 1px solid #aab4ae; border-radius: 6px; background: #fff; color: #24282b; font-size: 16px; text-align: start; }
+.account-field input[readonly] { background: #f4f5f3; color: var(--muted); border-color: var(--border); }
+.account-field input[type="tel"] { direction: ltr; text-align: left; }
+html[dir="rtl"] .account-field input[type="tel"] { text-align: right; }
+.account-page .account-field-help { margin-block-start: 6px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.account-page button { min-height: 46px; padding: 10px 18px; border: 1px solid var(--green); border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.account-save { width: 100%; color: #fff; background: var(--green); }
+.account-save:hover { background: var(--primary-hover); }
+.account-identity { display: flex; align-items: start; gap: 10px; margin-block-end: 12px; font-size: 14px; }
+.account-identity-icon { color: var(--green); }
+.account-identity > div { min-width: 0; }
+.account-logout-form { margin: 16px 0 0; padding-block-start: 16px; border-block-start: 1px solid var(--border); }
+.account-page .account-logout-form button { width: 100%; background: #fff; color: var(--muted); border-color: var(--border); }
+.account-logout-form button:hover { background: #f4f5f3; }
+.account-page .account-notice { margin-block: 0 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 8px; background: #edf7f0; color: var(--green); font-size: 14px; }
+.account-page [role="alert"] { margin-block-start: 6px; color: #b4232d; font-size: 13px; }
+.account-page [aria-invalid="true"] { border-color: #b4232d; }
+@media (min-width: 900px) {
+  .account-page { margin-block: 28px 48px; }
+  .account-page h1 { font-size: 26px; }
+  .account-layout { grid-template-columns: minmax(0, 1.5fr) minmax(0, .85fr); gap: 20px; }
+  .account-save { width: auto; min-width: 160px; }
+}
+@media (max-width: 360px) {
+  .account-page .account-card { padding: 16px; }
+  .account-header-identity { gap: 10px; }
+}

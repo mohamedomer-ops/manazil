@@ -16,6 +16,21 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    'Manage your account information.': 'إدارة معلومات حسابك.',
+    'Manage your profile and properties.': 'إدارة معلومات حسابك وعقاراتك.',
+    'Your Properties': 'عقاراتك',
+    'Profile Information': 'معلومات الحساب',
+    'View and manage your property listings.': 'عرض عقاراتك وإدارتها.',
+    "View properties you've saved.": 'عرض العقارات التي حفظتها.',
+    'Create a new property listing.': 'أضف عقاراً جديداً.',
+    'Your contact details help prefill new property listings.': 'تُستخدم بيانات اتصالك لتعبئة إعلانات العقارات الجديدة مسبقاً.',
+    'Complete your contact details to continue posting.': 'أكمل بيانات اتصالك لمتابعة إضافة العقار.',
+    'Read-only': 'غير قابل للتعديل',
+    'Account & Security': 'الحساب والأمان',
+    'Phone login': 'الدخول برقم الهاتف',
+    'Verified phone number': 'رقم هاتف موثق',
+    'Facebook account': 'حساب فيسبوك',
+    'Development simulation': 'محاكاة تجريبية',
     'Continue with Facebook': 'المتابعة باستخدام فيسبوك',
     'Cancel': 'إلغاء',
     'Development simulation only. No connection to Facebook.': 'محاكاة للتطوير فقط. لا يوجد اتصال بفيسبوك.',
