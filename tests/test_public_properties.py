@@ -43,7 +43,7 @@ def test_only_published_available_properties_appear(client, values):
         html = client.get(path).get_data(as_text=True)
         assert "Public home" in html
         assert all(title not in html for _, _, title in cases[1:])
-        assert html.count('class="property-card"') == 1
+        assert html.count('class="market-result"') == 1
 
 
 @pytest.mark.parametrize("available_date,english,arabic", [
@@ -73,8 +73,8 @@ def test_availability_dates_keep_property_visible(client, values, monkeypatch, a
 ])
 def test_property_type_is_localized(client, values, property_type, english, arabic):
     add_property(values, publication_status="published", property_type=property_type)
-    assert f'class="property-card-type">{english}</p>' in client.get("/properties?lang=en").get_data(as_text=True)
-    assert f'class="property-card-type">{arabic}</p>' in client.get("/properties").get_data(as_text=True)
+    assert f'class="property-card-type">{english}</span>' in client.get("/properties?lang=en").get_data(as_text=True)
+    assert f'class="property-card-type">{arabic}</span>' in client.get("/properties").get_data(as_text=True)
 
 
 @pytest.mark.parametrize("furnished,english,arabic", [
@@ -89,21 +89,21 @@ def test_card_language_and_safe_fields(client, values, furnished, english, arabi
     )
     english_html = client.get("/properties?lang=en").get_data(as_text=True)
     arabic_html = client.get("/properties").get_data(as_text=True)
-    for html, expected, title, city, area, other_title in (
-        (english_html, english, values["title_en"], values["city_en"], values["area_en"], values["title_ar"]),
-        (arabic_html, arabic, values["title_ar"], values["city_ar"], values["area_ar"], values["title_en"]),
+    for html, expected, title, state, other_title in (
+        (english_html, english, values["title_en"], values["state_en"], values["title_ar"]),
+        (arabic_html, arabic, values["title_ar"], values["state_ar"], values["title_en"]),
     ):
-        assert title in html and city in html and area in html
+        assert title in html and state in html
         assert other_title not in html
-        assert expected in html
+        assert expected not in html  # Compact results omit furnishing details.
         assert "125,000.5 SDG" in html
-        assert 'class="property-card-action" href="/properties/' in html
+        assert 'class="market-result-link" href="/properties/' in html
         for secret in ("PRIVATE DESCRIPTION", "وصف خاص", "PRIVATE CONTACT", "PRIVATE PHONE", "PRIVATE WHATSAPP"):
             assert secret not in html
-    assert "Bedrooms" in english_html and "Bathrooms" in english_html
-    assert "غرف النوم" in arabic_html and "الحمامات" in arabic_html
-    assert ">View Property</a>" in english_html
-    assert ">عرض العقار</a>" in arabic_html
+    assert "Bedrooms" in english_html and "Bathrooms" not in english_html
+    assert "غرف النوم" in arabic_html and "الحمامات" not in arabic_html
+    assert 'class="market-result-open">View Property' in english_html
+    assert 'class="market-result-open">عرض العقار' in arabic_html
 
 
 def test_user_content_is_escaped(client, values):
@@ -131,10 +131,18 @@ def test_card_photo_primary_count_and_languages(client, values, count):
         assert 'class="property-card-image-placeholder" role="img"' in html
         if count:
             primary = property.photos[-1]
-            assert f'src="/properties/photos/{primary.id}" alt="{title}" loading="lazy" decoding="async"' in html
+            assert f'src="/properties/photos/{primary.id}" alt="{title}" loading="lazy" decoding="async" draggable="false"' in html
             assert "onerror=\"this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true\"" in html
         else:
             assert 'class="property-card-image"' not in html
-        assert ('class="property-card-photo-count"' in html) == (count > 1)
+        assert ('class="property-card-photo-count"' in html) == (count > 0)
+        if count:
+            assert f'<span class="market-photo-current">1</span> / <span>{count}</span>' in html
+        assert ('data-market-carousel' in html) == (count > 1)
+        assert ('class="market-carousel-previous"' in html) == (count > 1)
+        assert ('class="market-carousel-next"' in html) == (count > 1)
         if count > 1:
-            assert f'<span>{count}</span>' in html
+            assert html.index(f'data-photo-src="/properties/photos/{primary.id}"') < html.index('class="market-carousel-previous"')
+            assert html.count('data-photo-src="/properties/photos/') == count
+            assert ('aria-label="الصورة السابقة"' if language == 'ar' else 'aria-label="Previous photo"') in html
+            assert ('aria-label="الصورة التالية"' if language == 'ar' else 'aria-label="Next photo"') in html

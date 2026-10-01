@@ -16,6 +16,16 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    'Find a property that fits your plans.': 'ابحث عن العقار المناسب لك.',
+    'Filters': 'تصفية',
+    'Transaction': 'نوع المعاملة',
+    'Seller Type': 'نوع المعلن',
+    'Any': 'الكل',
+    'Apply Filters': 'تطبيق الفلاتر',
+    'Clear Filters': 'مسح الفلاتر',
+    'Results': 'النتائج',
+    'properties found': 'عقار',
+    'No properties match your filters.': 'لا توجد عقارات تطابق خيارات البحث.',
     'Manage your account information.': 'إدارة معلومات حسابك.',
     'Manage your profile and properties.': 'إدارة معلومات حسابك وعقاراتك.',
     'Your Properties': 'عقاراتك',
@@ -108,6 +118,8 @@ ARABIC = {
     "Draft": "مسودة",
     "Published": "منشور",
     "photos": "صور",
+    "Previous photo": "الصورة السابقة",
+    "Next photo": "الصورة التالية",
     "Choose a file with a safe filename.": "اختر ملفاً باسم آمن.",
     "Only JPEG, PNG, and WebP images are allowed.": "يُسمح فقط بصور JPEG وPNG وWebP.",
     "The image type does not match its filename.": "نوع الصورة لا يطابق امتداد الملف.",

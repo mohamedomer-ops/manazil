@@ -1,0 +1,52 @@
+{% from 'components/availability_badge.html' import availability_badge %}
+{% macro property_result(property, language, t, today, availability_label, format_rent, property_type_label, filters, current_user, is_saved) -%}
+  {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
+  {% set state = property.state_ar if language == 'ar' else property.state_en %}
+  {% set photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
+  {% set carousel = namespace(photos=[]) %}
+  {% if photo %}
+    {% set carousel.photos = [photo] %}
+    {% for candidate in property.photos if candidate.id != photo.id %}
+      {% set carousel.photos = carousel.photos + [candidate] %}
+    {% endfor %}
+  {% endif %}
+  {% set detail_url = url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) %}
+  <article class="market-result">
+    <a class="market-result-link" href="{{ detail_url }}" aria-label="{{ t('View Property') }}: {{ title }}" draggable="false">
+      <div class="property-card-media">
+        <div class="property-card-image-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if photo %}aria-hidden="true"{% endif %}>
+          <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 30 32 11l23 19"/><path d="M15 27v26h34V27M27 53V37h10v16"/></svg>
+        </div>
+        {% if photo %}<img class="property-card-image" src="{{ url_for('main.public_photo', photo_id=photo.id) }}" alt="{{ title }}" loading="lazy" decoding="async" draggable="false" onerror="this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true">
+        <span class="property-card-photo-count" aria-live="polite"><span class="market-photo-current">1</span> / <span>{{ carousel.photos|length }}</span></span>{% endif %}
+      </div>
+      <div class="market-result-info">
+        <h2>{{ title }}</h2>
+        <p class="market-result-location"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg><bdi>{{ state }}{% if property.neighborhood_ar %} · {{ property.neighborhood_ar }}{% endif %}</bdi></p>
+        <p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span class="property-card-type">{{ property_type_label(property.property_type, language) }}</span><span>{{ property.bedrooms }} {{ t('Bedrooms') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>
+        <div class="market-result-bottom"><p class="market-result-price"><span>{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></p>{{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}</div>
+        <span class="market-result-open">{{ t('View Property') }} <span aria-hidden="true">›</span></span>
+      </div>
+    </a>
+    {% if carousel.photos|length > 1 %}
+    <div class="market-carousel" data-market-carousel>
+      <template class="market-carousel-sources">{% for item in carousel.photos %}<span data-photo-src="{{ url_for('main.public_photo', photo_id=item.id) }}"></span>{% endfor %}</template>
+      <button type="button" class="market-carousel-previous" aria-label="{{ t('Previous photo') }}" title="{{ t('Previous photo') }}"><span aria-hidden="true">‹</span></button>
+      <button type="button" class="market-carousel-next" aria-label="{{ t('Next photo') }}" title="{{ t('Next photo') }}"><span aria-hidden="true">›</span></button>
+    </div>
+    {% endif %}
+    <div class="market-result-save">
+      {% if current_user %}
+      <form method="post" action="{{ url_for('saved.unsave_property' if is_saved else 'saved.save_property', property_id=property.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="_language" value="{{ language }}">
+        <input type="hidden" name="return_to" value="listing">
+        {% for key, value in filters.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+        <button type="submit" {% if is_saved %}aria-label="{{ t('Remove from Saved') }}"{% endif %}><span aria-hidden="true">{{ '♥' if is_saved else '♡' }}</span> {{ t('Saved') if is_saved else t('Save Property') }}</button>
+      </form>
+      {% else %}
+      <a href="{{ url_for('auth.entry', next=detail_url, **({'lang': 'en'} if language == 'en' else {})) }}"><span aria-hidden="true">♡</span> {{ t('Save Property') }}</a>
+      {% endif %}
+    </div>
+  </article>
+{%- endmacro %}

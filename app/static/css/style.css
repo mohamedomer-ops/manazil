@@ -340,6 +340,93 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .saved-remove-form button:hover, .property-save-link:hover { background: #edf7f0; }
 .saved-unavailable { min-height: 160px; }
 
+/* Public marketplace results; other property-card layouts remain unchanged. */
+.market-page { max-width: 1120px; }
+.market-heading { margin-block-end: 16px; }
+.market-page .market-heading h1 { margin: 0 0 2px; font-size: clamp(24px, 3vw, 30px); line-height: 1.35; }
+.market-heading p { margin: 0; color: var(--muted); font-size: 14px; }
+.market-filter-panel { margin-block-end: 22px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+.market-filter-panel > summary { display: none; }
+.market-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
+.market-filter-field { min-width: 0; }
+.market-filter-field label { display: block; margin-block-end: 5px; color: #343c37; font-size: 13px; font-weight: 600; }
+.market-filter-field select { width: 100%; min-width: 0; height: 44px; padding: 8px 10px; border: 1px solid #b6c1b9; border-radius: 6px; background: #fff; color: #24282b; font-size: 14px; }
+.market-filter-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+.market-filter-actions button, .market-filter-actions a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.market-filter-actions button { border: 1px solid var(--green); background: var(--green); color: #fff; }
+.market-filter-actions button:hover { background: var(--primary-hover); }
+.market-filter-actions a { border: 1px solid var(--border); color: var(--green); }
+.market-filter-actions a:hover { background: #f4f8f5; }
+.market-results-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-block: 0 12px; }
+.market-results-heading h2 { margin: 0; font-size: 18px; }
+.market-results-heading span { color: var(--muted); font-size: 14px; }
+.market-results { display: grid; gap: 12px; }
+.market-result { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #fff; transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease; }
+.market-result-link { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 205px; color: inherit; text-decoration: none; }
+.market-result-link:focus-visible { outline: 3px solid var(--green); outline-offset: -3px; }
+.market-result .property-card-media { width: 100%; height: 100%; min-height: 205px; aspect-ratio: auto; border: 0; border-radius: 0; }
+.market-result .property-card-photo-count { inset-inline-end: auto; inset-inline-start: 10px; }
+.market-carousel { position: absolute; z-index: 2; inset-block: 0; inset-inline-start: 0; display: flex; align-items: center; justify-content: space-between; width: 220px; pointer-events: none; }
+.market-carousel button { display: grid; place-items: center; width: 36px; height: 44px; margin-inline: 6px; padding: 0; border: 1px solid rgb(255 255 255 / 70%); border-radius: 6px; background: rgb(24 34 27 / 72%); color: #fff; font-size: 27px; line-height: 1; cursor: pointer; pointer-events: auto; opacity: .68; transition: opacity 180ms ease, background-color 180ms ease; }
+.market-carousel button:hover, .market-carousel button:focus-visible { opacity: 1; background: rgb(24 34 27 / 88%); }
+.market-result:hover .market-carousel button { opacity: 1; }
+.market-result .property-card-media { touch-action: pan-y; }
+.market-carousel button:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; }
+.market-result .property-card-image-placeholder { background: #f2f5f2; }
+.market-result-info { min-width: 0; padding: 16px 165px 14px 18px; }
+html[dir="rtl"] .market-result-info { padding: 16px 18px 14px 165px; }
+.market-result-info h2 { margin: 0 0 6px; font-size: 18px; line-height: 1.45; }
+.market-result-location { display: flex; align-items: center; gap: 5px; margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.market-result-location svg { flex: none; }
+.market-result-location bdi { min-width: 0; }
+.market-result-meta { display: flex; flex-wrap: wrap; gap: 3px 10px; margin: 0 0 10px; color: #48544d; font-size: 13px; }
+.market-result-meta span + span::before { content: '·'; margin-inline-end: 10px; color: #9ca9a0; }
+.market-result .property-card-type { margin: 0; color: inherit; }
+.market-result-bottom { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 18px; }
+.market-result-price { display: flex; flex-direction: column; gap: 0; min-width: 0; margin: 0; }
+.market-result-price > span { color: var(--muted); font-size: 12px; }
+.market-result-price strong { color: var(--green); font-size: 23px; line-height: 1.3; overflow-wrap: anywhere; }
+.market-result .property-card-availability { margin: 0; padding: 3px 7px; font-size: 12px; }
+.market-result-open { display: inline-flex; align-items: center; gap: 4px; margin-block-start: 7px; color: var(--green); font-size: 13px; font-weight: 600; }
+html[dir="rtl"] .market-result-open > span { transform: rotate(180deg); }
+.market-result-save { position: absolute; z-index: 1; inset-block-start: 12px; inset-inline-end: 12px; }
+.market-result-save form { margin: 0; }
+.market-result-save a, .market-result-save button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 7px 11px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--green); box-shadow: 0 1px 5px rgb(27 37 31 / 9%); font-size: 13px; font-weight: 700; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.market-result-save a:hover, .market-result-save button:hover { background: #edf7f0; border-color: var(--green); }
+.market-result-save [aria-hidden="true"] { font-size: 19px; line-height: 1; }
+.market-page .market-empty { min-height: 180px; gap: 12px; }
+.market-empty a { color: var(--green); font-weight: 700; }
+@media (hover: hover) and (pointer: fine) {
+  .market-result:hover { border-color: #8ab89b; background: #fbfdfb; box-shadow: 0 4px 14px rgb(27 37 31 / 8%); }
+}
+.market-result:focus-within { border-color: var(--green); background: #fbfdfb; box-shadow: 0 0 0 2px rgb(23 103 73 / 18%); }
+@media (max-width: 767px) {
+  .market-page { width: calc(100% - 24px); margin-block: 18px 40px; }
+  .market-filter-panel { padding: 0; margin-block-end: 18px; }
+  .market-filter-panel > summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 10px 14px; color: var(--green); font-size: 15px; font-weight: 700; cursor: pointer; list-style: none; }
+  .market-filter-panel > summary::-webkit-details-marker { display: none; }
+  .market-filter-panel > summary::after { content: '⌄'; font-size: 20px; line-height: 1; }
+  .market-filter-panel[open] > summary::after { transform: rotate(180deg); }
+  .market-filter-count { display: inline-grid; place-items: center; min-width: 21px; margin-inline-start: 8px; padding: 0 5px; border-radius: 5px; background: #edf7f0; font-size: 12px; }
+  .market-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 14px 14px; border-block-start: 1px solid var(--border); }
+  .market-filter-field { padding-block-start: 10px; }
+  .market-filter-actions { justify-content: stretch; }
+  .market-filter-actions button, .market-filter-actions a { flex: 1; }
+  .market-result-link { grid-template-columns: minmax(0, 1fr); }
+  .market-result .property-card-media { height: auto; min-height: 0; aspect-ratio: 16 / 9; }
+  .market-carousel { inset-block-start: 0; inset-block-end: auto; width: 100%; aspect-ratio: 16 / 9; }
+  .market-carousel button { opacity: .9; }
+  .market-result-info, html[dir="rtl"] .market-result-info { padding: 14px 16px; }
+  .market-result-info h2 { font-size: 17px; }
+  .market-result-price strong { font-size: 21px; }
+  .market-result-save { inset-block-start: 10px; inset-inline-end: 10px; }
+}
+@media (max-width: 380px) {
+  .market-filters { grid-template-columns: minmax(0, 1fr); }
+  .market-result-save a, .market-result-save button { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .market-result { transition: none; } }
+
 /* Account dashboard only; marketplace pages and navigation keep their layout. */
 .account-page { width: min(960px, calc(100% - 24px)); margin: 20px auto 40px; text-align: start; }
 .account-page .account-card { min-width: 0; padding: 20px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 2px 10px rgb(27 37 31 / 3%); }

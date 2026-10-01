@@ -1,17 +1,34 @@
 {% extends 'base.html' %}
-{% from 'components/property_card.html' import property_card %}
+{% from 'components/property_result.html' import property_result %}
 {% block title %}{{ t('Properties') }} | {{ t('Manazil') }}{% endblock %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='js/properties.js') }}"></script>{% endblock %}
+{% block language_switcher %}
+<a href="{{ url_for('main.properties', lang='ar', **filters) }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a><span aria-hidden="true">|</span><a href="{{ url_for('main.properties', lang='en', **filters) }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
+{% endblock %}
 {% block content %}
-<main id="main-content" class="properties-page">
-  <h1>{{ t('Properties') }}</h1>
+<main id="main-content" class="properties-page market-page">
+  <header class="market-heading"><div><h1>{{ t('Properties') }}</h1><p>{{ t('Find a property that fits your plans.') }}</p></div></header>
+  <details class="market-filter-panel" open>
+    <summary>{{ t('Filters') }}{% if filters %}<span class="market-filter-count">{{ filters|length }}</span>{% endif %}</summary>
+    <form class="market-filters" method="get" action="{{ url_for('main.properties') }}">
+      {% if language == 'en' %}<input type="hidden" name="lang" value="en">{% endif %}
+      <div class="market-filter-field"><label for="filter-transaction">{{ t('Transaction') }}</label><select id="filter-transaction" name="transaction"><option value="">{{ t('Any') }}</option><option value="rent" {% if filters.get('transaction') == 'rent' %}selected{% endif %}>{{ t('For Rent') }}</option><option value="sale" {% if filters.get('transaction') == 'sale' %}selected{% endif %}>{{ t('For Sale') }}</option></select></div>
+      <div class="market-filter-field"><label for="filter-state">{{ t('State') }}</label><select id="filter-state" name="state"><option value="">{{ t('Any') }}</option>{% for slug, english, arabic in state_options %}<option value="{{ slug }}" {% if filters.get('state') == slug %}selected{% endif %}>{{ arabic if language == 'ar' else english }}</option>{% endfor %}</select></div>
+      <div class="market-filter-field"><label for="filter-bedrooms">{{ t('Bedrooms') }}</label><select id="filter-bedrooms" name="bedrooms"><option value="">{{ t('Any') }}</option>{% for minimum in range(1, 6) %}<option value="{{ minimum }}" {% if filters.get('bedrooms') == minimum|string %}selected{% endif %}>{{ minimum }}+</option>{% endfor %}</select></div>
+      <div class="market-filter-field"><label for="filter-seller">{{ t('Seller Type') }}</label><select id="filter-seller" name="seller"><option value="">{{ t('Any') }}</option><option value="owner" {% if filters.get('seller') == 'owner' %}selected{% endif %}>{{ t('Owner') }}</option><option value="broker" {% if filters.get('seller') == 'broker' %}selected{% endif %}>{{ t('Broker') }}</option></select></div>
+      <div class="market-filter-field"><label for="filter-property-type">{{ t('Property type') }}</label><select id="filter-property-type" name="property_type"><option value="">{{ t('Any') }}</option>{% for value, label in property_types.items() %}<option value="{{ value }}" {% if filters.get('property_type') == value %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}</select></div>
+      <div class="market-filter-actions"><button type="submit">{{ t('Apply Filters') }}</button><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Clear Filters') }}</a></div>
+    </form>
+  </details>
+  <div class="market-results-heading"><h2>{{ t('Results') }}</h2><span>{{ properties|length }} {{ t('properties found') }}</span></div>
   {% if properties %}
-    <section class="properties-grid" aria-label="{{ t('Properties') }}">
+    <section class="market-results" aria-label="{{ t('Properties') }}">
       {% for property in properties %}
-        {{ property_card(property, language, t, today, availability_label, format_rent, property_type_label) }}
+        {{ property_result(property, language, t, today, availability_label, format_rent, property_type_label, filters, current_user, property.id in saved_ids) }}
       {% endfor %}
     </section>
   {% else %}
-    <div class="properties-empty"><p>{{ t('No properties are currently available.') }}</p></div>
+    <div class="properties-empty market-empty"><p>{{ t('No properties match your filters.') if filters else t('No properties are currently available.') }}</p><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Clear Filters') }}</a></div>
   {% endif %}
 </main>
 {% endblock %}

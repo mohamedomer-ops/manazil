@@ -10,6 +10,7 @@ from app.auth import login_required
 from app.languages import availability_label, current_language, format_rent, property_type_label
 from app.models import Property, SavedProperty
 from app.property_forms import sudan_today
+from app.property_filters import validated_filters
 
 saved = Blueprint('saved', __name__)
 
@@ -22,6 +23,11 @@ def private_response(response):
 
 def detail_destination(property_id):
     return url_for('main.property_detail', property_id=property_id,
+                   **({'lang': 'en'} if current_language() == 'en' else {}))
+
+
+def listing_destination():
+    return url_for('main.properties', **validated_filters(request.form),
                    **({'lang': 'en'} if current_language() == 'en' else {}))
 
 
@@ -58,7 +64,8 @@ def save_property(property_id):
         db.session.rollback()
         current_app.logger.warning('Saving property failed.')
         abort(503)
-    return redirect(detail_destination(property_id), code=303)
+    destination = listing_destination() if request.form.get('return_to') == 'listing' else detail_destination(property_id)
+    return redirect(destination, code=303)
 
 
 @saved.post('/properties/<int:property_id>/unsave')
@@ -75,4 +82,6 @@ def unsave_property(property_id):
     # Destinations are chosen server-side rather than accepting arbitrary redirects.
     if request.form.get('return_to') == 'detail':
         return redirect(detail_destination(property_id), code=303)
+    if request.form.get('return_to') == 'listing':
+        return redirect(listing_destination(), code=303)
     return redirect(url_for('saved.saved_properties', **({'lang': 'en'} if current_language() == 'en' else {})), code=303)

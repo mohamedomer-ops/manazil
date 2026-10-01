@@ -1,13 +1,14 @@
 import re
 
-from flask import Blueprint, abort, current_app, g, jsonify, render_template, send_file
+from flask import Blueprint, abort, current_app, g, jsonify, render_template, request, send_file
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app import db
-from app.languages import availability_label, format_rent, property_type_label
+from app.languages import PROPERTY_TYPE_NAMES, availability_label, format_rent, property_type_label
 from app.models import PHOTO_CATEGORIES, Property, PropertyPhoto, SavedProperty
+from app.property_filters import STATE_OPTIONS, apply_filters, validated_filters
 from app.photo_storage import LocalPhotoStorage, PhotoError, category_label
 from app.property_forms import sudan_today
 
@@ -22,13 +23,18 @@ def index():
 
 @main.get("/properties")
 def properties():
+    filters = validated_filters(request.args)
     listings = db.session.scalars(
-        select(Property).options(selectinload(Property.photos))
-        .where(Property.publication_status == "published", Property.availability_status == "available")
+        apply_filters(select(Property).options(selectinload(Property.photos))
+                      .where(Property.publication_status == "published", Property.availability_status == "available"), filters)
         .order_by(Property.created_at.desc(), Property.id.desc())
     ).all()
+    saved_ids = set(db.session.scalars(select(SavedProperty.property_id).where(
+        SavedProperty.user_id == g.user.id, SavedProperty.property_id.in_([listing.id for listing in listings]))).all()) \
+        if g.get('user') and listings else set()
     return render_template(
-        "properties.html", properties=listings, today=sudan_today(),
+        "properties.html", properties=listings, filters=filters, saved_ids=saved_ids,
+        state_options=STATE_OPTIONS, property_types=PROPERTY_TYPE_NAMES, today=sudan_today(),
         availability_label=availability_label, format_rent=format_rent,
         property_type_label=property_type_label,
     )
