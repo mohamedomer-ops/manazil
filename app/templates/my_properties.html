@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('My Properties') }} | {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="properties-page my-properties-page">
+<h1>{{ t('My Properties') }}</h1>
+{% if request.args.get('saved') %}<p role="status" class="form-success">{{ t('Property updated successfully.') }}</p>{% endif %}
+{% if properties %}<section class="properties-grid" aria-label="{{ t('My Properties') }}">
+{% for property in properties %}
+{% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
+{% set photo = (property.photos|selectattr('is_primary')|first) or (property.photos|first) %}
+<article class="property-card management-card">
+<div class="property-card-media">
+<div class="property-card-image-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if photo %}aria-hidden="true"{% endif %}><svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 30 32 11l23 19M15 27v26h34V27M27 53V37h10v16"/></svg></div>
+{% if photo %}<img class="property-card-image" src="{{ url_for('ownership.owner_photo', photo_id=photo.id) }}" alt="{{ title }}" loading="lazy" onerror="this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true">{% endif %}
+</div>
+<div class="property-card-content">
+<p class="property-card-location">{{ property.state_ar if language == 'ar' else property.state_en }}{% if property.neighborhood_ar %} &middot; {{ property.neighborhood_ar }}{% endif %}</p>
+<h2>{{ title }}</h2><p class="property-card-type">{{ property_type_label(property.property_type, language) }}</p>
+<div class="property-card-price"><span class="property-card-price-label">{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></div>
+<div class="management-status"><span>{{ t('Published') if property.publication_status == 'published' else t('Draft') }}</span><span>{{ t('Rented') if property.availability_status == 'rented' else t('Available') }}</span></div>
+</div>
+<div class="management-actions">
+{% if property.publication_status == 'published' and property.availability_status == 'available' %}<a href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>{% endif %}
+<a href="{{ url_for('ownership.edit_property', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Edit') }}</a>
+<form method="post" action="{{ url_for('ownership.mark_rented' if property.availability_status == 'available' else 'ownership.make_available', property_id=property.id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_language" value="{{ language }}">
+<button type="submit">{{ t('Mark as Rented') if property.availability_status == 'available' else t('Make Available') }}</button>
+</form>
+</div></article>
+{% endfor %}</section>
+{% else %}<div class="properties-empty"><p>{{ t('You have not posted any properties yet.') }}</p><a class="primary-link" href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a></div>{% endif %}
+</main>
+{% endblock %}

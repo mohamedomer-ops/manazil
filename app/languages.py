@@ -16,6 +16,15 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    "Mark as Rented": "تم التأجير",
+    "Make Available": "إتاحة العقار",
+    'My Properties': 'عقاراتي',
+    'Edit Property': 'تعديل العقار',
+    'Back to My Properties': 'العودة إلى عقاراتي',
+    'You have not posted any properties yet.': 'لم تضف أي عقارات بعد.',
+    'Property updated successfully.': 'تم تحديث العقار بنجاح.',
+    'Existing photos are kept when you save.': 'تبقى الصور الحالية عند حفظ التغييرات.',
+
     "Menu": "القائمة",
     "Create Account": "إنشاء حساب",
     "Don't have an account?": "ليس لديك حساب؟",

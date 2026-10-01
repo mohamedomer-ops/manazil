@@ -1,5 +1,6 @@
 from flask import Blueprint, abort, current_app, redirect, render_template, request, send_file, url_for
 from flask_wtf.csrf import CSRFError
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
@@ -135,12 +136,16 @@ def staged_photo(token, photo_id):
 
 
 @admin.get("/property-photos/<int:photo_id>")
+@login_required
 def review_photo(photo_id):
-    photo = db.session.get(PropertyPhoto, photo_id)
+    photo = db.session.scalar(select(PropertyPhoto).join(Property).where(
+        PropertyPhoto.id == photo_id, Property.owner_id == g.user.id))
     if photo is None:
         abort(404)
     try:
-        return send_file(LocalPhotoStorage().path(photo.storage_key), mimetype=photo.content_type)
+        response = send_file(LocalPhotoStorage().path(photo.storage_key), mimetype=photo.content_type, max_age=0)
+        response.headers['Cache-Control'] = 'private, no-store'
+        return response
     except (PhotoError, OSError):
         abort(404)
 

@@ -17,6 +17,7 @@
         <a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('main.properties', 'main.property_detail') %}aria-current="page"{% endif %}>{{ t('Properties') }}</a>
         <a href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.blueprint == 'admin' or request.endpoint == 'property_new' %}aria-current="page"{% endif %}>{{ t('Post Property') }}</a>
         {% if current_user %}
+          <a href="{{ url_for('ownership.my_properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'ownership.my_properties' %}aria-current="page"{% endif %}>{{ t('My Properties') }}</a>
           <a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>
           <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('Logout') }}</button></form>
         {% else %}
