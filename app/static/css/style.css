@@ -326,3 +326,14 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .management-actions form { display: flex; flex: 1 1 100%; min-width: 0; margin: 0; }
 .management-actions button { width: 100%; background: #fff; font: inherit; font-weight: 600; cursor: pointer; }
 @media (min-width: 640px) { .management-actions form { flex-basis: auto; } }
+
+/* Save actions integrate into the existing detail panel and property cards. */
+.property-save-form { flex: 1 1 160px; min-width: 0; margin: 0; }
+.detail-secondary-actions .property-save-form button { width: 100%; min-height: 44px; color: var(--green); cursor: pointer; }
+.property-save-link { display: flex; align-items: center; justify-content: center; flex: 1 1 120px; min-height: 44px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; color: var(--green); background: #f7f8f6; text-decoration: none; font-weight: 600; }
+.property-saved-state { display: block; margin-block-end: 6px; color: var(--green); font-weight: 600; }
+.saved-properties-page h1 { font-size: clamp(24px, 4vw, 32px); }
+.saved-remove-form { margin: 0 22px 22px; }
+.saved-remove-form button { width: 100%; min-height: 44px; padding: 8px 12px; color: var(--green); background: #fff; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; }
+.saved-remove-form button:hover, .property-save-link:hover { background: #edf7f0; }
+.saved-unavailable { min-height: 160px; }

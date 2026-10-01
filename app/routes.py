@@ -1,13 +1,13 @@
 import re
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, send_file
+from flask import Blueprint, abort, current_app, g, jsonify, render_template, send_file
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from app import db
 from app.languages import availability_label, format_rent, property_type_label
-from app.models import PHOTO_CATEGORIES, Property, PropertyPhoto
+from app.models import PHOTO_CATEGORIES, Property, PropertyPhoto, SavedProperty
 from app.photo_storage import LocalPhotoStorage, PhotoError, category_label
 from app.property_forms import sudan_today
 
@@ -56,15 +56,18 @@ def property_detail(property_id):
         abort(404)
     phone = safe_phone_number(property.phone)
     whatsapp = safe_phone_number(property.whatsapp)
-    return render_template(
+    is_saved = bool(g.get('user') and db.session.get(SavedProperty, (g.user.id, property.id)))
+    response = current_app.make_response(render_template(
         "property_detail.html", property=property, today=sudan_today(),
         availability_label=availability_label, format_rent=format_rent,
         property_type_label=property_type_label,
         phone_url=f"tel:{phone}" if phone else None,
         whatsapp_url=f"https://wa.me/{whatsapp.lstrip('+')}" if whatsapp else None,
         category_label=category_label,
-        photo_categories=PHOTO_CATEGORIES,
-    )
+        photo_categories=PHOTO_CATEGORIES, is_saved=is_saved,
+    ))
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 @main.get("/properties/photos/<int:photo_id>")

@@ -16,6 +16,14 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    'Saved Properties': 'العقارات المحفوظة',
+    'Save Property': 'حفظ العقار',
+    'Saved': 'محفوظ',
+    'Remove from Saved': 'إزالة من المحفوظة',
+    'No longer available': 'لم يعد متاحاً',
+    "You haven't saved any properties yet.": 'لم تقم بحفظ أي عقارات بعد.',
+    'Browse Properties': 'تصفح العقارات',
+
     "Mark as Rented": "تم التأجير",
     "Make Available": "إتاحة العقار",
     'My Properties': 'عقاراتي',

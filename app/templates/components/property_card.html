@@ -29,5 +29,6 @@
       </dl>
     </div>
     <a class="property-card-action" href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>
+    {% if caller is defined %}{{ caller() }}{% endif %}
   </article>
 {%- endmacro %}

@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% from 'components/property_card.html' import property_card %}
+{% macro remove_form(property_id) %}
+<form class="saved-remove-form" method="post" action="{{ url_for('saved.unsave_property', property_id=property_id) }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="_language" value="{{ language }}">
+<button type="submit">{{ t('Remove from Saved') }}</button>
+</form>
+{% endmacro %}
+{% block title %}{{ t('Saved Properties') }} | {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="properties-page saved-properties-page">
+<h1>{{ t('Saved Properties') }}</h1>
+{% if entries %}<section class="properties-grid" aria-label="{{ t('Saved Properties') }}">
+{% for entry in entries %}
+{% if entry.property %}
+{% call property_card(entry.property, language, t, today, availability_label, format_rent, property_type_label) %}{{ remove_form(entry.property_id) }}{% endcall %}
+{% else %}
+<article class="property-card saved-unavailable"><div class="property-card-content"><h2>{{ t('No longer available') }}</h2></div>{{ remove_form(entry.property_id) }}</article>
+{% endif %}
+{% endfor %}</section>
+{% else %}<div class="properties-empty"><p>{{ t("You haven't saved any properties yet.") }}</p><a class="primary-link" href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Browse Properties') }}</a></div>{% endif %}
+</main>
+{% endblock %}

@@ -315,7 +315,7 @@ def test_navigation_auth_entry_for_logged_out_users(client, language, direction)
     entry = client.get(links[-1][0]).get_data(as_text=True)
     assert translate('Already have an account?', language) in entry
     assert translate('New to Manazil?', language) in entry
-    assert '/account' not in navigation and '/logout' not in navigation and '/my-properties' not in navigation
+    assert '/account' not in navigation and '/logout' not in navigation and '/my-properties' not in navigation and '/saved-properties' not in navigation
 
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
@@ -333,6 +333,8 @@ def test_navigation_authenticated_users_unchanged(client, language, direction):
     assert f'href="/account{suffix}">{translate("My Account", language)}</a>' in navigation
     assert f'href="/my-properties{suffix}"' in navigation
     assert translate('My Properties', language) in navigation
+    assert f'href="/saved-properties{suffix}"' in navigation
+    assert translate('Saved Properties', language) in navigation
     assert 'method="post" action="/logout"' in navigation
     assert translate('Logout', language) in navigation
     assert 'name="csrf_token"' in navigation

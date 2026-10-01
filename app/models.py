@@ -55,6 +55,7 @@ class Property(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     owner = db.relationship('User', back_populates='properties')
+    saved_by = db.relationship('User', secondary='saved_properties', back_populates='saved_properties', passive_deletes=True)
     title_en = db.Column(db.String, nullable=False)
     title_ar = db.Column(db.String, nullable=False)
     description_en = db.Column(db.Text, nullable=False)
@@ -200,6 +201,7 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
     last_login_at = db.Column(db.DateTime(timezone=True))
     properties = db.relationship('Property', back_populates='owner')
+    saved_properties = db.relationship('Property', secondary='saved_properties', back_populates='saved_by', passive_deletes=True)
 
     @property
     def contact_complete(self):
@@ -215,3 +217,10 @@ class OTPChallenge(db.Model):
     attempts = db.Column(db.Integer, nullable=False, default=0)
     consumed_at = db.Column(db.DateTime(timezone=True))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class SavedProperty(db.Model):
+    __tablename__ = 'saved_properties'
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    property_id = db.Column(db.Integer, db.ForeignKey('properties.id', ondelete='CASCADE'), primary_key=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())

@@ -75,7 +75,17 @@
         {% if phone_url %}<a class="detail-contact-action" href="{{ phone_url }}">{{ t(contact_action) }}</a>
         {% else %}<button class="detail-contact-action" type="button" disabled>{{ t(contact_action) }}</button>{% endif %}
         <div class="detail-secondary-actions">
-          <button type="button" disabled title="{{ 'غير متاح حالياً' if language == 'ar' else 'Not available yet' }}">{{ 'حفظ العقار' if language == 'ar' else 'Save/Favorite' }}</button>
+          {% if current_user %}
+          <form class="property-save-form" method="post" action="{{ url_for('saved.unsave_property' if is_saved else 'saved.save_property', property_id=property.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="_language" value="{{ language }}">
+            <input type="hidden" name="return_to" value="detail">
+            {% if is_saved %}<span class="property-saved-state" role="status">{{ t('Saved') }}</span>{% endif %}
+            <button type="submit">{{ t('Remove from Saved') if is_saved else t('Save Property') }}</button>
+          </form>
+          {% else %}
+          <a class="property-save-link" href="{{ url_for('auth.entry', next=request.full_path if request.query_string else request.path, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Save Property') }}</a>
+          {% endif %}
           <button type="button" disabled title="{{ 'غير متاح حالياً' if language == 'ar' else 'Not available yet' }}">{{ 'الإبلاغ عن الإعلان' if language == 'ar' else 'Report listing' }}</button>
         </div>
       </section>

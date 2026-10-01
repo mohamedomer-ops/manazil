@@ -44,12 +44,14 @@ def create_app(test_config=None):
     from app.admin import admin, new_property
     from app.auth import auth
     from app.ownership import ownership
+    from app.saved import saved
     from app.languages import template_language
 
     app.register_blueprint(main)
     app.register_blueprint(admin)
     app.register_blueprint(auth)
     app.register_blueprint(ownership)
+    app.register_blueprint(saved)
     app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])
     app.context_processor(template_language)
     @app.cli.command('dev-otp')
