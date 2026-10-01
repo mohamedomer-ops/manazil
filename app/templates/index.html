@@ -7,7 +7,7 @@
       <p class="eyebrow">{{ t('Made for Sudan') }}</p>
       <h1 id="home-title">{{ t('A clearer start for your property.') }}</h1>
       <p class="subtitle">{{ t('Add your property details once in Arabic, then review and save your draft.') }}</p>
-      <a class="primary-link" href="{{ url_for('admin.new_property', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('List Your Property') }}</a>
+      <a class="primary-link" href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a>
       <p class="hero-note">{{ t('Submitted properties are reviewed before publication.') }}</p>
     </div>
     <div class="intro-panel">

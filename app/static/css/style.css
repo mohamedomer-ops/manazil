@@ -265,3 +265,52 @@ h3 { font-size: 1rem; margin: 0 0 4px; }
 .posting-page .form-actions { margin-top: 24px; }
 .posting-page .form-actions button { width: 100%; }
 @media (max-width: 600px) { .posting-page .form-grid { grid-template-columns: minmax(0,1fr); } .posting-section { padding: 18px 0; } }
+
+/* Compact authentication cards; all rules stay scoped to auth pages. */
+.auth-page { width: min(420px, calc(100% - 32px)); margin: 40px auto; padding: 24px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 2px 10px rgb(27 37 31 / 4%); text-align: start; }
+.auth-page h1 { margin: 0 0 12px; font-size: 26px; line-height: 1.4; font-weight: 700; }
+.auth-page .auth-support { margin: 0 0 10px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.auth-page .auth-choice { margin-block: 20px 0; }
+.auth-page .auth-choice-secondary { padding-block-start: 20px; border-block-start: 1px solid var(--border); }
+.auth-page label { display: block; margin-block: 14px 6px; font-size: 14px; font-weight: 600; }
+.auth-page input:not([type="hidden"]), .auth-page select { display: block; width: 100%; min-width: 0; height: 46px; padding: 10px 12px; color: #24282b; background: #fff; border: 1px solid #aab4ae; border-radius: 6px; font-size: 16px; text-align: start; }
+.auth-page input[type="tel"] { direction: ltr; text-align: left; }
+html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
+.auth-page #code { direction: ltr; text-align: center; letter-spacing: .2em; }
+.auth-page button, .auth-page .button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 46px; margin-block: 18px 0; padding: 10px 12px; background: var(--green); color: #fff; border: 1px solid var(--green); border-radius: 6px; font-size: 15px; font-weight: 600; line-height: 1.5; text-decoration: none; cursor: pointer; }
+.auth-page button:hover, .auth-page .button:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.auth-page .auth-choice .button { margin-block-start: 10px; }
+.auth-page .button-secondary { color: var(--green); background: #fff; border-color: var(--border); }
+.auth-page .button-secondary:hover { color: var(--green); background: #f4f8f5; border-color: var(--green); }
+.auth-page .auth-footer { margin: 20px 0 0; padding-block-start: 16px; border-block-start: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
+.auth-page .auth-footer a, .auth-page .auth-change-phone { color: var(--green); font-weight: 600; text-underline-offset: 3px; }
+.auth-page .auth-footer a { display: inline-block; padding-block: 6px; }
+.auth-page .auth-resend button { margin-block-start: 12px; color: var(--green); background: #fff; border-color: var(--border); }
+.auth-page .auth-resend button:hover { background: #f4f8f5; border-color: var(--green); }
+.auth-page .auth-change-phone { display: block; width: fit-content; min-height: 44px; margin: 8px auto 0; padding-block: 10px; font-size: 14px; text-align: center; }
+.auth-page [role="alert"] { margin: 8px 0; color: #b4232d; font-size: 14px; }
+.auth-page [aria-invalid="true"] { border-color: #b4232d; }
+@media (max-width: 600px) {
+  .auth-page { width: calc(100% - 24px); margin: 16px auto 24px; padding: 20px; }
+  .auth-page h1 { font-size: 23px; margin-block-end: 10px; }
+}
+
+/* Compact navigation on phones and tablets; desktop links stay inline. */
+.mobile-menu-toggle { display: none; }
+@media (max-width: 959px) {
+  .site-header { position: relative; display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: center; gap: 8px; padding: 8px 10px; }
+  .site-header .site-brand { grid-column: 1; grid-row: 1; font-size: 22px; white-space: nowrap; }
+  .site-header .language-switcher { grid-column: 2; grid-row: 1; justify-self: center; margin: 0; gap: 2px; font-size: 13px; white-space: nowrap; }
+  .site-header .language-switcher a, .site-header .language-switcher button { min-height: 44px; padding: 6px 4px; white-space: nowrap; }
+  .mobile-menu-toggle { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; background: #fff; color: #24282b; font-size: 14px; font-weight: 600; line-height: 1.4; white-space: nowrap; cursor: pointer; }
+  .mobile-menu-toggle:hover, .mobile-menu-toggle[aria-expanded="true"] { background: #f4f8f5; color: var(--green); }
+  .mobile-menu-icon { width: 18px; font-size: 20px; line-height: 1; text-align: center; }
+  .site-header nav { position: absolute; inset-inline: 10px; top: calc(100% + 4px); z-index: 20; display: none; width: auto; margin: 0; padding: 6px; background: #fff; border: 1px solid var(--border); border-radius: 9px; box-shadow: 0 6px 18px rgb(27 37 31 / 8%); }
+  .site-header nav.is-open { display: flex; flex-direction: column; gap: 0; }
+  .site-header nav a, .site-header nav button { display: flex; align-items: center; width: 100%; min-height: 46px; padding: 10px 12px; font-size: 14px; line-height: 1.5; text-align: start; white-space: nowrap; }
+  .site-header nav > :not(:last-child) { border-bottom: 1px solid var(--border); }
+  .site-header nav a { border-radius: 5px; }
+  .site-header nav form { margin: 0; }
+  .site-header nav button { color: inherit; background: transparent; border: 0; border-radius: 5px; font-weight: 600; cursor: pointer; }
+  .site-header nav button:hover { background: #f4f5f3; }
+}

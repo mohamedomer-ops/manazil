@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('Login / Sign Up') }} &middot; {{ t('Manazil') }}{% endblock %}
+{% block language_switcher %}
+<a href="{{ url_for('auth.entry', next=next|default(session.get('auth_next', '/account')), lang='ar') }}" lang="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</a>
+<a href="{{ url_for('auth.entry', next=next|default(session.get('auth_next', '/account')), lang='en') }}" lang="en">English</a>
+{% endblock %}
+{% block content %}
+<main id="main-content" class="form-page auth-page">
+<h1>{{ t('Login / Sign Up') }}</h1>
+<section class="auth-choice"><p class="auth-support">{{ t('Already have an account?') }}</p><a class="button" href="{{ url_for('auth.login', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login') }}</a></section>
+<section class="auth-choice auth-choice-secondary"><p class="auth-support">{{ t('New to Manazil?') }}</p><a class="button button-secondary" href="{{ url_for('auth.signup', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Create Account') }}</a></section>
+</main>
+{% endblock %}

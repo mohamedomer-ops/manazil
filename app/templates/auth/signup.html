@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('Create Account') }} &middot; {{ t('Manazil') }}{% endblock %}
+{% block language_switcher %}
+<a href="{{ url_for('auth.signup', next=next|default(session.get('auth_next', '/account')), lang='ar') }}" lang="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</a>
+<a href="{{ url_for('auth.signup', next=next|default(session.get('auth_next', '/account')), lang='en') }}" lang="en">English</a>
+{% endblock %}
+{% block content %}
+<main id="main-content" class="form-page auth-page">
+<h1>{{ t('Create Account') }}</h1>
+<form method="post" action="{{ url_for('auth.signup_post') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input type="hidden" name="next" value="{{ next }}">
+<input type="hidden" name="_language" value="{{ language }}">
+{% for field, label in [('contact_name', 'Name'), ('phone_number', 'Phone number'), ('whatsapp', 'WhatsApp Number')] %}
+<label for="{{ field }}">{{ t(label) }}</label>
+<input id="{{ field }}" name="{{ field }}" type="{{ 'text' if field == 'contact_name' else 'tel' }}" autocomplete="{{ 'name' if field == 'contact_name' else 'tel' }}" value="{{ values.get(field, '') }}" {% if errors.get(field) %}aria-invalid="true" aria-describedby="{{ field }}-error"{% endif %} required>
+{% if errors.get(field) %}<p id="{{ field }}-error" role="alert">{{ t(errors[field]) }}</p>{% endif %}
+{% endfor %}
+<label for="contact_role">{{ t('Account Type') }}</label>
+<select id="contact_role" name="contact_role" {% if errors.contact_role %}aria-invalid="true" aria-describedby="contact-role-error"{% endif %} required>
+<option value="">{{ t('Select an option') }}</option>
+{% for role, label in [('owner', 'Owner'), ('broker', 'Broker')] %}<option value="{{ role }}" {% if values.get('contact_role') == role %}selected{% endif %}>{{ t(label) }}</option>{% endfor %}
+</select>
+{% if errors.contact_role %}<p id="contact-role-error" role="alert">{{ t(errors.contact_role) }}</p>{% endif %}
+<button type="submit">{{ t('Create Account') }}</button>
+</form>
+<p class="auth-footer">{{ t('Already have an account?') }} <a href="{{ url_for('auth.login', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login') }}</a></p>
+</main>
+{% endblock %}

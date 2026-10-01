@@ -3,6 +3,7 @@ from urllib.parse import urlsplit
 
 from flask import Blueprint, g, redirect, render_template, request, session, url_for
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import User, utc_now
@@ -31,7 +32,7 @@ def login_required(view):
     def wrapped(*args, **kwargs):
         if g.get('user') is None:
             destination = request.full_path if request.query_string else request.path
-            return redirect(url_for('auth.login', next=destination, **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
+            return redirect(url_for('auth.entry', next=destination, **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if session.get('pending_setup_user_id') and request.endpoint not in ('auth.account', 'auth.account_post'):
             return redirect(url_for('auth.account', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         return view(*args, **kwargs)
@@ -40,7 +41,7 @@ def login_required(view):
 
 def safe_next(value):
     parsed = urlsplit(value or '')
-    return value if value and value.startswith('/') and not value.startswith('//') and not parsed.scheme and not parsed.netloc else url_for('auth.account')
+    return value if value and value.startswith('/') and not value.startswith('//') and '\\' not in value and not any(ord(char) < 32 for char in value) and not parsed.scheme and not parsed.netloc else url_for('auth.account')
 
 
 def contact_values(user):
@@ -48,7 +49,7 @@ def contact_values(user):
             'whatsapp': user.whatsapp or '', 'contact_role': user.contact_role or ''}
 
 
-def save_contact(user, form):
+def validate_contact(form):
     values = {key: form.get(key, '').strip() for key in ('contact_name', 'whatsapp', 'contact_role')}
     errors = {}
     if not values['contact_name'] or '\x00' in values['contact_name']:
@@ -59,18 +60,58 @@ def save_contact(user, form):
         errors['whatsapp'] = 'Enter a valid phone number.'
     if values['contact_role'] not in ('owner', 'broker'):
         errors['contact_role'] = 'Choose one of the available options.'
+    return values, errors
+
+
+def save_contact(user, form):
+    values, errors = validate_contact(form)
     if not errors:
-        user.contact_name = values['contact_name']
-        user.whatsapp = values['whatsapp']
-        user.contact_role = values['contact_role']
+        for key, value in values.items():
+            setattr(user, key, value)
         db.session.commit()
     values['phone_number'] = user.phone_number
     return values, errors
 
 
+def auth_destination():
+    return safe_next(request.values.get('next') or session.get('auth_next'))
+
+
+@auth.get('/auth')
+def entry():
+    return render_template('auth/entry.html', next=auth_destination())
+
+
+@auth.get('/signup')
+def signup():
+    return render_template('auth/signup.html', next=auth_destination(), values={}, errors={})
+
+
+@auth.post('/signup')
+def signup_post():
+    values, errors = validate_contact(request.form)
+    try:
+        phone = normalize_phone(request.form.get('phone_number'))
+        values['phone_number'] = phone
+    except ValueError:
+        values['phone_number'] = request.form.get('phone_number', '')
+        errors['phone_number'] = 'Enter a valid phone number.'
+    destination = auth_destination()
+    if errors:
+        return render_template('auth/signup.html', next=destination, values=values, errors=errors), 422
+    if db.session.scalar(select(User).where(User.phone_number == phone)):
+        return render_template('auth/login.html', next=destination,
+                               error='An account with this number already exists. Please log in.'), 409
+    session['pending_signup'] = values
+    session['pending_phone'] = phone
+    session['auth_next'] = destination
+    request_code(phone)
+    return redirect(url_for('auth.verify', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
+
+
 @auth.get('/login')
 def login():
-    return render_template('auth/login.html', next=safe_next(request.args.get('next')))
+    return render_template('auth/login.html', next=auth_destination())
 
 
 @auth.post('/auth/request-otp')
@@ -80,16 +121,17 @@ def request_otp():
         phone = normalize_phone(request.form.get('phone_number'))
     except ValueError:
         return render_template('auth/login.html', next=safe_next(request.form.get('next')), error='Enter a valid phone number.'), 422
+    session.pop('pending_signup', None)
     session['pending_phone'] = phone
-    session['auth_next'] = safe_next(request.form.get('next'))
-    sent = request_code(phone)
+    session['auth_next'] = auth_destination()
+    request_code(phone)
     return redirect(url_for('auth.verify', **({'lang': 'en'} if current_language() == 'en' else {})), code=303)
 
 
 @auth.get('/auth/verify')
 def verify():
     if not session.get('pending_phone'):
-        return redirect(url_for('auth.login'))
+        return redirect(url_for('auth.entry', next=auth_destination(), **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
     return render_template('auth/verify.html')
 
 
@@ -101,25 +143,41 @@ def verify_post():
     user = db.session.scalar(select(User).where(User.phone_number == phone))
     if user and not user.is_active:
         return render_template('auth/verify.html', error='Unable to sign in.'), 403
-    new_user = user is None
-    if new_user:
-        user = User(phone_number=phone)
+    registration = session.get('pending_signup')
+    if registration and (user or registration.get('phone_number') != phone):
+        session.pop('pending_signup', None)
+        return render_template('auth/login.html', next=auth_destination(),
+                               error='An account with this number already exists. Please log in.'), 409
+    if not user:
+        if not registration:
+            return render_template('auth/login.html', next=auth_destination(),
+                                   error='No account with this number. Please sign up.'), 422
+        user = User(**registration)
         db.session.add(user)
     user.is_verified = True
-    user.is_active = True
     user.last_login_at = utc_now()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        session.pop('pending_signup', None)
+        return render_template('auth/login.html', next=auth_destination(),
+                               error='An account with this number already exists. Please log in.'), 409
     destination = safe_next(session.get('auth_next'))
     csrf_value = session.get('csrf_token')
     session.clear()
     if csrf_value:
         session['csrf_token'] = csrf_value
-    if new_user:
-        session['pending_setup_user_id'] = user.id
-        session['contact_next'] = destination
-        return redirect(url_for('auth.account', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
     session['user_id'] = user.id
     return redirect(destination, code=303)
+
+
+@auth.post('/auth/resend')
+def resend():
+    if not session.get('pending_phone'):
+        return redirect(url_for('auth.entry', next=auth_destination()), code=303)
+    request_code(session['pending_phone'])
+    return redirect(url_for('auth.verify', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
 
 
 @auth.post('/logout')

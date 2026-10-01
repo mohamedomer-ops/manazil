@@ -41,13 +41,14 @@ def create_app(test_config=None):
     migrate.init_app(app, db, render_as_batch=False)
 
     from app.routes import main
-    from app.admin import admin
+    from app.admin import admin, new_property
     from app.auth import auth
     from app.languages import template_language
 
     app.register_blueprint(main)
     app.register_blueprint(admin)
     app.register_blueprint(auth)
+    app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])
     app.context_processor(template_language)
     @app.cli.command('dev-otp')
     @__import__('click').argument('phone')

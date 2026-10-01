@@ -5,21 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ t('Manazil') }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script defer src="{{ url_for('static', filename='js/navigation.js') }}"></script>
     {% block scripts %}{% endblock %}
   </head>
   <body>
     <a class="skip-link" href="#main-content">{{ t('Skip to content') }}</a>
     <header class="site-header">
       <a class="site-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Manazil') }}</a>
-      <nav aria-label="{{ 'التنقل الرئيسي' if language == 'ar' else 'Main navigation' }}">
+      <nav aria-label="{{ 'التنقل الرئيسي' if language == 'ar' else 'Main navigation' }}" id="site-navigation">
         <a href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>{{ t('Home') }}</a>
         <a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('main.properties', 'main.property_detail') %}aria-current="page"{% endif %}>{{ t('Properties') }}</a>
-        <a href="{{ url_for('admin.new_property', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.blueprint == 'admin' %}aria-current="page"{% endif %}>{{ t('List Your Property') }}</a>
+        <a href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.blueprint == 'admin' or request.endpoint == 'property_new' %}aria-current="page"{% endif %}>{{ t('Post Property') }}</a>
         {% if current_user %}
           <a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>
           <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('Logout') }}</button></form>
         {% else %}
-          <a href="{{ url_for('auth.login', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login') }}</a>
+          <a href="{{ url_for('auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login / Sign Up') }}</a>
         {% endif %}
       </nav>
       <div class="language-switcher" aria-label="{{ 'اللغة' if language == 'ar' else 'Language' }}">
@@ -29,6 +30,10 @@
           <a href="{{ url_for(request.endpoint, lang='en', **(request.view_args or {})) }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
         {% endblock %}
       </div>
+      <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-navigation">
+        <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
+        <span>{{ t('Menu') }}</span>
+      </button>
     </header>
     {% block content %}{% endblock %}
     <footer class="site-footer">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan Property Rental Platform') }}</footer>

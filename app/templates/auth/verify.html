@@ -1,10 +1,14 @@
 {% extends 'base.html' %}
 {% block title %}{{ t('Verification code') }} · {{ t('Manazil') }}{% endblock %}
+{% block language_switcher %}
+<a href="{{ url_for('auth.verify', next=next|default(session.get('auth_next', '/account')), lang='ar') }}" lang="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</a>
+<a href="{{ url_for('auth.verify', next=next|default(session.get('auth_next', '/account')), lang='en') }}" lang="en">English</a>
+{% endblock %}
 {% block content %}
-<main id="main-content" class="form-page">
+<main id="main-content" class="form-page auth-page">
   <h1>{{ t('Verification code') }}</h1>
-  <p>{{ t('Enter the 6-digit verification code.') }}</p>
-  <p>{{ t('If the number is valid, a verification code will be sent.') }}</p>
+  <p class="auth-support">{{ t('Enter the 6-digit verification code.') }}</p>
+  <p class="auth-support">{{ t('If the number is valid, a verification code will be sent.') }}</p>
   {% if error %}<p role="alert">{{ t(error) }}</p>{% endif %}
   <form method="post" action="{{ url_for('auth.verify_post') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -13,13 +17,13 @@
     <input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code">
     <button type="submit">{{ t('Verify') }}</button>
   </form>
-  <form method="post" action="{{ url_for('auth.request_otp') }}">
+  <form class="auth-resend" method="post" action="{{ url_for('auth.resend') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="phone_number" value="{{ session.pending_phone }}">
     <input type="hidden" name="next" value="{{ session.auth_next }}">
     <input type="hidden" name="_language" value="{{ language }}">
     <button type="submit">{{ t('Resend code') }}</button>
   </form>
-  <a href="{{ url_for('auth.login', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Change phone number') }}</a>
+  <a class="auth-change-phone" href="{{ url_for('auth.signup' if session.pending_signup else 'auth.login', next=session.auth_next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Change phone number') }}</a>
 </main>
 {% endblock %}

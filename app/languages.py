@@ -16,12 +16,22 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    "Menu": "القائمة",
+    "Create Account": "إنشاء حساب",
+    "Don't have an account?": "ليس لديك حساب؟",
+    'Login / Sign Up': 'تسجيل الدخول / إنشاء حساب',
+    'Sign Up': 'إنشاء حساب',
+    'Already have an account?': 'لديك حساب بالفعل؟',
+    'New to Manazil?': 'جديد في منازل؟',
+    'An account with this number already exists. Please log in.': 'يوجد حساب بهذا الرقم بالفعل. يرجى تسجيل الدخول.',
+    'No account with this number. Please sign up.': 'لا يوجد حساب بهذا الرقم. يرجى إنشاء حساب.',
+
     "Phone Number": "رقم الهاتف", "Verified Phone Number": "رقم الهاتف الموثق",
     "WhatsApp Number": "رقم WhatsApp", "Account Type": "نوع الحساب",
     "Save Changes": "حفظ التغييرات",
     "Account information updated successfully": "تم تحديث معلومات الحساب بنجاح",
     "Login": "تسجيل الدخول", "Phone number": "رقم الهاتف",
-    "We'll send a verification code to your number.": "سنرسل رمز التحقق إلى رقمك.",
+    "We'll send a verification code to your WhatsApp.": "سنرسل رمز التحقق إلى واتساب.",
     "Continue": "متابعة", "Verification code": "رمز التحقق",
     "Enter the 6-digit verification code.": "أدخل رمز التحقق المكون من 6 أرقام.",
     "Verify": "تحقق", "Resend code": "إعادة إرسال الرمز",
@@ -123,7 +133,7 @@ ARABIC = {
     "Shared details stay with you when you switch languages.": "تظل التفاصيل المشتركة محفوظة في النموذج عند تبديل اللغة.",
     "Complete the English translation, then save your property.": "أكمل الترجمة الإنجليزية، ثم احفظ عقارك.",
     "Save Property": "حفظ العقار", "Connection status": "حالة الاتصال",
-    "Manazil": "منازل", "Home": "الرئيسية", "List Your Property": "أضف عقارك",
+    "Manazil": "منازل", "Home": "الرئيسية", "Post Property": "أضف عقارك",
     "Sudan Property Rental Platform": "منصة تأجير العقارات في السودان",
     "Manazil System": "حالة نظام منازل", "API": "واجهة البرمجة", "Database": "قاعدة البيانات",
     "Checking…": "جارٍ التحقق…", "Connected": "متصل", "Unavailable": "غير متاح", "Unknown": "غير معروف",
