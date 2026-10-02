@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urlsplit
 from sqlalchemy import event, select
 
 from app import db
-from app.languages import PROPERTY_TYPE_NAMES
+from app.languages import PROPERTY_TYPE_NAMES, translate
 from app.models import PropertyPhoto, SavedProperty, utc_now
 from app.property_filters import STATE_OPTIONS
 from test_auth import client, csrf
@@ -41,13 +41,12 @@ def test_homepage_languages_search_discovery_and_footer(client):
         assert 'name="property_type"' in html and 'name="bedrooms"' not in html
         for value in ('rent', 'sale'):
             assert f'<option value="{value}">' in html
-            assert f'href="/properties?transaction={value}' in html
         for slug, english, arabic in STATE_OPTIONS:
             assert f'<option value="{slug}">' in html
             assert (arabic if direction == 'rtl' else english) in html
         for property_type in PROPERTY_TYPE_NAMES:
             assert f'<option value="{property_type}">' in html
-        assert rent in html and sale in html
+        assert f'<strong>{rent}</strong>' not in html and f'<strong>{sale}</strong>' not in html
         assert 'Latest Properties' in html if direction == 'ltr' else 'أحدث العقارات' in html
         assert 'href="/properties' in html
         assert '<footer class="site-footer home-footer">' in html
@@ -56,16 +55,87 @@ def test_homepage_languages_search_discovery_and_footer(client):
             assert '<input type="hidden" name="lang" value="en">' in html
 
 
-def test_hero_search_uses_marketplace_filters(client, values):
+def test_homepage_hero_slideshow_uses_four_local_images(client):
+    for suffix in ('', '?lang=en'):
+        html = client.get('/' + suffix).text
+        hero = re.search(r'<section class="home-hero".*?</section>', html, re.S).group()
+        assert 'data-home-hero' in html and 'js/home-hero.js' in html
+        assert hero.count('<img class="home-hero-slide') == 4
+        assert hero.count('<img class="home-hero-slide is-active"') == 1
+        assert 'fetchpriority="high" loading="eager"' in hero
+        assert hero.count('loading="lazy" decoding="async"') == 3
+        assert 'home-hero-toggle' not in hero
+        assert 'Pause slideshow' not in hero and 'Play slideshow' not in hero
+        assert 'إيقاف عرض الصور' not in hero and 'تشغيل عرض الصور' not in hero
+        for number in range(1, 5):
+            assert f'src="/static/images/sudan-hero-{number}.webp"' in hero
+    for number in range(1, 5):
+        asset = Path(f'app/static/images/sudan-hero-{number}.webp')
+        assert asset.is_file() and asset.stat().st_size < 100_000
+        assert asset.read_bytes()[:4] == b'RIFF' and asset.read_bytes()[8:12] == b'WEBP'
+
+
+def test_hero_slideshow_keeps_automatic_timing_and_reduced_motion():
+    script = Path('app/static/js/home-hero.js').read_text(encoding='utf-8')
+    styles = Path('app/static/css/style.css').read_text(encoding='utf-8')
+    assert 'window.setInterval' in script and '6500' in script
+    assert "window.matchMedia('(prefers-reduced-motion: reduce)').matches" in script
+    assert 'document.hidden' in script
+    assert '.home-hero-slide { transition: none; }' in styles
+    assert 'home-hero-toggle' not in script and 'home-hero-toggle' not in styles
+
+
+def test_hero_is_outside_constrained_home_content(client):
+    for suffix in ('', '?lang=en'):
+        html = client.get('/' + suffix).text
+        main = html.split('<main id="main-content" class="home-page">', 1)[1].split('</main>', 1)[0]
+        hero = main.split('<section class="home-hero"', 1)[1].split('</section>', 1)[0]
+        constrained = main.split('<div class="home-content">', 1)[1]
+        assert 'class="home-hero-content"' in hero
+        assert 'class="home-hero-copy"' in hero and 'class="home-hero-actions"' in hero
+        assert main.index('</section>') < main.index('<div class="home-content">')
+        assert 'id="property-search"' in constrained
+        assert 'id="home-latest-title"' in constrained
+        assert 'id="home-post-title"' in constrained
+        assert 'class="home-hero-slides"' not in constrained
+
+
+def test_hero_actions_and_single_search_form_below_discovery_heading(client):
+    for suffix, language, direction in (('', 'ar', 'rtl'), ('?lang=en', 'en', 'ltr')):
+        html = client.get('/' + suffix).text
+        hero = re.search(r'<section class="home-hero".*?</section>', html, re.S).group()
+        search_section = re.search(r'<section class="home-section" id="property-search".*?</section>', html, re.S).group()
+        assert f'<html lang="{language}" dir="{direction}">' in html
+        assert 'class="home-search"' not in hero
+        assert f'href="#property-search">{translate("Search for Property", language)}</a>' in hero
+        assert f'href="/properties/new{suffix}">{translate("Post Property", language)}</a>' in hero
+        assert html.count('class="home-search"') == 1
+        assert search_section.index('id="home-discover-title"') < search_section.index('class="home-search"')
+        assert 'home-discovery-grid' not in search_section
+        assert f'<h2 id="home-discover-title">{translate("Find what fits you", language)}</h2>' in search_section
+        assert '<form class="home-search" method="get" action="/properties"' in search_section
+        assert all(f'name="{name}"' in search_section for name in ('transaction', 'state', 'property_type'))
+        assert all(translate(label, language) in search_section for label in ('Transaction', 'State', 'Property type', 'For Rent', 'For Sale'))
+        assert f'<button type="submit">{translate("Search", language)}</button>' in search_section
+        assert html.index('id="property-search"') < html.index('id="home-latest-title"')
+
+
+def test_homepage_search_uses_marketplace_filters(client, values):
     public_property(values, 'Matching', transaction_type='sale', rent_period=None,
                     state_en='Khartoum', property_type='villa')
     public_property(values, 'Wrong type', transaction_type='sale', rent_period=None,
                     state_en='Khartoum', property_type='house')
+    public_property(values, 'Rental', transaction_type='rent', state_en='Khartoum', property_type='villa')
     page = client.get('/properties', query_string={
         'transaction': 'sale', 'state': 'khartoum', 'property_type': 'villa', 'lang': 'en',
     })
     assert page.status_code == 200
     assert 'Matching' in page.text and 'Wrong type' not in page.text
+    rental_page = client.get('/properties', query_string={
+        'transaction': 'rent', 'state': 'khartoum', 'property_type': 'villa', 'lang': 'en',
+    })
+    assert rental_page.status_code == 200
+    assert 'Rental' in rental_page.text and 'Matching' not in rental_page.text
 
 
 def test_homepage_removes_state_discovery_and_keeps_search_and_images(client):
@@ -84,26 +154,12 @@ def test_homepage_removes_state_discovery_and_keeps_search_and_images(client):
         assert asset.read_bytes()[:4] == b'RIFF' and asset.read_bytes()[8:12] == b'WEBP'
 
 
-def test_homepage_discovery_icons_and_no_decorative_arrows(client, values):
-    public_property(values, 'A listing')
+def test_homepage_has_no_rent_sale_discovery_cards(client):
     for suffix in ('', '?lang=en'):
         html = client.get('/' + suffix).text
-        rent = re.search(r'<a class="home-discovery-card home-discovery-rent".*?</a>', html).group()
-        sale = re.search(r'<a class="home-discovery-card home-discovery-sale".*?</a>', html).group()
-        assert 'href="/properties?transaction=rent' in rent
-        assert 'href="/properties?transaction=sale' in sale
-        for card in (rent, sale):
-            assert '<svg class="home-discovery-svg"' in card
-            assert 'stroke="currentColor" stroke-width="2"' in card
-            assert '<span class="home-discovery-icon" aria-hidden="true">' in card
-            assert '⌂' not in card
-        assert '<circle cx="19" cy="29" r="3"/>' in rent
-        assert '<path d="M22 29h10m-5 0v4m5-4v4"/>' in rent
-        assert '<path d="M16 25h12l6 5-6 5H16z"/>' in sale
-        assert '<circle cx="20" cy="30" r="1"/>' in sale
-        assert 'home-link-arrow' not in html and '↗' not in html
-        assert 'class="market-result-open"' not in html
-        assert 'class="market-carousel-previous"' not in html
+        assert 'home-discovery-' not in html
+        assert 'Properties for Rent' not in html and 'Properties for Sale' not in html
+        assert 'class="home-search"' in html
 
 
 def test_latest_properties_visibility_order_limit_and_links(client, values):
@@ -232,6 +288,7 @@ def test_empty_homepage_cta_auth_and_navigation(client):
     assert 'class="home-latest-grid"' not in arabic.text
     english = client.get('/?lang=en')
     assert 'No properties are currently available.' in english.text
+    assert '<a class="home-hero-action home-hero-action-secondary" href="/properties/new?lang=en">Post Property</a>' in english.text
     assert '<a class="primary-link" href="/properties/new?lang=en">Post Property</a>' in english.text
     assert 'href="/auth?lang=en"' in english.text
     assert '/my-properties' not in english.text and '/saved-properties' not in english.text
