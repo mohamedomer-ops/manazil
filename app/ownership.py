@@ -12,6 +12,7 @@ from app.auth import login_required
 from app.languages import current_language, format_rent, property_type_label
 from app.models import Property, PropertyPhoto
 from app.photo_storage import MAX_PHOTOS_PER_PROPERTY, LocalPhotoStorage, PhotoError
+from app.phone import property_contact_number
 from app.property_forms import FORM_FIELDS, validate_posting
 
 ownership = Blueprint('ownership', __name__)
@@ -44,7 +45,8 @@ def editing_values(property):
     values = {key: '' if getattr(property, key, None) is None else str(getattr(property, key))
               for key in FORM_FIELDS if key not in ('agent', 'amenities', 'furnished')}
     values.update(agent='yes' if property.contact_role == 'broker' else 'no',
-                  amenities='\n'.join(property.amenities), furnished='on' if property.furnished else '')
+                  amenities='\n'.join(property.amenities), furnished='on' if property.furnished else '',
+                  whatsapp=property_contact_number(property) or '')
     return values
 
 

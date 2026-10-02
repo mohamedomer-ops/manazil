@@ -1,5 +1,3 @@
-import re
-
 from flask import Blueprint, abort, current_app, g, jsonify, render_template, request, send_file
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
@@ -11,6 +9,7 @@ from app.models import Property, PropertyPhoto, SavedProperty
 from app.property_filters import STATE_OPTIONS, apply_filters, validated_filters
 from app.photo_storage import LocalPhotoStorage, PhotoError, category_label
 from app.property_forms import sudan_today
+from app.phone import property_contact_number
 
 
 main = Blueprint("main", __name__)
@@ -59,15 +58,6 @@ def properties():
     )
 
 
-def safe_phone_number(value):
-    if not value or not re.fullmatch(r"\+?[0-9][0-9\s().-]*", value.strip()):
-        return None
-    digits = re.sub(r"\D", "", value)
-    if not 7 <= len(digits) <= 15:
-        return None
-    return ("+" if value.strip().startswith("+") else "") + digits
-
-
 @main.get("/properties/<int:property_id>")
 def property_detail(property_id):
     property = db.session.scalar(
@@ -79,15 +69,15 @@ def property_detail(property_id):
     )
     if property is None:
         abort(404)
-    phone = safe_phone_number(property.phone)
-    whatsapp = safe_phone_number(property.whatsapp)
+    contact_number = property_contact_number(property)
     is_saved = bool(g.get('user') and db.session.get(SavedProperty, (g.user.id, property.id)))
     response = current_app.make_response(render_template(
         "property_detail.html", property=property, today=sudan_today(),
         availability_label=availability_label, format_rent=format_rent,
         property_type_label=property_type_label,
-        phone_url=f"tel:{phone}" if phone else None,
-        whatsapp_url=f"https://wa.me/{whatsapp.lstrip('+')}" if whatsapp else None,
+        contact_number=contact_number,
+        phone_url=f"tel:{contact_number}" if contact_number else None,
+        whatsapp_url=f"https://wa.me/{contact_number.lstrip('+')}" if contact_number else None,
         category_label=category_label, is_saved=is_saved,
     ))
     response.headers['Cache-Control'] = 'private, no-store'

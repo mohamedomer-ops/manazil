@@ -105,13 +105,17 @@ def signup():
 
 @auth.post('/signup')
 def signup_post():
-    values, errors = validate_contact(request.form)
+    values = {key: request.form.get(key, '').strip() for key in ('contact_name', 'contact_role')}
+    errors = {}
     try:
         phone = normalize_phone(request.form.get('phone_number'))
-        values['phone_number'] = phone
     except ValueError:
-        values['phone_number'] = request.form.get('phone_number', '')
         errors['phone_number'] = 'Enter a valid phone number.'
+        phone = None
+    contact_values, contact_errors = validate_contact(values | {'whatsapp': phone or ''})
+    values.update(contact_values)
+    errors.update({key: value for key, value in contact_errors.items() if key != 'whatsapp'})
+    values['phone_number'] = phone or request.form.get('phone_number', '')
     destination = auth_destination()
     if errors:
         return render_template('auth/signup.html', next=destination, values=values, errors=errors), 422

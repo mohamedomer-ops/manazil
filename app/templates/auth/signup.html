@@ -12,7 +12,7 @@
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <input type="hidden" name="next" value="{{ next }}">
 <input type="hidden" name="_language" value="{{ language }}">
-{% for field, label in [('contact_name', 'Name'), ('phone_number', 'Phone number'), ('whatsapp', 'WhatsApp Number')] %}
+{% for field, label in [('contact_name', 'Name'), ('phone_number', 'Phone number')] %}
 <label for="{{ field }}">{{ t(label) }}</label>
 <input id="{{ field }}" name="{{ field }}" type="{{ 'text' if field == 'contact_name' else 'tel' }}" autocomplete="{{ 'name' if field == 'contact_name' else 'tel' }}" value="{{ values.get(field, '') }}" {% if errors.get(field) %}aria-invalid="true" aria-describedby="{{ field }}-error"{% endif %} required>
 {% if errors.get(field) %}<p id="{{ field }}-error" role="alert">{{ t(errors[field]) }}</p>{% endif %}

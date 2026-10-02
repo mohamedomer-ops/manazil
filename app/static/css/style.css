@@ -101,6 +101,7 @@ h3 { font-size: 1rem; margin: 0 0 4px; }
 .detail-contact-role { margin: 2px 0 20px; color: var(--muted); }
 .detail-contact-numbers { display: grid; gap: 14px; margin: 0 0 24px; }
 .detail-contact-numbers a { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
+.detail-contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .detail-contact-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 54px; padding: 12px 20px; border: 0; border-radius: 10px; background: var(--primary); color: #fff; font-weight: 700; text-align: center; text-decoration: none; }
 .detail-contact-action:hover { background: var(--primary-hover); }
 .detail-contact-action:disabled { opacity: .65; cursor: not-allowed; }

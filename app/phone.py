@@ -20,3 +20,16 @@ def normalize_phone(value):
     if not re.fullmatch(r'\+[1-9]\d{7,14}', normalized):
         raise ValueError('Invalid phone number')
     return normalized
+
+
+def safe_contact_number(value):
+    """Validate an existing listing number without rewriting legacy data."""
+    try:
+        return normalize_phone(value)
+    except ValueError:
+        return None
+
+
+def property_contact_number(property):
+    """Choose one safe contact number from current or legacy listing fields."""
+    return safe_contact_number(property.whatsapp) or safe_contact_number(property.phone)

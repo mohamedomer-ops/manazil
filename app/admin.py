@@ -50,7 +50,7 @@ def new_property():
         from flask import session
         session['contact_next'] = request.full_path if request.query_string else request.path
         return redirect(url_for('auth.account', **({'lang': 'en'} if current_language() == 'en' else {})))
-    defaults = FORM_DEFAULTS | {'contact_name': g.user.contact_name, 'phone': g.user.phone_number,
+    defaults = FORM_DEFAULTS | {'contact_name': g.user.contact_name,
                                 'whatsapp': g.user.whatsapp,
                                 'agent': 'yes' if g.user.contact_role == 'broker' else 'no'}
     return render_form(defaults, {}, current_language(), photo_token=LocalPhotoStorage().new_token())

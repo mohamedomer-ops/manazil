@@ -33,7 +33,7 @@ def form_data(client):
             'property_type':'apartment', 'title_ar':'شقة', 'description_ar':'وصف شقة',
             'bedrooms':'2', 'bathrooms':'1', 'size':'100', 'furnished':'on',
             'amenities':'Parking\nKitchen', 'price':'125000', 'currency':'SDG',
-            'contact_name':'Ahmed', 'phone':'+249123456789', 'whatsapp':'',
+            'contact_name':'Ahmed', 'whatsapp':'+249123456789',
             'state_en':'Khartoum', 'neighborhood_ar':'الرياض'}
 
 def property_count():
@@ -46,6 +46,8 @@ def test_single_page_sections(client):
     assert 'name="city_ar"' not in page and 'name="area_ar"' not in page
     assert 'photos_exterior' not in page
     assert 'انشر العقار' in page and 'إرسال للمراجعة' not in page
+    assert 'name="phone"' not in page and page.count('name="whatsapp"') == 1
+    assert 'سيتم استخدام هذا الرقم للتواصل عبر واتساب أو الاتصال بك.' in page
 
 @pytest.mark.parametrize('transaction,period,occupancy,agent', [
     ('rent','monthly','room','yes'), ('rent','weekly','entire_property','no'),
@@ -63,7 +65,7 @@ def test_submit_for_review(client, form_data, transaction, period, occupancy, ag
     assert saved.price == 125000 and saved.monthly_rent is None
     assert saved.neighborhood_ar == 'الرياض' and saved.city_ar is None and saved.area_ar is None
 
-@pytest.mark.parametrize('field,value', [('transaction_type','bad'),('property_occupancy','bad'),('agent','bad'),('price','-1'),('price','NaN'),('price','abc'),('price',''),('rent_period','bad'),('state_en','Atlantis'),('neighborhood_ar',''),('phone',''),('property_type','bad'),('bedrooms','-1'),('contact_name','')])
+@pytest.mark.parametrize('field,value', [('transaction_type','bad'),('property_occupancy','bad'),('agent','bad'),('price','-1'),('price','NaN'),('price','abc'),('price',''),('rent_period','bad'),('state_en','Atlantis'),('neighborhood_ar',''),('whatsapp',''),('whatsapp','bad'),('property_type','bad'),('bedrooms','-1'),('contact_name','')])
 def test_invalid_input(client, form_data, field, value):
     before = property_count()
     response = client.post('/admin/properties', data=form_data | {field:value})
@@ -98,19 +100,21 @@ def test_listing_contact_override_is_snapshot(client, form_data):
     saved = db.session.scalar(select(Property).order_by(Property.id.desc()))
     assert saved.owner_id == user.id
     assert (saved.contact_name, saved.phone, saved.whatsapp, saved.contact_role) == (
-        'Ahmed Real Estate', '+249911111111', '+249912222222', 'broker')
+        'Ahmed Real Estate', '+249912222222', '+249912222222', 'broker')
     assert (user.contact_name, user.phone_number, user.whatsapp, user.contact_role) == (
         'Ahmed', '+249912345678', '+249912345678', 'owner')
-    user.contact_name = 'Later Name'
-    user.whatsapp = '+249913333333'
-    db.session.commit()
+    account_page = client.get('/account?lang=en').text
+    account_csrf = re.search(r'name="csrf_token" value="([^"]+)"', account_page).group(1)
+    assert client.post('/account', data={'csrf_token': account_csrf, '_language': 'en',
+        'contact_name': 'Later Name', 'whatsapp': '0913333333', 'contact_role': 'owner'}).status_code == 200
     db.session.refresh(saved)
     assert saved.contact_name == 'Ahmed Real Estate' and saved.whatsapp == '+249912222222'
+    assert saved.phone == '+249912222222' and user.whatsapp == '+249913333333'
 
 
 def test_incomplete_submission_stays_unpublished(client, form_data):
     before = property_count()
-    assert client.post('/admin/properties', data=form_data | {'phone': ''}).status_code == 422
+    assert client.post('/admin/properties', data=form_data | {'whatsapp': ''}).status_code == 422
     assert property_count() == before
 
 

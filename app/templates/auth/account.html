@@ -32,13 +32,9 @@
           {% if errors.contact_name %}<p id="contact-name-error" role="alert">{{ t(errors.contact_name) }}</p>{% endif %}
         </div>
         <div class="account-field">
-          <label for="phone_number">{{ t('Verified Phone Number') if current_user.is_verified else t('Phone Number') }} <span class="account-readonly-label">{{ t('Read-only') }}</span></label>
-          <input id="phone_number" type="tel" value="{{ current_user.phone_number or '' }}" readonly aria-describedby="phone-verified">
-          <p id="phone-verified" class="account-field-help">{{ t('Verified') if current_user.is_verified else t('No verified phone number. Property posting currently requires a phone-verified contact profile.') }}</p>
-        </div>
-        <div class="account-field">
           <label for="whatsapp">{{ t('WhatsApp Number') }}</label>
-          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" {% if errors.whatsapp %}aria-invalid="true" aria-describedby="whatsapp-error"{% endif %} required>
+          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" aria-describedby="whatsapp-help{% if errors.whatsapp %} whatsapp-error{% endif %}" {% if errors.whatsapp %}aria-invalid="true"{% endif %} required>
+          <p id="whatsapp-help" class="account-field-help">{{ t('This number will be used for WhatsApp and phone calls.') }}</p>
           {% if errors.whatsapp %}<p id="whatsapp-error" role="alert">{{ t(errors.whatsapp) }}</p>{% endif %}
         </div>
         <div class="account-field">
@@ -55,6 +51,11 @@
     </section>
     <section class="account-card account-security" aria-labelledby="account-security-heading">
       <h2 id="account-security-heading">{{ t('Account & Security') }}</h2>
+      {% if current_user.phone_number %}<div class="account-field">
+        <label for="phone_number">{{ t('Verified Phone Number') if current_user.is_verified else t('Phone Number') }} <span class="account-readonly-label">{{ t('Read-only') }}</span></label>
+        <input id="phone_number" type="tel" value="{{ current_user.phone_number }}" readonly aria-describedby="phone-verified">
+        <p id="phone-verified" class="account-field-help">{{ t('Verified') if current_user.is_verified else t('Phone login') }}</p>
+      </div>{% endif %}
       {% if current_user.is_verified %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Phone login') }}</strong><p class="account-muted">{{ t('Verified phone number') }}</p></div></div>{% endif %}
       {% if facebook_connected %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Facebook account') }}</strong><p class="account-muted">{{ t('Development simulation') }}</p></div></div>{% endif %}
       <form method="post" action="{{ url_for('auth.logout') }}" class="account-logout-form">

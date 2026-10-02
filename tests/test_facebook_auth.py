@@ -80,9 +80,9 @@ def test_first_login_session_and_safe_destination(client, destination):
         assert 'facebook_auth' not in auth_session
     page = client.get('/account?lang=en')
     assert page.status_code == 200
-    assert 'No verified phone number.' in page.text
+    assert 'name="whatsapp"' in page.text and 'id="phone_number"' not in page.text
     assert 'value="None"' not in page.text
-    # Keep legacy posting/contact requirements rather than pretending Facebook verifies a phone.
+    # Posting needs a contact profile, independent of the Facebook login identity.
     assert client.get('/properties/new').location == '/account'
 
 
@@ -104,6 +104,20 @@ def test_returning_identity_same_user_and_profile_logout(client):
     user = db.session.query(User).one()
     assert user.id == original_id and user.contact_name == 'Saved Name'
     assert user.whatsapp == '+249911111111' and user.contact_role == 'broker'
+
+
+def test_facebook_profile_contact_allows_posting_without_phone_identity(client):
+    facebook_login(client)
+    page = client.get('/account?lang=en')
+    response = client.post('/account', data={'csrf_token': csrf(page), '_language': 'en',
+        'contact_name': 'Facebook Member', 'whatsapp': '0912222222', 'contact_role': 'owner'})
+    assert response.status_code == 200
+    user = db.session.query(User).one()
+    assert user.contact_complete and user.phone_number is None and not user.is_verified
+    listing = client.get('/properties/new?lang=en')
+    assert listing.status_code == 200
+    assert 'name="whatsapp" type="tel" value="+249912222222"' in listing.text
+    assert 'name="phone"' not in listing.text
 
 
 def test_unique_identity_database_and_names_not_identifiers(client):

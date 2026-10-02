@@ -48,8 +48,10 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
     assert 'class="account-page"' in page
     assert '<h1>' + translate('My Account', language) + '</h1>' in content
     assert '<bdi>Marketplace Member</bdi>' in content
-    for label in ('Profile Information', 'Account & Security', 'Read-only', 'Save Changes'):
+    for label in ('Profile Information', 'Account & Security', 'Save Changes'):
         assert translate(label, language) in content
+    if method == 'phone':
+        assert translate('Read-only', language) in content
     suffix = '?lang=en' if language == 'en' else ''
     assert translate('Your Properties', language) not in content
     assert translate('My Properties', language) not in content
@@ -65,7 +67,7 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
     assert 'name="contact_name"' in content and 'value="Marketplace Member"' in content
     assert 'name="whatsapp"' in content and 'value="+249911111111"' in content
     assert 'value="owner" selected' in content
-    assert re.search(r'id="phone_number"[^>]+readonly', content)
+    assert (re.search(r'id="phone_number"[^>]+readonly', content) is not None) == (method == 'phone')
     assert 'class="account-logout-form"' in content and 'action="/logout"' in content
     assert translate('Logout', language) in content
     if method == 'phone':
@@ -76,7 +78,7 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
         assert translate('Facebook account', language) in content
         assert translate('Development simulation', language) in content
         assert translate('Phone login', language) not in content
-        assert 'No verified phone number.' in content if language == 'en' else 'لا يوجد رقم هاتف موثق.' in content
+        assert 'id="phone_number"' not in content
     for secret in ('private-provider-identifier', 'private-pending-auth-value', '777777', 'provider_user_id', 'otp_hash'):
         assert secret not in page
 
@@ -117,7 +119,7 @@ def test_profile_edit_keeps_identity_and_existing_validation(client, method):
         'contact_name': '', 'whatsapp': 'bad', 'contact_role': 'invalid'})
     assert response.status_code == 422
     assert 'aria-invalid="true" aria-describedby="contact-name-error"' in response.text
-    assert 'aria-invalid="true" aria-describedby="whatsapp-error"' in response.text
+    assert 'aria-describedby="whatsapp-help whatsapp-error" aria-invalid="true"' in response.text
     assert 'aria-invalid="true" aria-describedby="contact-role-error"' in response.text
     assert user.contact_name == 'Edited Member' and user.whatsapp == '+249912222222'
     assert client.post('/account').status_code == 400

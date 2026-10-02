@@ -10,7 +10,7 @@ from app.models import CURRENCIES
 FORM_FIELDS = (
     "transaction_type", "property_occupancy", "agent", "property_type", "title_ar",
     "description_ar", "bedrooms", "bathrooms", "size", "furnished", "amenities",
-    "rent_period", "price", "currency", "contact_name", "phone", "whatsapp",
+    "rent_period", "price", "currency", "contact_name", "whatsapp",
     "state_ar", "state_en", "neighborhood_ar",
 )
 FORM_DEFAULTS = {"currency": "SDG", "transaction_type": "rent", "property_occupancy": "entire_property", "agent": "no", "rent_period": "monthly"}
@@ -40,7 +40,7 @@ def validate_posting(form, language="ar"):
         if values["rent_period"]:
             errors["rent_period"] = "Sale listings cannot have a rent period."
         data["rent_period"] = None
-    for key in ("title_ar", "description_ar", "contact_name", "phone", "neighborhood_ar"):
+    for key in ("title_ar", "description_ar", "contact_name", "neighborhood_ar"):
         value = values[key].strip()
         if not value:
             errors[key] = "This field is required."
@@ -80,14 +80,10 @@ def validate_posting(form, language="ar"):
     if values["furnished"] not in ("", "on"):
         errors["furnished"] = "Choose checked or unchecked."
     data["amenities"] = [item.strip() for item in values["amenities"].splitlines() if item.strip()]
-    for key in ('phone', 'whatsapp'):
-        if key == 'whatsapp' and not values[key].strip():
-            data[key] = None
-            continue
-        try:
-            data[key] = normalize_phone(values[key])
-        except ValueError:
-            errors[key] = 'Enter a valid phone number.'
+    try:
+        data['whatsapp'] = data['phone'] = normalize_phone(values['whatsapp'])
+    except ValueError:
+        errors['whatsapp'] = 'Enter a valid phone number.'
     for key in ("amenities", "whatsapp"):
         if "\x00" in values[key]:
             errors[key] = "Remove the invalid character from this field."

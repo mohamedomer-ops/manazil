@@ -39,7 +39,7 @@ def login(client, phone='0912345678', destination='/account'):
 def signup(client, phone='0912345678', destination='/account', role='owner'):
     page = client.get('/signup?lang=en&next=' + destination)
     response = client.post('/signup', data={'csrf_token': csrf(page), 'phone_number': phone,
-        'contact_name': 'Mohamed Ahmed', 'whatsapp': '0911111111', 'contact_role': role,
+        'contact_name': 'Mohamed Ahmed', 'contact_role': role,
         'next': destination, '_language': 'en'})
     assert response.status_code == 303
     assert db.session.query(User).count() == 0
@@ -144,13 +144,22 @@ def test_new_account_setup_and_listing_defaults(client, role):
     with client.session_transaction() as auth_session:
         assert 'user_id' in auth_session and 'pending_setup_user_id' not in auth_session
     user = db.session.scalar(select(User).where(User.phone_number == '+249912345678'))
-    assert (user.contact_name, user.whatsapp, user.contact_role) == ('Mohamed Ahmed', '+249911111111', role)
+    assert (user.contact_name, user.whatsapp, user.contact_role) == ('Mohamed Ahmed', '+249912345678', role)
     listing = client.get(saved.location).get_data(as_text=True)
     assert 'name="contact_name" type="text" value="Mohamed Ahmed"' in listing
-    assert 'name="phone" type="tel" value="+249912345678"' in listing
-    assert 'name="whatsapp" type="tel" value="+249911111111"' in listing
+    assert 'name="phone"' not in listing
+    assert 'name="whatsapp" type="tel" value="+249912345678"' in listing
     assert f'name="agent" value="{"yes" if role == "broker" else "no"}" checked' in listing
     assert '<html lang="ar" dir="rtl">' in client.get('/account').get_data(as_text=True)
+
+
+def test_signup_asks_for_auth_phone_once_and_prefills_contact(client):
+    form = client.get('/signup?lang=en').text
+    assert form.count('name="phone_number"') == 1
+    assert 'name="whatsapp"' not in form
+    signup(client)
+    user = db.session.scalar(select(User))
+    assert user.phone_number == user.whatsapp == '+249912345678'
 
 
 def test_existing_account_edit_and_verified_phone(client):
@@ -232,7 +241,7 @@ def test_login_unknown_does_not_create_user(client):
     assert '/signup?next=/properties/new' in response.get_data(as_text=True)
 
 
-@pytest.mark.parametrize('field,value', [('contact_name', ''), ('phone_number', 'bad'), ('whatsapp', 'bad'), ('contact_role', 'staff')])
+@pytest.mark.parametrize('field,value', [('contact_name', ''), ('phone_number', 'bad'), ('contact_role', 'staff')])
 def test_signup_validation_before_challenge(client, field, value):
     data = {'csrf_token': csrf(client.get('/signup')), 'phone_number': '0912345678',
             'contact_name': 'Name', 'whatsapp': '0911111111', 'contact_role': 'owner', 'next': '/properties/new'}

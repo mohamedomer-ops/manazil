@@ -212,7 +212,7 @@ class User(db.Model):
 
     @property
     def contact_complete(self):
-        return bool(self.phone_number and self.is_verified and self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
+        return bool(self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
 
 
 class UserIdentity(db.Model):

@@ -4,7 +4,6 @@
 {% set state = property.state_ar if language == 'ar' else property.state_en %}
 {% set area = property.neighborhood_ar or (property.area_ar if language == 'ar' or not property.area_en else property.area_en) %}
 {% set description = property.description_ar if language == 'ar' or not property.description_en else property.description_en %}
-{% set contact_action = 'Contact Owner' if property.contact_role == 'owner' else 'Contact Broker' %}
 {% block title %}{{ title }} | {{ t('Manazil') }}{% endblock %}
 {% block content %}
 <main id="main-content" class="property-detail-page">
@@ -67,13 +66,14 @@
         <p class="detail-contact-name">{{ property.contact_name }}</p>
         <p class="detail-contact-role">{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</p>
         <dl class="detail-contact-numbers">
-          <div><dt>{{ t('Phone') }}</dt><dd dir="ltr">{{ property.phone }}</dd></div>
-          {% if property.whatsapp %}
-          <div><dt>{{ t('WhatsApp') }}</dt><dd dir="ltr">{% if whatsapp_url %}<a href="{{ whatsapp_url }}">{{ property.whatsapp }}</a>{% else %}{{ property.whatsapp }}{% endif %}</dd></div>
-          {% endif %}
+          {% if contact_number %}<div><dt>{{ t('WhatsApp Number') }}</dt><dd dir="ltr">{{ contact_number }}</dd></div>{% endif %}
         </dl>
-        {% if phone_url %}<a class="detail-contact-action" href="{{ phone_url }}">{{ t(contact_action) }}</a>
-        {% else %}<button class="detail-contact-action" type="button" disabled>{{ t(contact_action) }}</button>{% endif %}
+        <div class="detail-contact-actions">
+          {% if whatsapp_url %}<a class="detail-contact-action" href="{{ whatsapp_url }}" aria-label="{{ t('Contact via WhatsApp') }}">{{ t('WhatsApp') }}</a>
+          {% else %}<button class="detail-contact-action" type="button" disabled>{{ t('WhatsApp') }}</button>{% endif %}
+          {% if phone_url %}<a class="detail-contact-action" href="{{ phone_url }}" aria-label="{{ t('Call property contact') }}">{{ t('Call') }}</a>
+          {% else %}<button class="detail-contact-action" type="button" disabled>{{ t('Call') }}</button>{% endif %}
+        </div>
         <div class="detail-secondary-actions">
           {% if current_user %}
           <form class="property-save-form" method="post" action="{{ url_for('saved.unsave_property' if is_saved else 'saved.save_property', property_id=property.id) }}">

@@ -30,8 +30,8 @@ def test_published_available_property_details_in_both_languages(client, values):
         assert "120.5" in html
         assert "Parking" in html and "Kitchen" in html
         assert values["contact_name"] in html
-        assert values["phone"] in html
-        assert 'href="tel:+249123456789"' in html
+        assert '+249123456780' in html
+        assert 'href="tel:+249123456780"' in html
         assert 'href="https://wa.me/249123456780"' in html
         assert 'class="detail-gallery"' in html or 'class="photo-gallery detail-gallery"' in html
         assert 'class="detail-contact-action"' in html
@@ -80,9 +80,10 @@ def test_contact_role_and_action_are_localized(client, values, role, english, ar
     property = add_property(values, publication_status="published", contact_role=role)
     en = client.get(f"/properties/{property.id}?lang=en").get_data(as_text=True)
     ar = client.get(f"/properties/{property.id}").get_data(as_text=True)
-    assert english in en and ("Owner" if role == "owner" else "Broker") in en
-    assert arabic in ar and ("مالك" if role == "owner" else "وسيط") in ar
-    assert "WhatsApp" not in en and "واتساب" not in ar
+    assert ("Owner" if role == "owner" else "Broker") in en
+    assert ("مالك" if role == "owner" else "وسيط") in ar
+    assert 'aria-label="Contact via WhatsApp"' in en and 'aria-label="Call property contact"' in en
+    assert 'aria-label="التواصل عبر واتساب"' in ar and 'aria-label="الاتصال بصاحب العقار"' in ar
 
 
 def test_contact_links_reject_unsafe_numbers_and_user_content_is_escaped(client, values):
@@ -93,9 +94,24 @@ def test_contact_links_reject_unsafe_numbers_and_user_content_is_escaped(client,
     html = client.get(f"/properties/{property.id}?lang=en").get_data(as_text=True)
     assert 'href="javascript:' not in html
     assert 'href="https://wa.me/' not in html
+    assert 'href="tel:' not in html
     assert 'class="detail-contact-action" type="button" disabled' in html
     assert "<script>unsafe</script>" not in html
     assert "&lt;script&gt;unsafe&lt;/script&gt;" in html
+
+
+@pytest.mark.parametrize('whatsapp,phone,expected', [
+    ('+249912222222', '+249911111111', '+249912222222'),
+    (None, '+249911111111', '+249911111111'),
+    ('invalid', '+249911111111', '+249911111111'),
+])
+def test_legacy_contact_fallback_powers_both_actions(client, values, whatsapp, phone, expected):
+    property = add_property(values, publication_status='published', whatsapp=whatsapp, phone=phone)
+    html = client.get(f'/properties/{property.id}?lang=en').text
+    assert f'href="tel:{expected}"' in html
+    assert f'href="https://wa.me/{expected.lstrip("+")}"' in html
+    assert html.count(f'<dd dir="ltr">{expected}</dd>') == 1
+    assert '<dt>Phone</dt>' not in html
 
 
 def test_listing_links_to_correct_details_page_and_keeps_language(client, values):

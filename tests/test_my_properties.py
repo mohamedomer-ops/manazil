@@ -84,12 +84,14 @@ def test_other_owner_and_missing_cannot_edit(client, values):
 
 def test_edit_prefills_and_updates_only_existing_property(client, values, form_data):
     property = listing(values, availability_status='rented', available_from_date=date(2030, 1, 1))
+    other_property = listing(values, whatsapp='+249913333333', phone='+249913333333')
     user = db.session.get(User, property.owner_id)
     profile = (user.contact_name, user.phone_number, user.whatsapp, user.contact_role)
     page = client.get(f'/properties/{property.id}/edit?lang=en')
     assert page.status_code == 200
     assert f'action="/properties/{property.id}/edit"' in page.text
     assert 'Edit Property' in page.text and 'Save Changes' in page.text
+    assert 'name="phone"' not in page.text and page.text.count('name="whatsapp"') == 1
     assert 'value="125000.50"' in page.text and 'Neighborhood' in page.text
     data = form_data | {'csrf_token': token(page), 'title_ar': 'Updated listing', 'price': '500',
         'contact_name': 'Property contact', 'owner_id': '999', 'publication_status': 'draft',
@@ -98,14 +100,16 @@ def test_edit_prefills_and_updates_only_existing_property(client, values, form_d
     assert response.status_code == 303 and response.location.startswith('/my-properties?')
     db.session.refresh(property)
     db.session.refresh(user)
-    assert db.session.query(Property).count() == 1
+    assert db.session.query(Property).count() == 2
     assert property.title_ar == 'Updated listing' and property.price == 500
     assert property.owner_id == user.id and property.publication_status == 'published'
     assert property.availability_status == 'rented' and property.available_from_date == date(2030, 1, 1)
     assert property.title_en == values['title_en'] and property.city_en == values['city_en']
     assert property.contact_name == 'Property contact' and property.contact_role == 'broker'
-    assert property.phone == '+249911111111' and property.whatsapp == '+249912222222'
+    assert property.phone == '+249912222222' and property.whatsapp == '+249912222222'
     assert (user.contact_name, user.phone_number, user.whatsapp, user.contact_role) == profile
+    db.session.refresh(other_property)
+    assert other_property.phone == other_property.whatsapp == '+249913333333'
 
 
 def test_edit_validation_csrf_and_language_switch(client, values, form_data):
