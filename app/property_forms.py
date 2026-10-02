@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 
 from app.states import STATE_BY_NAME
 from app.phone import normalize_phone
+from app.models import CURRENCIES
 
 FORM_FIELDS = (
     "transaction_type", "property_occupancy", "agent", "property_type", "title_ar",
@@ -39,7 +40,7 @@ def validate_posting(form, language="ar"):
         if values["rent_period"]:
             errors["rent_period"] = "Sale listings cannot have a rent period."
         data["rent_period"] = None
-    for key in ("title_ar", "description_ar", "currency", "contact_name", "phone", "neighborhood_ar"):
+    for key in ("title_ar", "description_ar", "contact_name", "phone", "neighborhood_ar"):
         value = values[key].strip()
         if not value:
             errors[key] = "This field is required."
@@ -47,6 +48,10 @@ def validate_posting(form, language="ar"):
             errors[key] = "Remove the invalid character from this field."
         else:
             data[key] = value
+    if values["currency"] in CURRENCIES:
+        data["currency"] = values["currency"]
+    else:
+        errors["currency"] = "Choose SDG or USD."
     selected = STATE_BY_NAME[language].get(values[f"state_{language}"].strip())
     if selected is None:
         errors[f"state_{language}"] = "Choose a Sudanese state from the list."

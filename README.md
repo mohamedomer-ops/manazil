@@ -69,7 +69,7 @@ For example, `/properties?transaction=rent&state=khartoum&bedrooms=2&seller=owne
 
 ## Properties and posting
 
-A property records its Rent/Sale transaction, Rooms/Entire Property occupancy where applicable, property type, bedroom and bathroom counts, optional size, furnished status, amenities, price and optional rent period, state and neighborhood, listing contact name/phone/optional WhatsApp, and Owner/Broker role. It also has an owner, photos, and two distinct statuses:
+A property records its Rent/Sale transaction, Rooms/Entire Property occupancy where applicable, property type, bedroom and bathroom counts, optional size, furnished status, amenities, price in the owner's selected currency (SDG or USD), optional rent period, state and neighborhood, listing contact name/phone/optional WhatsApp, and Owner/Broker role. Manazil displays the selected currency without converting the numeric price. A property also has an owner, photos, and two distinct statuses:
 
 - **Publication:** `draft` or `published`. A valid new submission is published directly.
 - **Availability:** `available` or `rented`. A rented listing remains in its owner's management area but leaves public browsing.

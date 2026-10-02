@@ -16,7 +16,9 @@ REQUIRED_TEXT_FIELDS = (
 )
 DRAFT_OPTIONAL_TEXT_FIELDS = ("title_en", "description_en", "city_en", "area_en")
 PHOTO_CATEGORIES = ("exterior", "entrance", "living_room", "bedroom", "kitchen", "bathroom", "other")
+CURRENCIES = ("SDG", "USD")
 CHOICES = {
+    "currency": CURRENCIES,
     "contact_role": ("owner", "broker"),
     "transaction_type": ("rent", "sale"),
     "property_occupancy": ("room", "entire_property"),
