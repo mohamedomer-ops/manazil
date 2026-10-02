@@ -1,6 +1,7 @@
 """Production wiring never connects to Neon or Azure in tests."""
 import io
 import os
+import sys
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -108,6 +109,25 @@ def test_production_fails_closed_for_missing_security_configuration():
                     {'OTP_DEVELOPMENT_MODE': True}, {'FACEBOOK_DEVELOPMENT_MODE': True}):
         with pytest.raises(ValueError):
             create_app(production_config(**changes))
+
+
+def test_migration_cli_skips_only_unrelated_blob_credentials(monkeypatch):
+    monkeypatch.setenv('MANAZIL_MIGRATION_ONLY', '1')
+    monkeypatch.setattr(sys, 'argv', ['flask', '--app', 'run', 'db', 'upgrade'])
+    migration = production_config(AZURE_BLOB_CONTAINER_CLIENT=None,
+                                  AZURE_STORAGE_CONNECTION_STRING=None,
+                                  AZURE_STORAGE_CONTAINER=None)
+    app = create_app(migration)
+    assert app.config['ENVIRONMENT'] == 'production'
+    assert app.config['PHOTO_STORAGE_BACKEND'] == 'azure_blob'
+    for invalid in ({'SECRET_KEY': 'short'},
+                    {'SQLALCHEMY_DATABASE_URI': NEON_EXAMPLE.replace('?sslmode=require', '')},
+                    {'OTP_DEVELOPMENT_MODE': True}):
+        with pytest.raises(ValueError):
+            create_app(migration | invalid)
+    monkeypatch.setattr(sys, 'argv', ['gunicorn', 'run:app'])
+    with pytest.raises(ValueError):
+        create_app(migration)
 
 
 def test_production_auth_providers_are_not_simulations():

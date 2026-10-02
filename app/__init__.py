@@ -1,5 +1,6 @@
 import os
 import secrets
+import sys
 
 from flask import Flask
 from flask_migrate import Migrate
@@ -19,6 +20,11 @@ def create_app(test_config=None):
     environment = (test_config or {}).get('ENVIRONMENT') or os.environ.get('MANAZIL_ENV') or os.environ.get('APP_ENV') or os.environ.get('FLASK_ENV') or ('testing' if (test_config or {}).get('TESTING') else 'production')
     if environment not in ('development', 'testing', 'production'):
         raise ValueError('MANAZIL_ENV must be development, testing, or production.')
+    migration_only = os.environ.get('MANAZIL_MIGRATION_ONLY') == '1'
+    if migration_only:
+        cli_args = sys.argv[1:]
+        if environment != 'production' or 'db' not in cli_args or cli_args[cli_args.index('db') + 1:][:1] not in (['upgrade'], ['current'], ['heads']):
+            raise ValueError('MANAZIL_MIGRATION_ONLY is restricted to production Flask database CLI commands.')
     database_url = os.environ.get('DATABASE_URL')
     if database_url and database_url.startswith('postgresql://'):
         database_url = make_url(database_url).set(drivername='postgresql+psycopg').render_as_string(hide_password=False)
@@ -63,7 +69,7 @@ def create_app(test_config=None):
         raise ValueError('PHOTO_STORAGE_BACKEND must be local or azure_blob.')
     if app.config['ENVIRONMENT'] == 'production' and app.config['PHOTO_STORAGE_BACKEND'] != 'azure_blob':
         raise ValueError('Production requires azure_blob photo storage.')
-    if app.config['PHOTO_STORAGE_BACKEND'] == 'azure_blob' and not app.config.get('AZURE_BLOB_CONTAINER_CLIENT'):
+    if app.config['PHOTO_STORAGE_BACKEND'] == 'azure_blob' and not migration_only and not app.config.get('AZURE_BLOB_CONTAINER_CLIENT'):
         if not app.config.get('AZURE_STORAGE_CONNECTION_STRING') or not app.config.get('AZURE_STORAGE_CONTAINER'):
             raise ValueError('Azure Blob storage requires its connection string and container name.')
     database_url = app.config["SQLALCHEMY_DATABASE_URI"]
