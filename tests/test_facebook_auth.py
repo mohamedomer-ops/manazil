@@ -38,12 +38,21 @@ def facebook_login(client, destination='/account', language='en', **extra):
     ('production', False, True, True, False),
     ('development', False, False, True, False),
     ('development', False, True, False, True),
-    ('production', True, False, False, True),
+    ('production', True, False, False, False),
 ])
 def test_provider_configuration_fails_closed(environment, testing, enabled, debug, expected):
     config = {'ENVIRONMENT': environment, 'TESTING': testing,
-              'FACEBOOK_DEVELOPMENT_MODE': enabled, 'DEBUG': debug, 'OTP_DEVELOPMENT_MODE': True}
+              'FACEBOOK_DEVELOPMENT_MODE': enabled, 'DEBUG': debug,
+              'OTP_DEVELOPMENT_MODE': environment != 'production'}
     assert development_enabled(config) == expected
+    if environment == 'production':
+        config.update(SECRET_KEY='production-test-secret-that-is-long-enough',
+                      SQLALCHEMY_DATABASE_URI='postgresql://account:example@ep-example.aws.neon.tech/neondb?sslmode=require',
+                      PHOTO_STORAGE_BACKEND='azure_blob', AZURE_BLOB_CONTAINER_CLIENT=object())
+        if enabled:
+            with pytest.raises(ValueError, match='Development authentication'):
+                create_app(config)
+            return
     app = create_app(config)
     assert bool(app.extensions.get('facebook_auth_provider')) == expected
     routes = {rule.rule for rule in app.url_map.iter_rules()}

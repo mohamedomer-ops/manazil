@@ -3,7 +3,7 @@ from functools import wraps
 import re
 
 import click
-from flask import Blueprint, abort, g, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 from sqlalchemy import func, literal_column, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -13,7 +13,7 @@ from app.languages import current_language, format_rent
 from app.models import Property, PropertyPhoto, User, utc_now
 from app.otp import request_code, verify_code
 from app.phone import normalize_phone, property_contact_number
-from app.photo_storage import LocalPhotoStorage, PhotoError
+from app.photo_storage import photo_storage, PhotoError
 from app.property_filters import STATE_OPTIONS
 
 portal = Blueprint('admin_portal', __name__, url_prefix='/admin')
@@ -204,7 +204,7 @@ def photo(photo_id):
     if item is None:
         abort(404)
     try:
-        return send_file(LocalPhotoStorage().path(item.storage_key), mimetype=item.content_type, max_age=0)
+        return photo_storage().send(item.storage_key, item.content_type, max_age=0)
     except (PhotoError, OSError):
         abort(404)
 

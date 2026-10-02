@@ -1,7 +1,7 @@
 """Owner-only property management using the existing posting form."""
 import re
 
-from flask import Blueprint, abort, current_app, g, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, g, redirect, render_template, request, url_for
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -11,7 +11,7 @@ from app.admin import render_form
 from app.auth import login_required
 from app.languages import current_language, format_rent, property_type_label
 from app.models import Property, PropertyPhoto
-from app.photo_storage import MAX_PHOTOS_PER_PROPERTY, LocalPhotoStorage, PhotoError
+from app.photo_storage import MAX_PHOTOS_PER_PROPERTY, photo_storage, PhotoError
 from app.phone import property_contact_number
 from app.property_forms import FORM_FIELDS, validate_posting
 
@@ -102,7 +102,7 @@ def edit_property(property_id):
         return render_form(editing_values(property), {}, language, edit_property=property)
     action = request.form.get('_action', 'submit')
     values = {key: request.form.get(key, '') for key in FORM_FIELDS}
-    storage = LocalPhotoStorage()
+    storage = photo_storage()
     token = request.form.get('_photo_token') or storage.new_token()
     try:
         staged = storage.read(token)
@@ -199,7 +199,7 @@ def owner_photo(photo_id):
     if photo is None:
         abort(404)
     try:
-        return send_file(LocalPhotoStorage().path(photo.storage_key), mimetype=photo.content_type, max_age=0)
+        return photo_storage().send(photo.storage_key, photo.content_type, max_age=0)
     except (PhotoError, OSError):
         abort(404)
 

@@ -17,7 +17,7 @@ class FacebookAuthProvider(Protocol):
 
 
 def development_enabled(config):
-    return bool(config.get('TESTING') or (
+    return config.get('ENVIRONMENT') != 'production' and bool(config.get('TESTING') or (
         config.get('ENVIRONMENT') == 'development' and config.get('FACEBOOK_DEVELOPMENT_MODE') is True))
 
 

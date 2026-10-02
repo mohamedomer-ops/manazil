@@ -1,4 +1,3 @@
-import logging
 import hashlib
 import os
 import secrets
@@ -17,14 +16,18 @@ MAX_REQUESTS_PER_HOUR = 5
 MIN_REQUEST_INTERVAL = timedelta(seconds=30)
 
 
+class OTPProviderUnavailable(RuntimeError):
+    """No safe OTP delivery method is configured for this environment."""
+
+
 class OTPDeliveryProvider(Protocol):
     def send(self, phone_number: str, code: str) -> None: ...
 
 
 class DevelopmentOTPProvider:
     def send(self, phone_number: str, code: str) -> None:
-        if not (current_app.debug or current_app.testing or current_app.config.get('OTP_DEVELOPMENT_MODE')):
-            raise RuntimeError('Development OTP provider is disabled')
+        if current_app.config.get('ENVIRONMENT') == 'production' or not (current_app.testing or current_app.config.get('OTP_DEVELOPMENT_MODE')):
+            raise OTPProviderUnavailable('Development OTP provider is disabled')
         current_app.extensions.setdefault('development_otps', {})[phone_number] = code
         if current_app.config.get('OTP_DEVELOPMENT_MODE') and not current_app.testing:
             directory = os.path.join(current_app.instance_path, 'dev_otps')
@@ -33,15 +36,21 @@ class DevelopmentOTPProvider:
             descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(descriptor, 'w') as output:
                 output.write(code)
-        if current_app.debug and not current_app.testing:
-            logging.getLogger(__name__).info('Development OTP for %s: %s', phone_number, code)
 
 
 def provider() -> OTPDeliveryProvider:
-    return current_app.config.get('OTP_DELIVERY_PROVIDER') or DevelopmentOTPProvider()
+    configured = current_app.config.get('OTP_DELIVERY_PROVIDER')
+    if configured:
+        if current_app.config.get('ENVIRONMENT') == 'production' and isinstance(configured, DevelopmentOTPProvider):
+            raise OTPProviderUnavailable('Development OTP provider is disabled in production.')
+        return configured
+    if current_app.config.get('ENVIRONMENT') == 'production':
+        raise OTPProviderUnavailable('Production OTP delivery is not configured.')
+    return DevelopmentOTPProvider()
 
 
 def request_code(phone_number):
+    delivery = provider()
     now = utc_now()
     recent = db.session.scalars(select(OTPChallenge).where(
         OTPChallenge.phone_number == phone_number,
@@ -57,7 +66,7 @@ def request_code(phone_number):
                                 otp_hash=generate_password_hash(code),
                                 expires_at=now + timedelta(minutes=5)))
     db.session.commit()
-    provider().send(phone_number, code)
+    delivery.send(phone_number, code)
     return True
 
 

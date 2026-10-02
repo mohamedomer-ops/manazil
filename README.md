@@ -4,13 +4,14 @@ Manazil is a Sudan-focused property marketplace for rent and sale. Visitors can 
 
 ## Stack and structure
 
-Manazil uses Python 3.13, Flask and Jinja2, HTML/CSS and vanilla JavaScript, Flask-SQLAlchemy/SQLAlchemy, Flask-Migrate/Alembic, PostgreSQL 17 via psycopg, Pillow for image processing, Docker Compose, and pytest.
+Manazil uses Python 3.13, Flask and Jinja2, HTML/CSS and vanilla JavaScript, Flask-SQLAlchemy/SQLAlchemy, Flask-Migrate/Alembic, PostgreSQL via psycopg, Pillow for image processing, Docker Compose, and pytest. Production support includes Gunicorn and the Azure Blob SDK.
 
 ```text
 app/
   __init__.py             Application factory, configuration, extensions, CLI
   routes.py               Homepage, public properties, photo serving, health check
   admin.py                Current single-page property posting and staged uploads
+  admin_portal.py         Staff login, authorization, dashboard, management, reports
   property_forms.py       Property form validation
   ownership.py            Owner-only property management and photo actions
   auth.py, otp.py, phone.py
@@ -20,7 +21,8 @@ app/
   saved.py                Saved-property routes
   property_filters.py     Public listing filters
   models.py               Users, identities, properties, photos, OTPs, saves
-  photo_storage.py        Image validation and local storage
+  photo_storage.py        Image validation, local storage, backend selection
+  azure_photo_storage.py  Private Azure Blob implementation
   states.py, languages.py Supported states and interface translations
   templates/              Jinja pages and reusable property components
   static/                 CSS, vanilla JavaScript, local images
@@ -80,7 +82,7 @@ The posting dropdown accepts these ten states from `app/states.py`: Khartoum, Al
 
 ### Photos
 
-Properties support up to **20 photos total**, with additional upload and individual deletion while editing. Accepted uploads are JPEG/JPG, PNG, and WebP, up to **5 MB per file**. The server checks the file type and image contents, processes images with Pillow, and stores them using generated safe names through a local-storage abstraction. Docker Compose persists photos in the `photo_data` volume. The storage root can be configured with `PHOTO_STORAGE_ROOT`.
+Properties support up to **20 photos total**, with additional upload and individual deletion while editing. Accepted uploads are JPEG/JPG, PNG, and WebP, up to **5 MB per file**. The server checks the file type and image contents, processes images with Pillow, and stores them using generated safe names through a storage abstraction. Docker Compose persists local photos in the `photo_data` volume. The local storage root can be configured with `PHOTO_STORAGE_ROOT`.
 
 An owner can set the primary photo, move photos in display order, and delete them. If the primary photo is deleted, another remaining photo becomes primary; with no photos, public cards use the existing placeholder. Public listings, the homepage carousel, and the details gallery use the current property photos.
 
@@ -126,6 +128,31 @@ docker compose exec web pytest
 
 The tests cover authentication and redirects, account ownership, posting and editing, photos, public visibility and filters, saved properties, language rendering, and responsive template behavior. The full suite should pass before committing or deploying.
 
+## Production Deployment
+
+This repository is prepared for **Azure App Service → Flask/Gunicorn → Neon PostgreSQL + private Azure Blob Storage**. It does not provision or connect to those services. Local Docker Compose still runs Flask with its local PostgreSQL service and `PHOTO_STORAGE_BACKEND=local`.
+
+Configure these App Service environment settings when infrastructure is provisioned:
+
+| Setting | Production purpose |
+| --- | --- |
+| `MANAZIL_ENV=production` | Select strict production configuration (`APP_ENV` or `FLASK_ENV` is accepted when `MANAZIL_ENV` is absent). |
+| `SECRET_KEY` | Stable, random secret of at least 32 characters, stored outside the repository. |
+| `DATABASE_URL` | Neon connection string from Neon, including `sslmode=require` or stronger. `postgresql://` is converted to the installed psycopg driver without changing credentials. |
+| `PHOTO_STORAGE_BACKEND=azure_blob` | Store staged and published photos in Blob Storage. |
+| `AZURE_STORAGE_CONNECTION_STRING` | Private storage credential supplied as an App Service setting. |
+| `AZURE_STORAGE_CONTAINER` | Name of an existing **private** blob container. |
+| `TRUST_PROXY_HEADERS=1` | Trust one `X-Forwarded-Proto` hop only when behind the trusted App Service proxy. |
+| `TRUSTED_HOSTS` | Optional comma-separated allowed App Service/custom hostnames. |
+
+Production refuses a missing/short secret, a non-TLS database URL, local photo storage, missing Blob settings, and development authentication flags. It disables debug mode and uses secure, HTTP-only, SameSite=Lax session cookies. The database health check at `/api/health` remains lightweight and does not reveal credentials. Existing migrations are **not** run during HTTP requests; after configuring the production environment, run `flask --app run db upgrade` as a separate deployment step against the intended database.
+
+For a Linux App Service **code deployment**, set the startup command to `gunicorn --bind=0.0.0.0:8000 --workers=2 --access-logfile=- --error-logfile=- run:app`. The Dockerfile also defaults to Gunicorn on port 5000 if a container deployment is chosen later; Compose overrides it with `python run.py` for local use. Configure HTTPS-only at App Service and set the trusted proxy option only for its proxy path.
+
+Both storage backends retain the same generated `staging/...` and `properties/...` keys. Blob staging manifests live in the private container so different workers can handle successive form requests. Photos are served through the existing Flask public/owner/admin authorization routes; the Blob container should not allow anonymous public access. Existing local photo files are **not** copied to Azure automatically. If database records are ever moved between environments, copy their referenced files to the corresponding Blob keys separately. The Flask request cap is 102 MB for the current 20 × 5 MB photo limit plus form overhead; verify any App Service front-end upload limit before launch.
+
+**Public-launch blocker:** The phone OTP provider is development-only and simulated Facebook Login is not Meta authentication. Development providers are disabled in production; a real delivery/authentication provider must be implemented and configured before public use, including administrator login. No Neon credentials, Blob credentials, or real photos have been used in this preparation stage.
+
 ## Not yet implemented
 
-The repository has no real Meta Facebook Login, production WhatsApp/OTP delivery, Facebook-to-verified-phone linking, or per-property WhatsApp contact verification. Photo storage is local; Azure Blob Storage and production Azure deployment are not configured. Maps, payments, and AI features are not part of the current application.
+The repository has no real Meta Facebook Login, production WhatsApp/OTP delivery, Facebook-to-verified-phone linking, or per-property WhatsApp contact verification. Azure Blob support is implemented but no Azure resources or production deployment are configured. Maps, payments, and AI features are not part of the current application.

@@ -20,3 +20,4 @@ compose.override.yml
 compose.override.yaml
 .docker/
 *.log
+instance/

@@ -1,4 +1,4 @@
-"""Validated image storage behind a small local-filesystem adapter."""
+"""Validated property photos with interchangeable local and private-blob storage."""
 import io
 import json
 import re
@@ -7,7 +7,7 @@ import warnings
 from pathlib import Path
 from uuid import uuid4
 
-from flask import current_app
+from flask import current_app, send_file
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -119,13 +119,47 @@ class LocalPhotoStorage:
             raise PhotoError("The photo reference is invalid.")
         return path
 
+    def _read_manifest(self, draft_id):
+        manifest = self._draft_dir(draft_id) / "manifest.json"
+        return manifest.read_bytes() if manifest.exists() else None
+
+    def _write_manifest(self, draft_id, payload):
+        directory = self._draft_dir(draft_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        temporary = directory / f".{uuid4().hex}.json"
+        temporary.write_bytes(payload)
+        temporary.replace(directory / "manifest.json")
+
+    def _save_image(self, key, payload, content_type):
+        path = self.path(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("xb") as file:
+            file.write(payload)
+
+    def _delete_image(self, key):
+        self.path(key).unlink(missing_ok=True)
+
+    def _exists_image(self, key):
+        return self.path(key).is_file()
+
+    def _copy_image(self, source, destination, content_type):
+        target = self.path(destination)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(self.path(source), target)
+
+    def send(self, key, mimetype, *, max_age=None):
+        return send_file(self.path(key), mimetype=mimetype, max_age=max_age)
+
     def read(self, token):
         draft_id = self.draft_id(token)
-        manifest = self._draft_dir(draft_id) / "manifest.json"
-        if not manifest.exists():
+        try:
+            manifest = self._read_manifest(draft_id)
+        except OSError as error:
+            raise PhotoError("The photo session could not be read.") from error
+        if manifest is None:
             return {"photos": [], "submitted_property_id": None}
         try:
-            data = json.loads(manifest.read_text(encoding="utf-8"))
+            data = json.loads(manifest)
             if not isinstance(data["photos"], list):
                 raise ValueError
             return data
@@ -133,11 +167,7 @@ class LocalPhotoStorage:
             raise PhotoError("The photo session could not be read.") from error
 
     def _write(self, token, data):
-        directory = self._draft_dir(self.draft_id(token))
-        directory.mkdir(parents=True, exist_ok=True)
-        temporary = directory / f".{uuid4().hex}.json"
-        temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
-        temporary.replace(directory / "manifest.json")
+        self._write_manifest(self.draft_id(token), json.dumps(data, ensure_ascii=False).encode('utf-8'))
 
     def add(self, token, category, uploads, *, max_photos=MAX_PHOTOS_PER_PROPERTY, auto_primary=True):
         if category not in PHOTO_CATEGORIES:
@@ -156,11 +186,8 @@ class LocalPhotoStorage:
             for filename, content_type, extension, image_bytes in checked:
                 photo_id = uuid4().hex
                 key = f"staging/{self.draft_id(token)}/{photo_id}.{extension}"
-                path = self.path(key)
-                path.parent.mkdir(parents=True, exist_ok=True)
-                with path.open("xb") as file:
-                    file.write(image_bytes)
-                written.append(path)
+                self._save_image(key, image_bytes, content_type)
+                written.append(key)
                 data["photos"].append({
                     "id": photo_id, "category": category, "storage_key": key,
                     "original_filename": filename, "content_type": content_type,
@@ -170,8 +197,7 @@ class LocalPhotoStorage:
                 current.append(data["photos"][-1])
             self._write(token, data)
         except Exception:
-            for path in written:
-                path.unlink(missing_ok=True)
+            self.remove_keys(written)
             raise
         return data["photos"]
 
@@ -192,7 +218,7 @@ class LocalPhotoStorage:
             if selected["is_primary"] and photos:
                 photos[0]["is_primary"] = True
             self._write(token, data)
-            self.path(selected["storage_key"]).unlink(missing_ok=True)
+            self._delete_image(selected["storage_key"])
         elif action == "primary":
             for photo in photos:
                 photo["is_primary"] = photo["id"] == photo_id
@@ -225,15 +251,13 @@ class LocalPhotoStorage:
         copied = []
         try:
             for photo in photos:
-                source = self.path(photo["storage_key"])
-                if not source.is_file():
+                source = photo["storage_key"]
+                if not self._exists_image(source):
                     raise PhotoError("An uploaded photo is missing. Please upload it again.")
-                extension = source.suffix
+                extension = Path(source).suffix
                 key = f"properties/{property_id}/{photo['id']}{extension}"
-                destination = self.path(key)
-                destination.parent.mkdir(parents=True, exist_ok=True)
                 copied.append(key)
-                shutil.copyfile(source, destination)
+                self._copy_image(source, key, photo['content_type'])
                 prepared.append(photo | {"storage_key": key})
         except Exception:
             self.remove_keys(copied)
@@ -242,7 +266,7 @@ class LocalPhotoStorage:
 
     def remove_keys(self, keys):
         for key in keys:
-            self.path(key).unlink(missing_ok=True)
+            self._delete_image(key)
 
     def mark_submitted(self, token, property_id):
         data = self.read(token)
@@ -251,4 +275,14 @@ class LocalPhotoStorage:
         data["submitted_property_id"] = property_id
         self._write(token, data)
         for photo in staged:
-            self.path(photo["storage_key"]).unlink(missing_ok=True)
+            self._delete_image(photo["storage_key"])
+
+
+def photo_storage():
+    backend = current_app.config['PHOTO_STORAGE_BACKEND']
+    if backend == 'local':
+        return LocalPhotoStorage()
+    if backend == 'azure_blob':
+        from app.azure_photo_storage import AzureBlobPhotoStorage
+        return AzureBlobPhotoStorage()
+    raise PhotoError('Photo storage is unavailable.')

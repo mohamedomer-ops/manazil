@@ -1,6 +1,7 @@
 services:
   web:
     build: .
+    command: python run.py
     ports:
       - "5000:5000"
     volumes:
@@ -9,6 +10,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
       OTP_DEVELOPMENT_MODE: "1"
       MANAZIL_ENV: "development"
+      PHOTO_STORAGE_BACKEND: "local"
       FACEBOOK_DEVELOPMENT_MODE: "1"
     depends_on:
       db:

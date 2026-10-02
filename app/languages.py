@@ -16,6 +16,7 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    'Authentication is temporarily unavailable.': 'خدمة تسجيل الدخول غير متاحة مؤقتاً.',
     'Manazil Administration': 'إدارة منازل',
     'Administration navigation': 'التنقل في الإدارة',
     'Admin Login': 'دخول الإدارة',

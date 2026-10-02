@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, current_app, g, jsonify, render_template, request, send_file
+from flask import Blueprint, abort, current_app, g, jsonify, render_template, request
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -7,7 +7,7 @@ from app import db
 from app.languages import PROPERTY_TYPE_NAMES, availability_label, format_rent, property_type_label
 from app.models import Property, PropertyPhoto, SavedProperty
 from app.property_filters import STATE_OPTIONS, apply_filters, validated_filters
-from app.photo_storage import LocalPhotoStorage, PhotoError, category_label
+from app.photo_storage import photo_storage, PhotoError, category_label
 from app.property_forms import sudan_today
 from app.phone import property_contact_number
 
@@ -99,7 +99,7 @@ def public_photo(photo_id):
     if photo is None:
         abort(404)
     try:
-        return send_file(LocalPhotoStorage().path(photo.storage_key), mimetype=photo.content_type)
+        return photo_storage().send(photo.storage_key, photo.content_type)
     except (PhotoError, OSError):
         abort(404)
 

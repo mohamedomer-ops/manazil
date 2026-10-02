@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, current_app, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
 from flask_wtf.csrf import CSRFError
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -8,7 +8,7 @@ from app.models import Property, PropertyPhoto
 from app.property_forms import FORM_DEFAULTS, FORM_FIELDS, validate_posting
 from app.languages import current_language, translate
 from app.states import STATE_BY_NAME, state_options
-from app.photo_storage import LocalPhotoStorage, PhotoError
+from app.photo_storage import photo_storage, PhotoError
 from app.auth import login_required
 from flask import g
 
@@ -23,7 +23,7 @@ def render_form(values, errors, language, **kwargs):
         if selected:
             values["state_en"], values["state_ar"] = selected
             break
-    storage = LocalPhotoStorage()
+    storage = photo_storage()
     token = kwargs.pop("photo_token", None) or request.form.get("_photo_token") or storage.new_token()
     try:
         photos = sorted(storage.read(token)["photos"], key=lambda photo: photo["display_order"])
@@ -53,7 +53,7 @@ def new_property():
     defaults = FORM_DEFAULTS | {'contact_name': g.user.contact_name,
                                 'whatsapp': g.user.whatsapp,
                                 'agent': 'yes' if g.user.contact_role == 'broker' else 'no'}
-    return render_form(defaults, {}, current_language(), photo_token=LocalPhotoStorage().new_token())
+    return render_form(defaults, {}, current_language(), photo_token=photo_storage().new_token())
 
 
 @admin.post("/properties")
@@ -65,7 +65,7 @@ def create_property():
         return redirect(url_for('auth.account'), code=303)
     language = current_language()
     action = request.form.get("_action", "submit")
-    storage = LocalPhotoStorage()
+    storage = photo_storage()
     token = request.form.get("_photo_token") or storage.new_token()
     try:
         staged = storage.read(token)
@@ -125,12 +125,12 @@ def create_property():
 
 @admin.get("/properties/staged-photos/<token>/<photo_id>")
 def staged_photo(token, photo_id):
-    storage = LocalPhotoStorage()
+    storage = photo_storage()
     try:
         photo = next((item for item in storage.read(token)["photos"] if item["id"] == photo_id), None)
         if photo is None:
             abort(404)
-        return send_file(storage.path(photo["storage_key"]), mimetype=photo["content_type"], max_age=0)
+        return storage.send(photo["storage_key"], photo["content_type"], max_age=0)
     except (PhotoError, OSError):
         abort(404)
 
@@ -143,7 +143,7 @@ def review_photo(photo_id):
     if photo is None:
         abort(404)
     try:
-        response = send_file(LocalPhotoStorage().path(photo.storage_key), mimetype=photo.content_type, max_age=0)
+        response = photo_storage().send(photo.storage_key, photo.content_type, max_age=0)
         response.headers['Cache-Control'] = 'private, no-store'
         return response
     except (PhotoError, OSError):
