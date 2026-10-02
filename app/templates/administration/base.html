@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="{{ language }}" dir="{{ 'rtl' if language == 'ar' else 'ltr' }}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ t('Dashboard') }}{% endblock %} | {{ t('Manazil Administration') }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}"></head>
+<body class="admin-body"><a class="skip-link" href="#admin-main">{{ t('Skip to content') }}</a>
+<header class="admin-top"><a class="admin-brand" href="{{ url_for('admin_portal.dashboard') }}">{{ t('Manazil Administration') }}</a>
+<div class="admin-top-actions"><div class="admin-language"><a href="{{ url_for(request.endpoint, **(request.view_args or {})) }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a><span aria-hidden="true">|</span><a href="{{ url_for(request.endpoint, lang='en', **(request.view_args or {})) }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a></div>
+{% if current_user and current_user.role == 'admin' and session.get('admin_authenticated') %}<form method="post" action="{{ url_for('admin_portal.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-link-button" type="submit">{{ t('Logout') }}</button></form>{% endif %}</div></header>
+{% if current_user and current_user.role == 'admin' and session.get('admin_authenticated') %}
+<div class="admin-shell"><details class="admin-mobile-nav"><summary>{{ t('Menu') }}</summary><nav aria-label="{{ t('Administration navigation') }}">{% include 'administration/nav.html' %}</nav></details>
+<aside class="admin-sidebar"><nav aria-label="{{ t('Administration navigation') }}">{% include 'administration/nav.html' %}</nav></aside>
+{% endif %}<main id="admin-main" class="{{ 'admin-main' if current_user and current_user.role == 'admin' and session.get('admin_authenticated') else 'admin-login-main' }}">{% block content %}{% endblock %}</main>{% if current_user and current_user.role == 'admin' and session.get('admin_authenticated') %}</div>{% endif %}
+</body></html>

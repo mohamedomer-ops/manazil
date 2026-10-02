@@ -46,6 +46,7 @@ def create_app(test_config=None):
 
     from app.routes import main
     from app.admin import admin, new_property
+    from app.admin_portal import portal, register_cli
     from app.auth import auth
     from app.ownership import ownership
     from app.saved import saved
@@ -53,12 +54,14 @@ def create_app(test_config=None):
 
     app.register_blueprint(main)
     app.register_blueprint(admin)
+    app.register_blueprint(portal)
     app.register_blueprint(auth)
     app.register_blueprint(ownership)
     app.register_blueprint(saved)
     from app.facebook_provider import configure_facebook
     configure_facebook(app)
     app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])
+    register_cli(app)
     app.context_processor(template_language)
     @app.cli.command('dev-otp')
     @__import__('click').argument('phone')

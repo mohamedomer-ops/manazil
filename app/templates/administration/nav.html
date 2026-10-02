@@ -1,0 +1,5 @@
+<a href="{{ url_for('admin_portal.dashboard', **({'lang':'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'admin_portal.dashboard' %}aria-current="page"{% endif %}>{{ t('Dashboard') }}</a>
+<a href="{{ url_for('admin_portal.properties', **({'lang':'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('admin_portal.properties', 'admin_portal.property_detail') %}aria-current="page"{% endif %}>{{ t('Properties') }}</a>
+<a href="{{ url_for('admin_portal.users', **({'lang':'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('admin_portal.users', 'admin_portal.user_detail') %}aria-current="page"{% endif %}>{{ t('Users') }}</a>
+<a href="{{ url_for('admin_portal.reports', **({'lang':'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'admin_portal.reports' %}aria-current="page"{% endif %}>{{ t('Reports') }}</a>
+<a href="{{ url_for('admin_portal.admins', **({'lang':'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'admin_portal.admins' %}aria-current="page"{% endif %}>{{ t('Admin Management') }}</a>

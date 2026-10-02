@@ -42,7 +42,8 @@ def saved_properties():
         SavedProperty.user_id == g.user.id).order_by(SavedProperty.created_at.desc(), SavedProperty.property_id.desc())).all()
     # Only load card details for properties that are still publicly accessible.
     public = db.session.scalars(select(Property).options(selectinload(Property.photos)).where(
-        Property.id.in_(ids), Property.publication_status == 'published', Property.availability_status == 'available')).all() if ids else []
+        Property.id.in_(ids), Property.publication_status == 'published', Property.availability_status == 'available',
+        Property.moderation_status == 'clear')).all() if ids else []
     by_id = {property.id: property for property in public}
     entries = [{'property_id': property_id, 'property': by_id.get(property_id)} for property_id in ids]
     return render_template('saved_properties.html', entries=entries, today=sudan_today(),
@@ -57,7 +58,8 @@ def save_property(property_id):
         return redirect(url_for('auth.entry', next=detail_destination(property_id),
                                 **({'lang': 'en'} if current_language() == 'en' else {})), code=303)
     property = db.session.scalar(select(Property.id).where(
-        Property.id == property_id, Property.publication_status == 'published', Property.availability_status == 'available'))
+        Property.id == property_id, Property.publication_status == 'published', Property.availability_status == 'available',
+        Property.moderation_status == 'clear'))
     if property is None:
         abort(404)
     try:

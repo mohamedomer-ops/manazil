@@ -30,7 +30,8 @@ def index():
 
 def public_properties():
     return select(Property).options(selectinload(Property.photos)).where(
-        Property.publication_status == "published", Property.availability_status == "available"
+        Property.publication_status == "published", Property.availability_status == "available",
+        Property.moderation_status == "clear"
     )
 
 
@@ -65,6 +66,7 @@ def property_detail(property_id):
             Property.id == property_id,
             Property.publication_status == "published",
             Property.availability_status == "available",
+            Property.moderation_status == "clear",
         )
     )
     if property is None:
@@ -91,6 +93,7 @@ def public_photo(photo_id):
             PropertyPhoto.id == photo_id,
             Property.publication_status == "published",
             Property.availability_status == "available",
+            Property.moderation_status == "clear",
         )
     )
     if photo is None:

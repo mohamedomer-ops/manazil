@@ -17,10 +17,10 @@
 <p class="property-card-location">{{ property.state_ar if language == 'ar' else property.state_en }}{% if property.neighborhood_ar %} &middot; {{ property.neighborhood_ar }}{% endif %}</p>
 <h2>{{ title }}</h2><p class="property-card-type">{{ property_type_label(property.property_type, language) }}</p>
 <div class="property-card-price"><span class="property-card-price-label">{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong></div>
-<div class="management-status"><span>{{ t('Published') if property.publication_status == 'published' else t('Draft') }}</span><span>{{ t('Rented') if property.availability_status == 'rented' else t('Available') }}</span></div>
+<div class="management-status"><span>{{ t('Published') if property.publication_status == 'published' else t('Draft') }}</span><span>{{ t('Rented') if property.availability_status == 'rented' else t('Available') }}</span>{% if property.moderation_status == 'disabled' %}<span>{{ t('Disabled by administration') }}</span>{% endif %}</div>
 </div>
 <div class="management-actions">
-{% if property.publication_status == 'published' and property.availability_status == 'available' %}<a href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>{% endif %}
+{% if property.publication_status == 'published' and property.availability_status == 'available' and property.moderation_status == 'clear' %}<a href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>{% endif %}
 <a href="{{ url_for('ownership.edit_property', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Edit') }}</a>
 <form method="post" action="{{ url_for('ownership.mark_rented' if property.availability_status == 'available' else 'ownership.make_available', property_id=property.id) }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

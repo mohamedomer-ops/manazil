@@ -50,6 +50,7 @@ class Property(db.Model):
         db.CheckConstraint("size >= 0 AND size < 'Infinity'::numeric", name="ck_properties_size_nonnegative"),
         db.CheckConstraint("contact_role IN ('owner', 'broker')", name="ck_properties_contact_role"),
         db.CheckConstraint("publication_status IN ('draft', 'published')", name="ck_properties_publication_status"),
+        db.CheckConstraint("moderation_status IN ('clear', 'disabled')", name="ck_properties_moderation_status"),
         db.CheckConstraint("availability_status IN ('available', 'rented')", name="ck_properties_availability_status"),
         db.CheckConstraint("jsonb_typeof(amenities) = 'array'", name="ck_properties_amenities_array"),
     )
@@ -87,6 +88,7 @@ class Property(db.Model):
     # The property's contact role is independent of any future staff/user roles.
     contact_role = db.Column(db.String, nullable=False, default="owner", server_default="owner")
     publication_status = db.Column(db.String, nullable=False, default="draft", server_default="draft")
+    moderation_status = db.Column(db.String(16), nullable=False, default="clear", server_default="clear")
     availability_status = db.Column(db.String, nullable=False, default="available", server_default="available")
     available_from_date = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())
@@ -96,7 +98,7 @@ class Property(db.Model):
     def __init__(self, **kwargs):
         defaults = {
             "currency": "SDG", "furnished": False, "amenities": [],
-            "contact_role": "owner", "publication_status": "draft",
+            "contact_role": "owner", "publication_status": "draft", "moderation_status": "clear",
             "availability_status": "available",
             "transaction_type": "rent", "property_occupancy": "entire_property",
         }
@@ -192,6 +194,7 @@ class PropertyPhoto(db.Model):
 
 class User(db.Model):
     __tablename__ = 'users'
+    __table_args__ = (db.CheckConstraint("role IN ('user', 'admin')", name='ck_users_role'),)
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(16), nullable=True, unique=True)
     whatsapp = db.Column(db.String(16), nullable=True)
@@ -199,6 +202,7 @@ class User(db.Model):
     contact_role = db.Column(db.String, nullable=True)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    role = db.Column(db.String(16), nullable=False, default='user', server_default='user')
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
     last_login_at = db.Column(db.DateTime(timezone=True))

@@ -100,9 +100,19 @@ Manazil also has **simulated development Facebook authentication**. With the exp
 
 ## Manage and save properties
 
-`GET /my-properties` requires an account and lists only that user's properties. Owners can edit listing fields and photos, mark a property rented, or make it available again. Management changes use owner-protected POST actions. A published property becomes public again when made available.
+`GET /my-properties` requires an account and lists only that user's properties. Owners can edit listing fields and photos, mark a property rented, or make it available again. Management changes use owner-protected POST actions. A published property becomes public again when made available unless administration has disabled it.
 
 Browsing does not require an account; saving does. On a public detail page, a logged-out Save action enters Login/Sign Up and returns to that same detail URL after authentication, without saving automatically. Save and Unsave use POST actions. `GET /saved-properties` shows only the signed-in user's saves; the database prevents duplicate relationships. A saved relationship remains if a listing later becomes unavailable, but the saved page labels it **No longer available**, avoids exposing private listing details, and allows removal.
+
+## Administration
+
+The separate administration area starts at `http://127.0.0.1:5000/admin/login`. It uses the existing phone OTP service and a second admin-authenticated session check. An administrator must have an existing active account with a verified login phone. No account is promoted automatically. After applying migrations, grant the first administrator from the CLI:
+
+```powershell
+docker compose exec web flask --app run grant-admin +249912345678
+```
+
+Use an existing user's verified phone. `revoke-admin` takes the same argument, but refuses to remove the final active administrator. The admin dashboard, property and user management, reports, and admin-rights management are available only after admin OTP login. Moderation disables a listing's public visibility without deleting its data; restoring it makes a published, available listing public again. User suspension blocks authenticated access without deleting listings. The older `/admin/properties/new` owner-posting route remains available to ordinary authenticated users for compatibility.
 
 ## Security and tests
 
