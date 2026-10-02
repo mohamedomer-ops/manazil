@@ -21,3 +21,4 @@ compose.override.yaml
 .docker/
 *.log
 instance/
+.neon

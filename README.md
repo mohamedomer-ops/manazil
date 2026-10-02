@@ -42,7 +42,7 @@ docker compose up -d --build
 docker compose exec web flask --app run db upgrade
 ```
 
-Open <http://127.0.0.1:5000>. The example environment file supplies the PostgreSQL connection used by Compose; change its development password before sharing an environment. Check services and logs with:
+Open <http://127.0.0.1:5000>. Compose always connects the web service to its local `db` PostgreSQL service using `POSTGRES_PASSWORD` from `.env`; it does not pass a `DATABASE_URL` from `.env` to the web service. Keep Neon credentials in a separate, ignored environment file or your production secret store rather than the everyday local `.env`. If the Neon CLI has already added credentials to `.env`, leave them uncommitted; Compose will ignore its `DATABASE_URL`. Check services and logs with:
 
 ```powershell
 docker compose ps

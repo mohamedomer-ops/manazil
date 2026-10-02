@@ -7,7 +7,8 @@ services:
     volumes:
       - photo_data:/app/instance/property_photos
     environment:
-      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DATABASE_URL: postgresql+psycopg://manazil@db:5432/manazil
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       OTP_DEVELOPMENT_MODE: "1"
       MANAZIL_ENV: "development"
       PHOTO_STORAGE_BACKEND: "local"
