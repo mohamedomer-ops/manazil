@@ -194,12 +194,17 @@ class PropertyPhoto(db.Model):
 
 class User(db.Model):
     __tablename__ = 'users'
-    __table_args__ = (db.CheckConstraint("role IN ('user', 'admin')", name='ck_users_role'),)
+    __table_args__ = (
+        db.CheckConstraint("role IN ('user', 'admin')", name='ck_users_role'),
+        db.CheckConstraint("avatar_source IN ('facebook', 'manual')", name='ck_users_avatar_source'),
+    )
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(16), nullable=True, unique=True)
     whatsapp = db.Column(db.String(16), nullable=True)
     contact_name = db.Column(db.String, nullable=True)
     contact_role = db.Column(db.String, nullable=True)
+    avatar_storage_key = db.Column(db.String(255), nullable=True)
+    avatar_source = db.Column(db.String(16), nullable=True)
     is_verified = db.Column(db.Boolean, nullable=False, default=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     role = db.Column(db.String(16), nullable=False, default='user', server_default='user')

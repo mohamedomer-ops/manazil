@@ -71,7 +71,7 @@ class MetaFacebookAuthProvider:
                 not isinstance(token_type, str) or token_type.lower() != 'bearer'):
             raise MetaProviderError('Meta token response is invalid.')
         profile_request = Request(
-            GRAPH_ROOT + '/me?fields=id%2Cname',
+            GRAPH_ROOT + '/me?fields=id%2Cname%2Cpicture.type(square).width(256).height(256)',
             headers={'Authorization': f'Bearer {token}'},
             method='GET',
         )
@@ -82,4 +82,10 @@ class MetaFacebookAuthProvider:
                 not isinstance(name, str) or not name.strip() or len(name.strip()) > 255 or
                 any(ord(char) < 32 for char in name)):
             raise MetaProviderError('Meta profile is invalid.')
-        return FacebookIdentity(provider_user_id=provider_id, display_name=name.strip())
+        picture = profile.get('picture')
+        picture_data = picture.get('data') if isinstance(picture, dict) else None
+        picture_url = (picture_data.get('url') if isinstance(picture_data, dict) and
+                       picture_data.get('is_silhouette') is False and
+                       isinstance(picture_data.get('url'), str) else None)
+        return FacebookIdentity(provider_user_id=provider_id, display_name=name.strip(),
+                                picture_url=picture_url)

@@ -1,7 +1,7 @@
 from functools import wraps
 from urllib.parse import urlsplit
 
-from flask import Blueprint, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -209,6 +209,20 @@ def logout():
 @login_required
 def account():
     return render_account(contact_values(g.user), {}, setup='contact_next' in session)
+
+
+@auth.get('/account/avatar')
+@login_required
+def account_avatar():
+    if not g.user.avatar_storage_key:
+        abort(404)
+    from app.photo_storage import PhotoError, photo_storage
+    try:
+        response = photo_storage().send_avatar(g.user.avatar_storage_key, g.user.id)
+    except (PhotoError, OSError):
+        abort(404)
+    response.headers['Cache-Control'] = 'private, no-store'
+    return response
 
 
 def render_account(values, errors, **options):

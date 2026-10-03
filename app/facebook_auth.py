@@ -114,4 +114,7 @@ def callback():
         abort(403)
     user.last_login_at = utc_now()
     db.session.commit()
+    if isinstance(provider, MetaFacebookAuthProvider):
+        from app.avatar_storage import sync_facebook_avatar
+        sync_facebook_avatar(user, identity.picture_url)
     return establish_session(user, pending['next'])

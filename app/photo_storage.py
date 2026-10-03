@@ -23,7 +23,8 @@ FORMATS = {
     ".png": ("PNG", "image/png", "png"),
     ".webp": ("WEBP", "image/webp", "webp"),
 }
-KEY_PATTERN = re.compile(r"(?:staging/[0-9a-f]{32}|properties/[0-9]+)/[0-9a-f]{32}\.(?:jpg|png|webp)\Z")
+KEY_PATTERN = re.compile(r"(?:staging/[0-9a-f]{32}|properties/[0-9]+)/[0-9a-f]{32}\.(?:jpg|png|webp)\Z|avatars/[0-9]+/[0-9a-f]{32}\.webp\Z")
+AVATAR_KEY_PATTERN = re.compile(r"avatars/[0-9]+/[0-9a-f]{32}\.webp\Z")
 
 
 class PhotoError(ValueError):
@@ -149,6 +150,34 @@ class LocalPhotoStorage:
 
     def send(self, key, mimetype, *, max_age=None):
         return send_file(self.path(key), mimetype=mimetype, max_age=max_age)
+
+    def save_avatar(self, user_id, payload):
+        key = f"avatars/{user_id}/{uuid4().hex}.webp"
+        if type(user_id) is not int or user_id < 1 or not payload:
+            raise PhotoError('The avatar is invalid.')
+        try:
+            self._save_image(key, payload, 'image/webp')
+        except Exception:
+            try:
+                self._delete_image(key)
+            except (PhotoError, OSError):
+                pass
+            raise
+        return key
+
+    @staticmethod
+    def _validate_avatar_key(key, user_id):
+        if (type(user_id) is not int or user_id < 1 or not isinstance(key, str) or
+                not AVATAR_KEY_PATTERN.fullmatch(key) or not key.startswith(f'avatars/{user_id}/')):
+            raise PhotoError('The avatar reference is invalid.')
+
+    def delete_avatar(self, key, user_id):
+        self._validate_avatar_key(key, user_id)
+        self._delete_image(key)
+
+    def send_avatar(self, key, user_id):
+        self._validate_avatar_key(key, user_id)
+        return self.send(key, 'image/webp', max_age=0)
 
     def read(self, token):
         draft_id = self.draft_id(token)

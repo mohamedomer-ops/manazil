@@ -11,6 +11,7 @@ from flask import current_app, url_for
 class FacebookIdentity:
     provider_user_id: str
     display_name: str
+    picture_url: str | None = None
 
 
 class FacebookAuthProvider(Protocol):

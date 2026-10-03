@@ -137,7 +137,8 @@ def test_code_exchange_first_signup_and_returning_account(meta_client, monkeypat
     assert token_form == {'client_id': [APP_ID], 'client_secret': [APP_SECRET],
                           'redirect_uri': [CALLBACK], 'code': ['test-only-code']}
     profile_request = calls[1][0]
-    assert profile_request.full_url == f'https://graph.facebook.com/{GRAPH_VERSION}/me?fields=id%2Cname'
+    assert profile_request.full_url == (
+        f'https://graph.facebook.com/{GRAPH_VERSION}/me?fields=id%2Cname%2Cpicture.type(square).width(256).height(256)')
     assert profile_request.get_header('Authorization') == 'Bearer test-only-access-token'
     user = db.session.query(User).one()
     identity = db.session.query(UserIdentity).one()

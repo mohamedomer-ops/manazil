@@ -196,6 +196,8 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .auth-page .button-secondary { color: var(--green); background: #fff; border-color: var(--border); }
 .auth-page .button-secondary:hover { color: var(--green); background: #f4f8f5; border-color: var(--green); }
 .auth-page .auth-facebook { padding-block-end: 14px; margin-block-end: 14px; border-block-end: 1px solid var(--border); }
+.auth-page .auth-facebook button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.auth-page .auth-facebook button img { flex: none; }
 .auth-page .auth-development-note { margin-block: 8px 0; font-size: 12px; text-align: center; }
 .auth-page .auth-footer { margin: 20px 0 0; padding-block-start: 16px; border-block-start: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
 .auth-page .auth-footer a, .auth-page .auth-change-phone { color: var(--green); font-weight: 600; text-underline-offset: 3px; }
@@ -354,6 +356,7 @@ html[dir="rtl"] .market-result-open > span { transform: rotate(180deg); }
 .account-page .account-name { font-size: 16px; font-weight: 600; }
 .account-page .account-muted { color: var(--muted); font-size: 14px; line-height: 1.6; }
 .account-avatar { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 50%; background: #edf7f0; color: var(--green); font-size: 23px; font-weight: 700; }
+.account-avatar-image { display: block; width: 48px; object-fit: cover; }
 .account-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 16px; }
 .account-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 10px; }
 .account-shortcuts a { display: inline-flex; align-items: center; min-height: 40px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; color: var(--green); font-size: 13px; font-weight: 600; line-height: 1.4; text-decoration: none; }
