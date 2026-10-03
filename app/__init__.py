@@ -1,8 +1,9 @@
 import os
+import re
 import secrets
 import sys
 
-from flask import Flask
+from flask import Flask, redirect, request
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
@@ -13,6 +14,11 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 db = SQLAlchemy()
 migrate = Migrate()
 csrf = CSRFProtect()
+PRODUCTION_TRUSTED_HOSTS = (
+    'manazilelsaudan.com',
+    'www.manazilelsaudan.com',
+    'manazil-prod.azurewebsites.net',
+)
 
 
 def create_app(test_config=None):
@@ -46,6 +52,7 @@ def create_app(test_config=None):
         FACEBOOK_APP_ID=os.environ.get('FACEBOOK_APP_ID'),
         FACEBOOK_APP_SECRET=os.environ.get('FACEBOOK_APP_SECRET'),
         FACEBOOK_REDIRECT_URI=os.environ.get('FACEBOOK_REDIRECT_URI'),
+        DATA_DELETION_CONTACT_EMAIL=os.environ.get('DATA_DELETION_CONTACT_EMAIL', 'support@manazilelsaudan.com'),
         FACEBOOK_DEVELOPMENT_USER_ID=os.environ.get('FACEBOOK_DEVELOPMENT_USER_ID', 'development-facebook-user'),
         FACEBOOK_DEVELOPMENT_DISPLAY_NAME=os.environ.get('FACEBOOK_DEVELOPMENT_DISPLAY_NAME', 'Development Facebook User'),
         SESSION_COOKIE_HTTPONLY=True,
@@ -61,7 +68,15 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
+    deletion_email = app.config.get('DATA_DELETION_CONTACT_EMAIL')
+    if deletion_email and (not isinstance(deletion_email, str) or len(deletion_email) > 254 or
+                           not re.fullmatch(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', deletion_email)):
+        raise ValueError('DATA_DELETION_CONTACT_EMAIL must be a valid email address.')
     if app.config['ENVIRONMENT'] == 'production':
+        if not deletion_email:
+            raise ValueError('Production requires a deletion contact mailbox.')
+        app.config['TRUSTED_HOSTS'] = list(dict.fromkeys(
+            (*PRODUCTION_TRUSTED_HOSTS, *(app.config['TRUSTED_HOSTS'] or []))))
         if not isinstance(app.config.get('SECRET_KEY'), str) or len(app.config['SECRET_KEY']) < 32:
             raise ValueError('Production requires a stable SECRET_KEY of at least 32 characters.')
         app.config['DEBUG'] = False
@@ -87,6 +102,17 @@ def create_app(test_config=None):
             raise ValueError('Production DATABASE_URL must require TLS (sslmode=require or stronger).')
     if app.config.get('TRUST_PROXY_HEADERS'):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
+
+    @app.before_request
+    def canonical_production_host():
+        if app.config['ENVIRONMENT'] == 'production' and request.host.split(':', 1)[0] == 'www.manazilelsaudan.com':
+            path = request.path
+            query = request.query_string.decode('latin-1')
+            destination = f'https://manazilelsaudan.com{path}'
+            if query:
+                destination += f'?{query}'
+            return redirect(destination, code=308)
+
     db.init_app(app)
     csrf.init_app(app)
 

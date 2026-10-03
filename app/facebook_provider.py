@@ -7,6 +7,10 @@ from urllib.parse import urlsplit
 from flask import current_app, url_for
 
 
+PRODUCTION_CALLBACK = 'https://manazilelsaudan.com/auth/facebook/callback'
+LEGACY_PRODUCTION_CALLBACK = 'https://manazil-prod.azurewebsites.net/auth/facebook/callback'
+
+
 @dataclass(frozen=True)
 class FacebookIdentity:
     provider_user_id: str
@@ -75,9 +79,14 @@ def configure_facebook(app):
         if (parsed.scheme != 'https' or not parsed.netloc or parsed.username or parsed.password or
                 parsed.query or parsed.fragment or parsed.path != '/auth/facebook/callback'):
             raise ValueError('FACEBOOK_REDIRECT_URI must be an HTTPS callback URI.')
-        if app.config['ENVIRONMENT'] == 'production' and redirect_uri != (
-                'https://manazil-prod.azurewebsites.net/auth/facebook/callback'):
-            raise ValueError('Production Facebook redirect URI does not match the canonical callback.')
+        if app.config['ENVIRONMENT'] == 'production':
+            if redirect_uri == LEGACY_PRODUCTION_CALLBACK:
+                # Allow a code-first deployment while Azure still has the old setting.
+                # A cross-host callback cannot recover the apex domain's OAuth state cookie.
+                app.logger.warning('Facebook Login is disabled until the canonical callback is configured.')
+                return
+            if redirect_uri != PRODUCTION_CALLBACK:
+                raise ValueError('Production Facebook redirect URI does not match the canonical callback.')
         from app.meta_facebook_provider import MetaFacebookAuthProvider
         provider = MetaFacebookAuthProvider(app_id, secret, redirect_uri)
     app.extensions['facebook_auth_provider'] = provider

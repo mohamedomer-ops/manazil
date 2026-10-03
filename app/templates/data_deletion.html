@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}{{ t('Data Deletion') }} · {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="legal-page">
+  <h1>{{ t('Data Deletion') }}</h1>
+  <p>{{ t('You can request deletion of your Manazil account and associated Facebook-login data even if you no longer use Facebook Login.') }}</p>
+  <section>
+    <h2>{{ t('How to request deletion') }}</h2>
+    <p>{{ t('Email your request to') }} <a href="mailto:{{ deletion_email }}?subject=Manazil%20data%20deletion"><bdi>{{ deletion_email }}</bdi></a>.</p>
+    <p>{{ t('Tell us that you want your Manazil account deleted and provide enough information to identify it, such as the contact name or phone number on your account. Do not send passwords, verification codes, or Facebook access tokens.') }}</p>
+  </section>
+  <section>
+    <h2>{{ t('What happens next') }}</h2>
+    <p>{{ t('We will verify account ownership before deleting account information, the linked Facebook identity, saved properties, and any stored Facebook profile picture. We will review your property listings and photos as part of the request and explain any information we must retain.') }}</p>
+    <p>{{ t('Removing Manazil from your Facebook settings does not by itself delete your Manazil account. Use the request method above if you want Manazil data deleted.') }}</p>
+  </section>
+</main>
+{% endblock %}

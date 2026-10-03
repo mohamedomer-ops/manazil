@@ -143,11 +143,12 @@ Configure these App Service environment settings when infrastructure is provisio
 | `AZURE_STORAGE_CONNECTION_STRING` | Private storage credential supplied as an App Service setting. |
 | `AZURE_STORAGE_CONTAINER` | Name of an existing **private** blob container. |
 | `TRUST_PROXY_HEADERS=1` | Trust one `X-Forwarded-Proto` hop only when behind the trusted App Service proxy. |
-| `TRUSTED_HOSTS` | Optional comma-separated allowed App Service/custom hostnames. |
+| `TRUSTED_HOSTS` | Comma-separated exact hostnames. Set to `manazilelsaudan.com,www.manazilelsaudan.com,manazil-prod.azurewebsites.net` in App Service; production also includes these three trusted hosts in code. Do not use a wildcard. |
 | `FACEBOOK_AUTH_PROVIDER=meta` | Explicitly select real Meta login; unset/disabled leaves Facebook login unavailable in production. |
 | `FACEBOOK_APP_ID` | Meta app ID. |
 | `FACEBOOK_APP_SECRET` | Private Meta app secret, supplied only as a runtime setting. |
-| `FACEBOOK_REDIRECT_URI` | Exactly `https://manazil-prod.azurewebsites.net/auth/facebook/callback` in production. |
+| `FACEBOOK_REDIRECT_URI` | Set to exactly `https://manazilelsaudan.com/auth/facebook/callback` to enable production Meta login. During a code-first deployment, the former Azure-host callback is temporarily accepted at startup, but Facebook Login stays disabled until this setting is updated. Other noncanonical production callbacks are rejected. |
+| `DATA_DELETION_CONTACT_EMAIL` | Optional override for the public account and Facebook-login data deletion mailbox (default: `support@manazilelsaudan.com`). |
 
 Production refuses a missing/short secret, a non-TLS database URL, local photo storage, missing Blob settings, and development authentication flags. It disables debug mode and uses secure, HTTP-only, SameSite=Lax session cookies. The database health check at `/api/health` remains lightweight and does not reveal credentials. Existing migrations are **not** run during HTTP requests. For a database-only migration before Blob Storage is provisioned, set `MANAZIL_MIGRATION_ONLY=1` only on the `flask --app run db upgrade` process. This CLI-only mode bypasses the unrelated Blob credential requirement while retaining the production secret, TLS database, and development-authentication checks. Never set it on the web server.
 

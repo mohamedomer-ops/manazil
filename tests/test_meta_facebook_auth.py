@@ -16,7 +16,7 @@ from app.models import User, UserIdentity
 from test_auth import client, csrf, login
 from test_properties import migrated_connection
 
-CALLBACK = 'https://manazil-prod.azurewebsites.net/auth/facebook/callback'
+CALLBACK = 'https://manazilelsaudan.com/auth/facebook/callback'
 APP_ID = '1234567890'
 APP_SECRET = 'test-only-meta-secret-never-real'
 
@@ -73,6 +73,7 @@ def production_config(**changes):
     return dict(ENVIRONMENT='production', SECRET_KEY='test-only-production-secret-long-enough',
                 SQLALCHEMY_DATABASE_URI='postgresql://user:example@neon.example/db?sslmode=require',
                 PHOTO_STORAGE_BACKEND='azure_blob', AZURE_BLOB_CONTAINER_CLIENT=object(),
+                DATA_DELETION_CONTACT_EMAIL='privacy@example.test',
                 OTP_DEVELOPMENT_MODE=False, FACEBOOK_DEVELOPMENT_MODE=False,
                 FACEBOOK_AUTH_PROVIDER='meta', FACEBOOK_APP_ID=APP_ID,
                 FACEBOOK_APP_SECRET=APP_SECRET, FACEBOOK_REDIRECT_URI=CALLBACK) | changes
@@ -82,7 +83,8 @@ def production_config(**changes):
     {'FACEBOOK_APP_ID': None}, {'FACEBOOK_APP_ID': 'not-numeric'},
     {'FACEBOOK_APP_SECRET': None}, {'FACEBOOK_APP_SECRET': 'short'},
     {'FACEBOOK_REDIRECT_URI': None},
-    {'FACEBOOK_REDIRECT_URI': 'http://manazil-prod.azurewebsites.net/auth/facebook/callback'},
+    {'FACEBOOK_REDIRECT_URI': 'http://manazilelsaudan.com/auth/facebook/callback'},
+    {'FACEBOOK_REDIRECT_URI': 'https://www.manazilelsaudan.com/auth/facebook/callback'},
     {'FACEBOOK_REDIRECT_URI': 'https://elsewhere.example/auth/facebook/callback'},
     {'FACEBOOK_REDIRECT_URI': CALLBACK + '?next=/account'},
     {'FACEBOOK_DEVELOPMENT_MODE': True},
@@ -105,6 +107,26 @@ def test_provider_selection_is_explicit_and_never_falls_back():
         create_app(production_config(FACEBOOK_AUTH_PROVIDER=None, FACEBOOK_DEVELOPMENT_MODE=True))
 
 
+def test_legacy_azure_callback_allows_startup_but_disables_facebook_login(caplog):
+    legacy = 'https://manazil-prod.azurewebsites.net/auth/facebook/callback'
+    app = create_app(production_config(FACEBOOK_REDIRECT_URI=legacy))
+    assert 'facebook_auth_provider' not in app.extensions
+    assert '/auth/facebook' not in {rule.rule for rule in app.url_map.iter_rules()}
+    browser = app.test_client()
+    assert browser.get('/auth?lang=en', base_url='https://manazilelsaudan.com').status_code == 200
+    page = browser.get('/login?lang=en', base_url='https://manazilelsaudan.com')
+    assert 'Continue with Facebook' not in page.text
+    assert 'Phone number' in page.text
+    assert browser.get('/auth/facebook/callback', base_url='https://manazilelsaudan.com').status_code == 404
+    assert 'Facebook Login is disabled until the canonical callback is configured.' in caplog.text
+    assert legacy not in caplog.text
+    assert APP_SECRET not in caplog.text
+
+    ready = create_app(production_config())
+    assert isinstance(ready.extensions['facebook_auth_provider'], MetaFacebookAuthProvider)
+    assert '/auth/facebook' in {rule.rule for rule in ready.url_map.iter_rules()}
+
+
 def test_authorization_url_scope_callback_csrf_and_language(meta_client):
     assert meta_client.post('/auth/facebook').status_code == 400
     response, state = start(meta_client, '/properties/new', 'ar')
@@ -122,6 +144,28 @@ def test_authorization_url_scope_callback_csrf_and_language(meta_client):
     assert meta_client.post('/auth/facebook/callback', data={
         'csrf_token': csrf(page), 'state': state}).status_code == 405
     assert meta_client.get('/auth/facebook/development', query_string={'state': state}).status_code == 404
+
+
+def test_production_oauth_starts_on_apex_after_www_redirect():
+    app = create_app(production_config())
+    browser = app.test_client()
+    from_www = browser.get('/auth?lang=en&next=%2Fproperties%2Fnew',
+                           base_url='https://www.manazilelsaudan.com')
+    assert from_www.status_code == 308
+    assert from_www.location == 'https://manazilelsaudan.com/auth?lang=en&next=%2Fproperties%2Fnew'
+    page = browser.get('/auth?lang=en&next=%2Fproperties%2Fnew',
+                       base_url='https://manazilelsaudan.com')
+    assert page.status_code == 200
+    response = browser.post('/auth/facebook', base_url='https://manazilelsaudan.com',
+                            headers={'Referer': 'https://manazilelsaudan.com/auth?lang=en'}, data={
+        'csrf_token': csrf(page), 'next': '/properties/new', '_language': 'en'})
+    assert response.status_code == 303
+    parameters = parse_qs(urlsplit(response.location).query)
+    assert parameters['redirect_uri'] == [CALLBACK]
+    denied = browser.get('/auth/facebook/callback', base_url='https://manazilelsaudan.com',
+                         query_string={'state': parameters['state'][0], 'error': 'access_denied'})
+    assert denied.status_code == 400
+    assert 'Facebook sign-in was cancelled.' in denied.text
 
 
 def test_code_exchange_first_signup_and_returning_account(meta_client, monkeypatch):

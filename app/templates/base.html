@@ -38,6 +38,6 @@
       </button>
     </header>
     {% block content %}{% endblock %}
-    {% block footer %}<footer class="site-footer">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan Property Rental Platform') }}</footer>{% endblock %}
+    {% block footer %}<footer class="site-footer">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan Property Rental Platform') }}<nav class="site-footer-legal" aria-label="{{ t('Legal information') }}">{% include 'components/legal_links.html' %}</nav></footer>{% endblock %}
   </body>
 </html>

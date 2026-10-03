@@ -47,6 +47,7 @@ def test_provider_configuration_fails_closed(environment, testing, enabled, debu
     assert development_enabled(config) == expected
     if environment == 'production':
         config.update(SECRET_KEY='production-test-secret-that-is-long-enough',
+                      DATA_DELETION_CONTACT_EMAIL='privacy@example.test',
                       SQLALCHEMY_DATABASE_URI='postgresql://account:example@ep-example.aws.neon.tech/neondb?sslmode=require',
                       PHOTO_STORAGE_BACKEND='azure_blob', AZURE_BLOB_CONTAINER_CLIENT=object())
         if enabled:
@@ -59,12 +60,13 @@ def test_provider_configuration_fails_closed(environment, testing, enabled, debu
     assert ('/auth/facebook' in routes) == expected
     if not expected:
         browser = app.test_client()
-        page = browser.get('/auth?lang=en')
+        base_url = 'https://manazilelsaudan.com' if environment == 'production' else 'http://localhost'
+        page = browser.get('/auth?lang=en', base_url=base_url)
         assert 'Continue with Facebook' not in page.text
-        token = csrf(browser.get('/login'))
+        token = csrf(browser.get('/login', base_url=base_url))
         for path in ('/auth/facebook', '/auth/facebook/development', '/auth/facebook/callback'):
-            assert browser.get(path).status_code == 404
-            assert browser.post(path, data={'csrf_token': token}).status_code == 404
+            assert browser.get(path, base_url=base_url).status_code == 404
+            assert browser.post(path, base_url=base_url, data={'csrf_token': token}).status_code == 404
         with app.test_request_context():
             with pytest.raises(RuntimeError, match='disabled'):
                 DevelopmentFacebookAuthProvider().authenticate({})

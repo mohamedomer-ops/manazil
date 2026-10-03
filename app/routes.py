@@ -15,6 +15,16 @@ from app.phone import property_contact_number
 main = Blueprint("main", __name__)
 
 
+@main.get('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+
+
+@main.get('/data-deletion')
+def data_deletion():
+    return render_template('data_deletion.html', deletion_email=current_app.config.get('DATA_DELETION_CONTACT_EMAIL'))
+
+
 @main.get("/")
 def index():
     latest = db.session.scalars(

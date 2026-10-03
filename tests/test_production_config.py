@@ -83,6 +83,7 @@ def production_config(**overrides):
         'TESTING': True, 'ENVIRONMENT': 'production',
         'SQLALCHEMY_DATABASE_URI': NEON_EXAMPLE,
         'SECRET_KEY': 'production-test-secret-that-is-long-enough',
+        'DATA_DELETION_CONTACT_EMAIL': 'privacy@example.test',
         'PHOTO_STORAGE_BACKEND': 'azure_blob',
         'AZURE_BLOB_CONTAINER_CLIENT': FakeContainer(),
         'OTP_DEVELOPMENT_MODE': False, 'FACEBOOK_DEVELOPMENT_MODE': False,
@@ -103,6 +104,8 @@ def test_local_defaults_and_neon_url_normalization():
 
 def test_production_fails_closed_for_missing_security_configuration():
     for changes in ({'SECRET_KEY': None}, {'SECRET_KEY': 'short'},
+                    {'DATA_DELETION_CONTACT_EMAIL': None},
+                    {'DATA_DELETION_CONTACT_EMAIL': 'not-an-email'},
                     {'PHOTO_STORAGE_BACKEND': 'local'},
                     {'AZURE_BLOB_CONTAINER_CLIENT': None, 'AZURE_STORAGE_CONNECTION_STRING': None},
                     {'SQLALCHEMY_DATABASE_URI': NEON_EXAMPLE.replace('?sslmode=require', '')},
@@ -144,7 +147,8 @@ def test_production_auth_providers_are_not_simulations():
 def test_unconfigured_production_otp_returns_safe_service_error():
     app = create_app(production_config())
     app.add_url_rule('/_otp-check', view_func=provider)
-    response = app.test_client().get('/_otp-check?lang=en')
+    response = app.test_client().get('/_otp-check?lang=en',
+                                     base_url='https://manazil-prod.azurewebsites.net')
     assert response.status_code == 503
     assert b'Authentication is temporarily unavailable.' in response.data
     assert b'Production OTP delivery is not configured' not in response.data
@@ -154,9 +158,47 @@ def test_forwarded_scheme_is_trusted_only_when_explicitly_enabled():
     for trusted, expected in ((False, 'http'), (True, 'https')):
         app = create_app(production_config(TRUST_PROXY_HEADERS=trusted))
         app.add_url_rule('/_scheme-check', view_func=lambda: request.scheme)
-        result = app.test_client().get('/_scheme-check', base_url='http://localhost',
+        result = app.test_client().get('/_scheme-check', base_url='http://manazil-prod.azurewebsites.net',
                                        headers={'X-Forwarded-Proto': 'https'})
         assert result.text == expected
+
+
+def test_production_trusts_exact_custom_and_azure_hosts_without_opening_other_hosts():
+    app = create_app(production_config(TRUSTED_HOSTS=['manazil-prod.azurewebsites.net']))
+    app.add_url_rule('/_host-check', view_func=lambda: 'ok')
+    client = app.test_client()
+    assert app.config['TRUSTED_HOSTS'] == [
+        'manazilelsaudan.com', 'www.manazilelsaudan.com', 'manazil-prod.azurewebsites.net']
+    for host in app.config['TRUSTED_HOSTS']:
+        expected = 308 if host == 'www.manazilelsaudan.com' else 200
+        assert client.get('/_host-check', base_url=f'https://{host}').status_code == expected
+    for host in ('localhost', 'other.azurewebsites.net', 'fake.manazilelsaudan.com'):
+        assert client.get('/_host-check', base_url=f'https://{host}').status_code == 400
+
+
+def test_production_keeps_additional_explicit_hosts_and_development_is_unchanged():
+    production = create_app(production_config(TRUSTED_HOSTS=['existing.example']))
+    production.add_url_rule('/_host-check', view_func=lambda: 'ok')
+    assert production.test_client().get('/_host-check', base_url='https://existing.example').status_code == 200
+    assert production.test_client().get('/_host-check', base_url='https://unlisted.example').status_code == 400
+    local = create_app({'TESTING': True, 'ENVIRONMENT': 'development',
+                        'SQLALCHEMY_DATABASE_URI': LOCAL_DATABASE, 'TRUSTED_HOSTS': None})
+    local.add_url_rule('/_host-check', view_func=lambda: 'ok')
+    assert local.test_client().get('/_host-check', base_url='http://localhost').status_code == 200
+
+
+def test_www_redirects_to_apex_before_any_production_route_runs():
+    app = create_app(production_config())
+    app.add_url_rule('/_host-check', view_func=lambda: 'ok')
+    browser = app.test_client()
+    for path in ('/properties?state=khartoum&lang=en', '/auth?next=%2Fproperties%2Fnew',
+                 '/auth/facebook/callback?state=example'):
+        result = browser.get(path, base_url='https://www.manazilelsaudan.com')
+        assert result.status_code == 308
+        assert result.location == 'https://manazilelsaudan.com' + path
+    assert browser.get('/_host-check', base_url='https://manazilelsaudan.com').status_code == 200
+    assert browser.get('/_host-check', base_url='https://manazil-prod.azurewebsites.net').status_code == 200
+    assert browser.get('/_host-check', base_url='https://other.example').status_code == 400
 
 
 def test_local_storage_contract_remains_operational(tmp_path):
