@@ -57,7 +57,7 @@
         <p id="phone-verified" class="account-field-help">{{ t('Verified') if current_user.is_verified else t('Phone login') }}</p>
       </div>{% endif %}
       {% if current_user.is_verified %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Phone login') }}</strong><p class="account-muted">{{ t('Verified phone number') }}</p></div></div>{% endif %}
-      {% if facebook_connected %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Facebook account') }}</strong><p class="account-muted">{{ t('Development simulation') }}</p></div></div>{% endif %}
+      {% if facebook_connected %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Facebook account') }}</strong><p class="account-muted">{{ t('Development simulation') if facebook_is_development else t('Facebook login') }}</p></div></div>{% endif %}
       <form method="post" action="{{ url_for('auth.logout') }}" class="account-logout-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit">{{ t('Logout') }}</button>

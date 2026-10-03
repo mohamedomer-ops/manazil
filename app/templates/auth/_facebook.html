@@ -4,6 +4,6 @@
   <input type="hidden" name="next" value="{{ next }}">
   <input type="hidden" name="_language" value="{{ language }}">
   <button class="button-secondary" type="submit">{{ t('Continue with Facebook') }}</button>
-  <p class="auth-support auth-development-note">{{ t('Development simulation only. No connection to Facebook.') }}</p>
+  {% if facebook_is_development %}<p class="auth-support auth-development-note">{{ t('Development simulation only. No connection to Facebook.') }}</p>{% endif %}
 </form>
 {% endif %}

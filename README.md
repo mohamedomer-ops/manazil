@@ -96,7 +96,7 @@ The current OTP delivery is a **development provider**. It stores the code local
 docker compose exec web flask --app run dev-otp +249912345678
 ```
 
-Manazil also has **simulated development Facebook authentication**. With the explicit development/test configuration in Compose, Continue with Facebook uses a stable fake provider identity, creates or reuses its associated Manazil account, and preserves `next`. It does not contact Meta, require Facebook credentials, or constitute production Facebook Login. The simulated endpoints are disabled outside configured development/testing mode. Phone OTP remains available independently. A Facebook-only account can complete its contact profile and post without a verified OTP-login phone; its WhatsApp contact number is separate from authentication identity.
+Manazil also has Facebook authentication behind a provider setting. Local Compose uses a **simulated development provider** with a stable fake identity; it does not contact Meta. Selecting `FACEBOOK_AUTH_PROVIDER=meta` enables the real authorization-code provider only when its app ID, secret, and HTTPS callback are configured. Production has no Facebook login unless Meta is explicitly selected and correctly configured; it never falls back to the simulator. Phone OTP remains available independently. A Facebook-only account can complete its contact profile and post without a verified OTP-login phone; its WhatsApp contact number is separate from authentication identity.
 
 `/account` displays account identity and contact information. Users can edit contact name, WhatsApp number, and Owner/Broker role; an OTP-login phone, when present, is read-only in Account & Security and remains separate from listing contact. The page links to Saved Properties and Post Property. My Properties remains available in authenticated navigation. Arabic interface text is the default on each request; the language switch selects English (`lang=en`) or Arabic, with RTL Arabic and LTR English. Optional English property title/description fall back to Arabic content when absent.
 
@@ -144,6 +144,10 @@ Configure these App Service environment settings when infrastructure is provisio
 | `AZURE_STORAGE_CONTAINER` | Name of an existing **private** blob container. |
 | `TRUST_PROXY_HEADERS=1` | Trust one `X-Forwarded-Proto` hop only when behind the trusted App Service proxy. |
 | `TRUSTED_HOSTS` | Optional comma-separated allowed App Service/custom hostnames. |
+| `FACEBOOK_AUTH_PROVIDER=meta` | Explicitly select real Meta login; unset/disabled leaves Facebook login unavailable in production. |
+| `FACEBOOK_APP_ID` | Meta app ID. |
+| `FACEBOOK_APP_SECRET` | Private Meta app secret, supplied only as a runtime setting. |
+| `FACEBOOK_REDIRECT_URI` | Exactly `https://manazil-prod.azurewebsites.net/auth/facebook/callback` in production. |
 
 Production refuses a missing/short secret, a non-TLS database URL, local photo storage, missing Blob settings, and development authentication flags. It disables debug mode and uses secure, HTTP-only, SameSite=Lax session cookies. The database health check at `/api/health` remains lightweight and does not reveal credentials. Existing migrations are **not** run during HTTP requests. For a database-only migration before Blob Storage is provisioned, set `MANAZIL_MIGRATION_ONLY=1` only on the `flask --app run db upgrade` process. This CLI-only mode bypasses the unrelated Blob credential requirement while retaining the production secret, TLS database, and development-authentication checks. Never set it on the web server.
 
@@ -151,8 +155,8 @@ For a Linux App Service **code deployment**, set the startup command to `gunicor
 
 Both storage backends retain the same generated `staging/...` and `properties/...` keys. Blob staging manifests live in the private container so different workers can handle successive form requests. Photos are served through the existing Flask public/owner/admin authorization routes; the Blob container should not allow anonymous public access. Existing local photo files are **not** copied to Azure automatically. If database records are ever moved between environments, copy their referenced files to the corresponding Blob keys separately. The Flask request cap is 102 MB for the current 20 × 5 MB photo limit plus form overhead; verify any App Service front-end upload limit before launch.
 
-**Public-launch blocker:** The phone OTP provider is development-only and simulated Facebook Login is not Meta authentication. Development providers are disabled in production; a real delivery/authentication provider must be implemented and configured before public use, including administrator login. No Neon credentials, Blob credentials, or real photos have been used in this preparation stage.
+**Public-launch blocker:** The phone OTP provider is development-only, including administrator login. Development providers are disabled in production. Real Meta login code is present but still requires a configured Meta app and a separate production integration review before use. No Meta credentials are stored in this repository.
 
 ## Not yet implemented
 
-The repository has no real Meta Facebook Login, production WhatsApp/OTP delivery, Facebook-to-verified-phone linking, or per-property WhatsApp contact verification. Azure Blob support is implemented but no Azure resources or production deployment are configured. Maps, payments, and AI features are not part of the current application.
+The repository has no production WhatsApp/OTP delivery, Facebook-to-verified-phone linking, or per-property WhatsApp contact verification. Maps, payments, and AI features are not part of the current application.

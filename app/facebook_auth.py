@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.auth import auth_destination, establish_session
 from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
-from app.languages import current_language
+from app.languages import current_language, translate
+from app.meta_facebook_provider import MetaFacebookAuthProvider, MetaProviderError
 from app.models import User, UserIdentity, utc_now
 
 facebook = Blueprint('facebook', __name__)
@@ -16,7 +17,7 @@ STATE_TTL = 300
 
 
 @facebook.before_request
-def guard_development_routes():
+def guard_facebook_routes():
     # Also fail closed if configuration changes after registration.
     provider = current_app.extensions.get('facebook_auth_provider')
     if not provider or (isinstance(provider, DevelopmentFacebookAuthProvider) and not development_enabled(current_app.config)):
@@ -31,7 +32,8 @@ def private_response(response):
 
 
 def valid_state(pending, supplied):
-    return bool(pending and supplied and isinstance(supplied, str) and
+    return bool(isinstance(pending, dict) and isinstance(pending.get('state'), str) and
+                isinstance(pending.get('issued_at'), (int, float)) and supplied and isinstance(supplied, str) and
                 secrets.compare_digest(pending['state'].encode(), supplied.encode()) and
                 0 <= time.time() - pending['issued_at'] <= STATE_TTL)
 
@@ -80,12 +82,33 @@ def find_or_create_user(identity):
         raise
 
 
-@facebook.post('/auth/facebook/callback')
+def failure(pending, message, status):
+    language = pending.get('language') if pending.get('language') in ('ar', 'en') else current_language()
+    return render_template('auth/entry.html', next=pending.get('next', '/account'),
+                           error=message, language=language,
+                           t=lambda phrase: translate(phrase, language)), status
+
+
+@facebook.route('/auth/facebook/callback', methods=['GET', 'POST'])
 def callback():
+    provider = current_app.extensions['facebook_auth_provider']
+    if isinstance(provider, DevelopmentFacebookAuthProvider) and request.method != 'POST':
+        abort(405)
+    if isinstance(provider, MetaFacebookAuthProvider) and request.method != 'GET':
+        abort(405)
     pending = session.pop('facebook_auth', None)  # Single use, including failed attempts.
-    if not valid_state(pending, request.form.get('state')):
+    callback_data = request.args if request.method == 'GET' else request.form
+    if not valid_state(pending, callback_data.get('state')):
         abort(400)
-    identity = current_app.extensions['facebook_auth_provider'].authenticate(request.form)
+    if isinstance(provider, MetaFacebookAuthProvider):
+        if callback_data.get('error'):
+            return failure(pending, 'Facebook sign-in was cancelled.', 400)
+        if not callback_data.get('code'):
+            return failure(pending, 'Facebook sign-in could not be completed. Please try again.', 400)
+    try:
+        identity = provider.authenticate(callback_data)
+    except MetaProviderError:
+        return failure(pending, 'Facebook sign-in could not be completed. Please try again.', 502)
     user = find_or_create_user(identity)
     if not user.is_active:
         abort(403)

@@ -1,6 +1,8 @@
-"""Facebook identity boundary. No Meta API integration is implemented here."""
+"""Facebook identity boundary shared by development and real Meta providers."""
+import re
 from dataclasses import dataclass
 from typing import Mapping, Protocol
+from urllib.parse import urlsplit
 
 from flask import current_app, url_for
 
@@ -41,12 +43,42 @@ class DevelopmentFacebookAuthProvider:
 
 
 def configure_facebook(app):
-    if not development_enabled(app.config):
+    selected = app.config.get('FACEBOOK_AUTH_PROVIDER') or (
+        'development' if development_enabled(app.config) else 'disabled')
+    if selected not in ('disabled', 'development', 'meta'):
+        raise ValueError('FACEBOOK_AUTH_PROVIDER must be disabled, development, or meta.')
+    if selected == 'disabled':
         return
-    for key in ('FACEBOOK_DEVELOPMENT_USER_ID', 'FACEBOOK_DEVELOPMENT_DISPLAY_NAME'):
-        value = app.config[key]
-        if not isinstance(value, str) or not value.strip() or len(value) > 255:
-            raise ValueError(f'{key} must be a nonempty string of at most 255 characters.')
-    app.extensions['facebook_auth_provider'] = DevelopmentFacebookAuthProvider()
+    if selected == 'development':
+        if not development_enabled(app.config):
+            raise ValueError('Development Facebook authentication is disabled.')
+        for key in ('FACEBOOK_DEVELOPMENT_USER_ID', 'FACEBOOK_DEVELOPMENT_DISPLAY_NAME'):
+            value = app.config[key]
+            if not isinstance(value, str) or not value.strip() or len(value) > 255:
+                raise ValueError(f'{key} must be a nonempty string of at most 255 characters.')
+        provider = DevelopmentFacebookAuthProvider()
+    else:
+        if app.config.get('FACEBOOK_DEVELOPMENT_MODE'):
+            raise ValueError('Meta authentication cannot use development Facebook mode.')
+        app_id = app.config.get('FACEBOOK_APP_ID')
+        secret = app.config.get('FACEBOOK_APP_SECRET')
+        redirect_uri = app.config.get('FACEBOOK_REDIRECT_URI')
+        if not isinstance(app_id, str) or not re.fullmatch(r'[0-9]{1,64}', app_id):
+            raise ValueError('FACEBOOK_APP_ID must be a numeric Meta app ID.')
+        if (not isinstance(secret, str) or not 16 <= len(secret) <= 255 or
+                any(char.isspace() or ord(char) < 33 for char in secret)):
+            raise ValueError('FACEBOOK_APP_SECRET is missing or invalid.')
+        if not isinstance(redirect_uri, str):
+            raise ValueError('FACEBOOK_REDIRECT_URI must be an HTTPS callback URI.')
+        parsed = urlsplit(redirect_uri)
+        if (parsed.scheme != 'https' or not parsed.netloc or parsed.username or parsed.password or
+                parsed.query or parsed.fragment or parsed.path != '/auth/facebook/callback'):
+            raise ValueError('FACEBOOK_REDIRECT_URI must be an HTTPS callback URI.')
+        if app.config['ENVIRONMENT'] == 'production' and redirect_uri != (
+                'https://manazil-prod.azurewebsites.net/auth/facebook/callback'):
+            raise ValueError('Production Facebook redirect URI does not match the canonical callback.')
+        from app.meta_facebook_provider import MetaFacebookAuthProvider
+        provider = MetaFacebookAuthProvider(app_id, secret, redirect_uri)
+    app.extensions['facebook_auth_provider'] = provider
     from app.facebook_auth import facebook
     app.register_blueprint(facebook)

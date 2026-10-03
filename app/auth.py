@@ -31,7 +31,8 @@ def auth_template_context():
     from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
     provider = current_app.extensions.get('facebook_auth_provider')
     enabled = bool(provider) and (not isinstance(provider, DevelopmentFacebookAuthProvider) or development_enabled(current_app.config))
-    return {'current_user': g.get('user'), 'facebook_auth_enabled': enabled}
+    return {'current_user': g.get('user'), 'facebook_auth_enabled': enabled,
+            'facebook_is_development': enabled and isinstance(provider, DevelopmentFacebookAuthProvider)}
 
 
 def login_required(view):
