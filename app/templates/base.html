@@ -12,29 +12,35 @@
     <a class="skip-link" href="#main-content">{{ t('Skip to content') }}</a>
     <header class="site-header">
       <a class="site-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Manazil') }}</a>
-      <nav aria-label="{{ 'التنقل الرئيسي' if language == 'ar' else 'Main navigation' }}" id="site-navigation">
+      <div class="site-navigation-panel" id="site-navigation">
+        <nav aria-label="{{ 'التنقل الرئيسي' if language == 'ar' else 'Main navigation' }}">
         <a href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>{{ t('Home') }}</a>
         <a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint in ('main.properties', 'main.property_detail') %}aria-current="page"{% endif %}>{{ t('Properties') }}</a>
         <a href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.blueprint == 'admin' or request.endpoint == 'property_new' %}aria-current="page"{% endif %}>{{ t('Post Property') }}</a>
         {% if current_user %}
           <a href="{{ url_for('ownership.my_properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'ownership.my_properties' %}aria-current="page"{% endif %}>{{ t('My Properties') }}</a>
           <a href="{{ url_for('saved.saved_properties', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'saved.saved_properties' %}aria-current="page"{% endif %}>{{ t('Saved Properties') }}</a>
-          <a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>
+          <a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}" class="desktop-auth-link">{{ t('My Account') }}</a>
           <form method="post" action="{{ url_for('auth.logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">{{ t('Logout') }}</button></form>
         {% else %}
-          <a href="{{ url_for('auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login / Sign Up') }}</a>
+          <a href="{{ url_for('auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}" class="desktop-auth-link">{{ t('Login / Sign Up') }}</a>
         {% endif %}
-      </nav>
-      <div class="language-switcher" aria-label="{{ 'اللغة' if language == 'ar' else 'Language' }}">
+        </nav>
+        <div class="language-switcher" aria-label="{{ 'اللغة' if language == 'ar' else 'Language' }}">
         {% block language_switcher %}
           <a href="{{ url_for(request.endpoint, **(request.view_args or {})) }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a>
           <span aria-hidden="true">|</span>
           <a href="{{ url_for(request.endpoint, lang='en', **(request.view_args or {})) }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
         {% endblock %}
+        </div>
       </div>
+      <a class="mobile-account-link" href="{{ url_for('auth.account' if current_user else 'auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">
+        <svg class="mobile-account-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.5-4 3.1-6 7.5-6s7 2 7.5 6"/></svg>
+        <span>{{ t('My Account') if current_user else t('Login / Sign Up') }}</span>
+      </a>
       <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-navigation">
         <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
-        <span>{{ t('Menu') }}</span>
+        <span class="mobile-menu-label">{{ t('Menu') }}</span>
       </button>
     </header>
     {% block content %}{% endblock %}

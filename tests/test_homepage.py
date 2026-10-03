@@ -120,6 +120,16 @@ def test_hero_actions_and_single_search_form_below_discovery_heading(client):
         assert html.index('id="property-search"') < html.index('id="home-latest-title"')
 
 
+def test_mobile_hero_actions_keep_shared_content_start_and_desktop_layout():
+    styles = Path('app/static/css/style.css').read_text(encoding='utf-8')
+    mobile = styles.split('@media (max-width: 959px) {\n  .home-hero-actions', 1)[1].split('\n}', 1)[0]
+    assert 'flex-direction: column' in mobile
+    assert 'align-items: flex-start' in mobile
+    assert '.home-hero-actions .home-hero-action { width: 66.6667%' in mobile
+    assert '.home-hero-actions { flex-direction: column; align-items: stretch; }' not in styles
+    assert '.home-hero-content { display: flex; flex-direction: column;' in styles
+
+
 def test_homepage_search_uses_marketplace_filters(client, values):
     public_property(values, 'Matching', transaction_type='sale', rent_period=None,
                     state_en='Khartoum', property_type='villa')

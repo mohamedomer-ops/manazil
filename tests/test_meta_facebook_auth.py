@@ -1,5 +1,6 @@
 """Real Facebook OAuth boundary tests; every Meta HTTP response is mocked."""
 import json
+import logging
 import time
 from urllib.parse import parse_qs, urlsplit
 
@@ -107,8 +108,11 @@ def test_provider_selection_is_explicit_and_never_falls_back():
         create_app(production_config(FACEBOOK_AUTH_PROVIDER=None, FACEBOOK_DEVELOPMENT_MODE=True))
 
 
-def test_legacy_azure_callback_allows_startup_but_disables_facebook_login(caplog):
+def test_legacy_azure_callback_allows_startup_but_disables_facebook_login(caplog, monkeypatch):
     legacy = 'https://manazil-prod.azurewebsites.net/auth/facebook/callback'
+    # Alembic's logging setup can disable an existing app logger in earlier tests.
+    monkeypatch.setattr(logging.getLogger('app'), 'disabled', False)
+    caplog.set_level('WARNING', logger='app')
     app = create_app(production_config(FACEBOOK_REDIRECT_URI=legacy))
     assert 'facebook_auth_provider' not in app.extensions
     assert '/auth/facebook' not in {rule.rule for rule in app.url_map.iter_rules()}

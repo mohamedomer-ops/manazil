@@ -1,5 +1,6 @@
 import re
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from sqlalchemy import select
@@ -339,7 +340,7 @@ def test_navigation_authenticated_users_unchanged(client, language, direction):
     assert f'<html lang="{language}" dir="{direction}">' in page
     navigation = re.search(r'<nav .*?</nav>', page, re.S).group(0)
     suffix = '?lang=en' if language == 'en' else ''
-    assert f'href="/account{suffix}">{translate("My Account", language)}</a>' in navigation
+    assert f'href="/account{suffix}" class="desktop-auth-link">{translate("My Account", language)}</a>' in navigation
     assert f'href="/my-properties{suffix}"' in navigation
     assert translate('My Properties', language) in navigation
     assert f'href="/saved-properties{suffix}"' in navigation
@@ -399,3 +400,61 @@ def test_mobile_menu_trigger_and_navigation_relationship(client, language):
     assert translate('Menu', language) in button
     assert '/static/js/navigation.js' in page
     assert '/static/js/navigation.js' in client.get('/login?lang=' + language).get_data(as_text=True)
+
+
+@pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
+def test_mobile_header_keeps_account_outside_menu_and_language_inside(client, language, direction):
+    from app.languages import translate
+    suffix = '?lang=en' if language == 'en' else ''
+    page = client.get('/' + suffix).get_data(as_text=True)
+    assert f'<html lang="{language}" dir="{direction}">' in page
+    header = re.search(r'<header class="site-header">.*?</header>', page, re.S).group(0)
+    panel = re.search(r'<div class="site-navigation-panel" id="site-navigation">.*?</nav>.*?</div>\s*</div>', header, re.S).group(0)
+    assert header.count('class="language-switcher"') == 1
+    assert 'class="language-switcher"' in panel
+    assert 'lang="ar"' in panel and 'lang="en"' in panel
+    assert all(f'href="{path}{suffix}"' in panel for path in ('/', '/properties', '/properties/new'))
+    assert f'href="/auth{suffix}" class="desktop-auth-link"' in panel
+    account = re.search(r'<a class="mobile-account-link".*?</a>', header, re.S).group(0)
+    assert header.index(account) >= header.index(panel) + len(panel)
+    assert f'href="/auth{suffix}"' in account
+    assert translate('Login / Sign Up', language) in account
+    assert 'class="mobile-account-icon"' in account and 'aria-hidden="true"' in account
+    assert header.count('class="mobile-account-link"') == 1
+    assert 'class="mobile-menu-toggle"' in header
+    assert 'aria-controls="site-navigation"' in header
+
+
+@pytest.mark.parametrize('language', ['ar', 'en'])
+def test_authenticated_mobile_header_links_account_without_changing_menu(client, language):
+    from app.languages import translate
+    user = User(phone_number='+249912345678', is_verified=True, is_active=True)
+    db.session.add(user)
+    db.session.commit()
+    with client.session_transaction() as auth_session:
+        auth_session['user_id'] = user.id
+    suffix = '?lang=en' if language == 'en' else ''
+    header = re.search(r'<header class="site-header">.*?</header>', client.get('/' + suffix).text, re.S).group(0)
+    account = re.search(r'<a class="mobile-account-link".*?</a>', header, re.S).group(0)
+    assert f'href="/account{suffix}"' in account
+    assert translate('My Account', language) in account
+    assert 'href="/auth' not in header
+    for path in ('/my-properties', '/saved-properties'):
+        assert f'href="{path}{suffix}"' in header
+    assert 'method="post" action="/logout"' in header
+
+
+def test_mobile_menu_css_and_keyboard_behavior_remain_scoped():
+    styles = Path('app/static/css/style.css').read_text(encoding='utf-8')
+    script = Path('app/static/js/navigation.js').read_text(encoding='utf-8')
+    mobile = styles.split('@media (max-width: 959px) {', 1)[1].split('\n}', 1)[0]
+    assert '.site-header { position: relative; display: grid; grid-template-columns: max-content minmax(0, 1fr) 44px;' in mobile
+    assert '.site-header .site-navigation-panel.is-open { display: flex; }' in mobile
+    assert '.site-header nav .desktop-auth-link { display: none; }' in mobile
+    assert '.site-header .language-switcher {' in mobile
+    assert '.mobile-menu-label { position: absolute;' in mobile
+    assert '.site-navigation-panel { display: contents; }' in styles
+    assert 'navigation.addEventListener("click"' in script
+    assert 'event.target.closest("a, button")' in script
+    assert 'event.key === "Escape"' in script
+    assert 'mobile.addEventListener("change"' in script
