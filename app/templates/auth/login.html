@@ -1,23 +1,35 @@
 {% extends 'base.html' %}
-{% block title %}{{ t('Login') }} · {{ t('Manazil') }}{% endblock %}
+{% block title %}{{ t('Login') }} &middot; {{ t('Manazil') }}{% endblock %}
 {% block language_switcher %}
-<a href="{{ url_for('auth.login', next=next|default(session.get('auth_next', '/account')), lang='ar') }}" lang="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</a>
-<a href="{{ url_for('auth.login', next=next|default(session.get('auth_next', '/account')), lang='en') }}" lang="en">English</a>
+<a href="{{ url_for('auth.login', next=next, lang='ar') }}" lang="ar">العربية</a>
+<a href="{{ url_for('auth.login', next=next, lang='en') }}" lang="en">English</a>
 {% endblock %}
 {% block content %}
 <main id="main-content" class="form-page auth-page">
   <h1>{{ t('Login') }}</h1>
-  {% include 'auth/_facebook.html' %}
-  <p class="auth-support">{{ t("We'll send a verification code to your WhatsApp.") }}</p>
   {% if error %}<p role="alert">{{ t(error) }}</p>{% endif %}
-  <form method="post" action="{{ url_for('auth.request_otp') }}">
+  <form method="post" action="{{ url_for('auth.password_login') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ next }}">
     <input type="hidden" name="_language" value="{{ language }}">
-    <label for="phone_number">{{ t('Phone number') }}</label>
+    <label for="phone_number">{{ t('WhatsApp/mobile number') }}</label>
     <input id="phone_number" name="phone_number" type="tel" autocomplete="tel" required>
-    <button type="submit">{{ t('Continue') }}</button>
+    <label for="password">{{ t('Password') }}</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button type="submit">{{ t('Login') }}</button>
   </form>
   <p class="auth-footer">{{ t("Don't have an account?") }} <a href="{{ url_for('auth.signup', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Create Account') }}</a></p>
+  <section class="auth-choice auth-choice-secondary" aria-label="{{ t('Phone OTP login') }}">
+    <p class="auth-support">{{ t('Phone OTP login') }} — {{ t("We'll send a verification code to your WhatsApp.") }}</p>
+    <form method="post" action="{{ url_for('auth.request_otp') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ next }}">
+      <input type="hidden" name="_language" value="{{ language }}">
+      <label for="otp_phone_number">{{ t('Phone number') }}</label>
+      <input id="otp_phone_number" name="phone_number" type="tel" autocomplete="tel" required>
+      <button type="submit">{{ t('Continue with code') }}</button>
+    </form>
+  </section>
+  {% include 'auth/_facebook.html' %}
 </main>
 {% endblock %}

@@ -10,6 +10,6 @@
 {% if error %}<p role="alert">{{ t(error) }}</p>{% endif %}
 {% include 'auth/_facebook.html' %}
 <section class="auth-choice"><p class="auth-support">{{ t('Already have an account?') }}</p><a class="button" href="{{ url_for('auth.login', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login') }}</a></section>
-<section class="auth-choice auth-choice-secondary"><p class="auth-support">{{ t('New to Manazil?') }}</p><a class="button button-secondary" href="{{ url_for('auth.signup', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Create Account') }}</a></section>
+<section class="auth-choice auth-choice-secondary"><p class="auth-support">{{ t('New to Manazil?') }}</p><a class="button button-secondary" href="{{ url_for('auth.signup', next=signup_next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Create Account') }}</a></section>
 </main>
 {% endblock %}

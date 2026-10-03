@@ -200,6 +200,7 @@ class User(db.Model):
     )
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(16), nullable=True, unique=True)
+    password_hash = db.Column(db.String(255), nullable=True)
     whatsapp = db.Column(db.String(16), nullable=True)
     contact_name = db.Column(db.String, nullable=True)
     contact_role = db.Column(db.String, nullable=True)
@@ -217,7 +218,15 @@ class User(db.Model):
 
     @property
     def has_authenticated_identity(self):
-        return self.is_verified or bool(self.identities)
+        return self.is_verified or bool(self.identities) or bool(self.password_hash)
+
+    def set_password(self, password):
+        from werkzeug.security import generate_password_hash
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        from werkzeug.security import check_password_hash
+        return bool(self.password_hash) and check_password_hash(self.password_hash, password)
 
     @property
     def contact_complete(self):

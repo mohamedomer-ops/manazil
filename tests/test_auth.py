@@ -40,13 +40,11 @@ def login(client, phone='0912345678', destination='/account'):
 def signup(client, phone='0912345678', destination='/account', role='owner'):
     page = client.get('/signup?lang=en&next=' + destination)
     response = client.post('/signup', data={'csrf_token': csrf(page), 'phone_number': phone,
-        'contact_name': 'Mohamed Ahmed', 'contact_role': role,
+        'contact_name': 'Mohamed Ahmed', 'password': 'password-for-tests',
+        'confirm_password': 'password-for-tests',
         'next': destination, '_language': 'en'})
     assert response.status_code == 303
-    assert db.session.query(User).count() == 0
-    code = __import__('flask').current_app.extensions['development_otps'][normalize_phone(phone)]
-    page = client.get('/auth/verify?lang=en')
-    return client.post('/auth/verify', data={'csrf_token': csrf(page), 'code': code, '_language': 'en'})
+    return response
 
 
 def complete_account(client, role='owner'):
@@ -61,7 +59,7 @@ def test_phone_normalization_and_login(client):
     assert normalize_phone('00249912345678') == '+249912345678'
     assert signup(client).status_code == 303
     user = db.session.scalar(select(User).where(User.phone_number == '+249912345678'))
-    assert user.is_verified and user.is_active and user.last_login_at
+    assert not user.is_verified and user.is_active and user.last_login_at
     assert client.get('/account').status_code == 200
     logout_response = client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
     assert logout_response.status_code == 303, logout_response.get_data(as_text=True)
@@ -79,6 +77,8 @@ def test_protected_posting_and_public_access(client):
     response = client.get('/admin/properties/new')
     assert response.status_code == 302 and '/auth?' in response.location
     assert signup(client, destination='/admin/properties/new').location == '/admin/properties/new'
+    assert client.get('/admin/properties/new').location == '/account'
+    complete_account(client)
     assert client.get('/admin/properties/new').status_code == 200
 
 
@@ -145,7 +145,11 @@ def test_new_account_setup_and_listing_defaults(client, role):
     with client.session_transaction() as auth_session:
         assert 'user_id' in auth_session and 'pending_setup_user_id' not in auth_session
     user = db.session.scalar(select(User).where(User.phone_number == '+249912345678'))
-    assert (user.contact_name, user.whatsapp, user.contact_role) == ('Mohamed Ahmed', '+249912345678', role)
+    assert (user.contact_name, user.whatsapp, user.contact_role) == ('Mohamed Ahmed', '+249912345678', None)
+    assert client.get(saved.location).location.startswith('/account')
+    page = client.get('/account?lang=en')
+    client.post('/account', data={'csrf_token': csrf(page), '_language': 'en',
+        'contact_name': 'Mohamed Ahmed', 'whatsapp': '0912345678', 'contact_role': role})
     listing = client.get(saved.location).get_data(as_text=True)
     assert 'name="contact_name" type="text" value="Mohamed Ahmed"' in listing
     assert 'name="phone"' not in listing
@@ -218,9 +222,9 @@ def test_duplicate_and_returning_profile(client):
     page = client.get('/signup?next=/properties/new')
     response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
         'phone_number': '00249912345678', 'contact_name': 'Overwrite',
-        'whatsapp': '0912222222', 'contact_role': 'broker', '_language': 'en'})
+        'password': 'another-password', 'confirm_password': 'another-password', '_language': 'en'})
     assert response.status_code == 409
-    assert 'already exists' in response.get_data(as_text=True)
+    assert 'already associated' in response.get_data(as_text=True)
     assert 'name="next" value="/properties/new"' in response.get_data(as_text=True)
     for challenge in db.session.scalars(select(OTPChallenge)):
         challenge.created_at = utc_now() - timedelta(seconds=31)
@@ -242,62 +246,41 @@ def test_login_unknown_does_not_create_user(client):
     assert '/signup?next=/properties/new' in response.get_data(as_text=True)
 
 
-@pytest.mark.parametrize('field,value', [('contact_name', ''), ('phone_number', 'bad'), ('contact_role', 'staff')])
-def test_signup_validation_before_challenge(client, field, value):
+@pytest.mark.parametrize('field,value', [('contact_name', ''), ('phone_number', 'bad'),
+                                         ('password', ''), ('confirm_password', 'wrong')])
+def test_signup_validation_before_account_creation(client, field, value):
     data = {'csrf_token': csrf(client.get('/signup')), 'phone_number': '0912345678',
-            'contact_name': 'Name', 'whatsapp': '0911111111', 'contact_role': 'owner', 'next': '/properties/new'}
+            'contact_name': 'Name', 'password': 'password-for-tests',
+            'confirm_password': 'password-for-tests', 'next': '/properties/new'}
     data[field] = value
     assert client.post('/signup', data=data).status_code == 422
     assert db.session.query(User).count() == db.session.query(OTPChallenge).count() == 0
 
 
-def test_signup_otp_security_and_resend(client):
+def test_manual_signup_creates_no_otp_challenge(client):
     page = client.get('/signup?next=/properties/new&lang=en')
     response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
-        'phone_number': '0912345678', 'contact_name': 'Name',
-        'whatsapp': '0911111111', 'contact_role': 'broker', '_language': 'en'})
-    assert response.status_code == 303
-    assert db.session.query(User).count() == 0
-    with client.session_transaction() as auth_session:
-        assert 'user_id' not in auth_session
-    page = client.get('/auth/verify?lang=en')
-    code = __import__('flask').current_app.extensions['development_otps']['+249912345678']
-    assert code not in page.get_data(as_text=True)
-    assert '/signup?next=/properties/new' in page.get_data(as_text=True)
-    assert client.post('/auth/verify', data={'csrf_token': csrf(page), 'code': 'bad'}).status_code == 422
-    challenge = db.session.scalar(select(OTPChallenge))
-    challenge.expires_at = utc_now() - timedelta(seconds=1)
-    challenge.created_at = utc_now() - timedelta(seconds=31)
-    db.session.commit()
-    assert client.post('/auth/verify', data={'csrf_token': csrf(page), 'code': code}).status_code == 422
-    assert db.session.query(User).count() == 0
-    assert client.post('/auth/resend', data={'csrf_token': csrf(page), '_language': 'en'}).status_code == 303
-    assert db.session.query(OTPChallenge).count() == 2
-    assert client.post('/auth/resend', data={'csrf_token': csrf(page)}).status_code == 303
-    assert db.session.query(OTPChallenge).count() == 2
-    with client.session_transaction() as auth_session:
-        assert auth_session['auth_next'] == '/properties/new'
-        assert auth_session['pending_signup']['contact_name'] == 'Name'
-    code = __import__('flask').current_app.extensions['development_otps']['+249912345678']
-    assert client.post('/auth/verify', data={'csrf_token': csrf(page), 'code': code}).location == '/properties/new'
+        'phone_number': '0912345678', 'contact_name': 'Name', 'password': 'password-for-tests',
+        'confirm_password': 'password-for-tests', '_language': 'en'})
+    assert response.status_code == 303 and response.location == '/properties/new'
     user = db.session.scalar(select(User))
-    assert user.contact_name == 'Name' and user.contact_role == 'broker'
-    assert client.post('/auth/verify', data={'csrf_token': csrf(page), 'code': code}).status_code == 422
-    assert db.session.query(User).count() == 1
+    assert user.phone_number == user.whatsapp == '+249912345678' and not user.is_verified
+    assert user.check_password('password-for-tests')
+    assert db.session.query(OTPChallenge).count() == 0
+    with client.session_transaction() as auth_session:
+        assert auth_session['user_id'] == user.id
 
 
-def test_signup_existing_phone_at_verification_does_not_overwrite(client):
-    page = client.get('/signup')
-    client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
-        'phone_number': '0912345678', 'contact_name': 'Overwrite',
-        'whatsapp': '0911111111', 'contact_role': 'broker'})
+def test_signup_existing_phone_does_not_overwrite(client):
     existing = User(phone_number='+249912345678', contact_name='Original',
                     whatsapp='+249912222222', contact_role='owner', is_verified=True)
     db.session.add(existing)
     db.session.commit()
-    code = __import__('flask').current_app.extensions['development_otps'][existing.phone_number]
-    page = client.get('/auth/verify')
-    assert client.post('/auth/verify', data={'csrf_token': csrf(page), 'code': code}).status_code == 409
+    page = client.get('/signup')
+    response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
+        'phone_number': '00249912345678', 'contact_name': 'Overwrite',
+        'password': 'password-for-tests', 'confirm_password': 'password-for-tests'})
+    assert response.status_code == 409
     assert db.session.query(User).count() == 1
     db.session.refresh(existing)
     assert existing.contact_name == 'Original' and existing.contact_role == 'owner'
@@ -308,7 +291,7 @@ def test_signup_existing_phone_at_verification_does_not_overwrite(client):
 def test_signup_csrf_and_safe_destination(client):
     assert client.post('/signup', data={'phone_number': '0912345678'}).status_code == 400
     page = client.get('/signup?next=https://example.com').get_data(as_text=True)
-    assert 'name="next" value="/account"' in page
+    assert 'name="next" value="/"' in page
 
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
@@ -366,8 +349,10 @@ def test_compact_auth_ui_and_actions(client, language, direction):
     assert 'button-secondary' in entry
     signup_page = client.get('/signup?lang=' + language).get_data(as_text=True)
     assert f'<button type="submit">{translate("Create Account", language)}</button>' in signup_page
-    assert translate('Account Type', language) in signup_page
-    assert f'<button type="submit">{translate("Continue", language)}</button>' in client.get('/login?lang=' + language).get_data(as_text=True)
+    assert translate('Full name', language) in signup_page
+    assert translate('Password', language) in signup_page
+    assert translate('Confirm password', language) in signup_page
+    assert f'<button type="submit">{translate("Continue with code", language)}</button>' in client.get('/login?lang=' + language).get_data(as_text=True)
     with client.session_transaction() as auth_session:
         auth_session['pending_phone'] = '+249912345678'
         auth_session['auth_next'] = '/properties/new'

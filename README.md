@@ -88,7 +88,7 @@ An owner can set the primary photo, move photos in display order, and delete the
 
 ## Accounts and authentication
 
-`/auth` offers Login and Sign Up. Phone login verifies a normalized phone number by OTP and returns the same existing account; Sign Up collects name, the OTP login phone, and Owner/Broker role, then creates the account only after OTP verification. The verified phone initially fills the profile's WhatsApp contact number, which can later be edited independently. Authentication preserves a safe local `next` destination, such as `/properties/new` or a property detail URL. Logout ends the session.
+`/auth` offers Login and Sign Up. Manual Sign Up collects a full name, WhatsApp/mobile number, and password; it normalizes the number, stores a password hash, and signs the user in without OTP. The number is not marked verified. Password login uses the same normalized number. The existing phone OTP login remains available separately. Authentication preserves a safe local `next` destination, such as `/properties/new` or a property detail URL. Logout ends the session.
 
 The current OTP delivery is a **development provider**. It stores the code locally for development; it does **not** send a real WhatsApp message. OTP codes are hashed in the database and protected by expiry, attempt limits, single use, and request throttling. After requesting a code locally, inspect it with:
 
@@ -98,7 +98,7 @@ docker compose exec web flask --app run dev-otp +249912345678
 
 Manazil also has Facebook authentication behind a provider setting. Local Compose uses a **simulated development provider** with a stable fake identity; it does not contact Meta. Selecting `FACEBOOK_AUTH_PROVIDER=meta` enables the real authorization-code provider only when its app ID, secret, and HTTPS callback are configured. Production has no Facebook login unless Meta is explicitly selected and correctly configured; it never falls back to the simulator. Phone OTP remains available independently. A Facebook-only account can complete its contact profile and post without a verified OTP-login phone; its WhatsApp contact number is separate from authentication identity.
 
-`/account` displays account identity and contact information. Users can edit contact name, WhatsApp number, and Owner/Broker role; an OTP-login phone, when present, is read-only in Account & Security and remains separate from listing contact. The page links to Saved Properties and Post Property. My Properties remains available in authenticated navigation. Arabic interface text is the default on each request; the language switch selects English (`lang=en`) or Arabic, with RTL Arabic and LTR English. Optional English property title/description fall back to Arabic content when absent.
+`/account` displays account identity and contact information. Users can edit contact name, WhatsApp number, and Owner/Broker role; the account phone is read-only in Account & Security, with verification indicated only when OTP has actually verified it. The page links to Saved Properties and Post Property. My Properties remains available in authenticated navigation. Arabic interface text is the default on each request; the language switch selects English (`lang=en`) or Arabic, with RTL Arabic and LTR English. Optional English property title/description fall back to Arabic content when absent.
 
 ## Manage and save properties
 
@@ -156,7 +156,7 @@ For a Linux App Service **code deployment**, set the startup command to `gunicor
 
 Both storage backends retain the same generated `staging/...` and `properties/...` keys. Blob staging manifests live in the private container so different workers can handle successive form requests. Photos are served through the existing Flask public/owner/admin authorization routes; the Blob container should not allow anonymous public access. Existing local photo files are **not** copied to Azure automatically. If database records are ever moved between environments, copy their referenced files to the corresponding Blob keys separately. The Flask request cap is 102 MB for the current 20 × 5 MB photo limit plus form overhead; verify any App Service front-end upload limit before launch.
 
-**Public-launch blocker:** The phone OTP provider is development-only, including administrator login. Development providers are disabled in production. Real Meta login code is present but still requires a configured Meta app and a separate production integration review before use. No Meta credentials are stored in this repository.
+The phone OTP provider is development-only, including administrator login; development providers are disabled in production. Manual password signup/login does not depend on OTP. A production OTP delivery provider is still required for OTP login and admin login. Meta login requires its configured app credentials and callback. No Meta credentials are stored in this repository.
 
 ## Not yet implemented
 

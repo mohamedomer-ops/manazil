@@ -105,43 +105,80 @@ def auth_destination(fallback=None):
 
 @auth.get('/auth')
 def entry():
-    return render_template('auth/entry.html', next=auth_destination())
+    return render_template('auth/entry.html', next=auth_destination(),
+                           signup_next=auth_destination(url_for('main.index')))
 
 
 @auth.get('/signup')
 def signup():
-    return render_template('auth/signup.html', next=auth_destination(), values={}, errors={})
+    return render_template('auth/signup.html', next=auth_destination(url_for('main.index')),
+                           values={}, errors={})
 
 
 @auth.post('/signup')
 def signup_post():
-    values = {key: request.form.get(key, '').strip() for key in ('contact_name', 'contact_role')}
+    values = {'contact_name': request.form.get('contact_name', '').strip(),
+              'phone_number': request.form.get('phone_number', '').strip()}
     errors = {}
+    if not values['contact_name'] or '\x00' in values['contact_name']:
+        errors['contact_name'] = 'This field is required.'
     try:
         phone = normalize_phone(request.form.get('phone_number'))
     except ValueError:
         errors['phone_number'] = 'Enter a valid phone number.'
         phone = None
-    contact_values, contact_errors = validate_contact(values | {'whatsapp': phone or ''})
-    values.update(contact_values)
-    errors.update({key: value for key, value in contact_errors.items() if key != 'whatsapp'})
-    values['phone_number'] = phone or request.form.get('phone_number', '')
-    destination = auth_destination()
+    password = request.form.get('password', '')
+    confirmation = request.form.get('confirm_password', '')
+    if not password:
+        errors['password'] = 'This field is required.'
+    elif len(password) < 8 or len(password) > 128:
+        errors['password'] = 'Use a password between 8 and 128 characters.'
+    if not confirmation:
+        errors['confirm_password'] = 'This field is required.'
+    elif password != confirmation:
+        errors['confirm_password'] = 'Passwords do not match.'
+    destination = auth_destination(url_for('main.index'))
     if errors:
         return render_template('auth/signup.html', next=destination, values=values, errors=errors), 422
     if db.session.scalar(select(User).where(User.phone_number == phone)):
-        return render_template('auth/login.html', next=destination,
-                               error='An account with this number already exists. Please log in.'), 409
-    session['pending_signup'] = values
-    session['pending_phone'] = phone
-    session['auth_next'] = destination
-    request_code(phone)
-    return redirect(url_for('auth.verify', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
+        errors['phone_number'] = 'This phone number is already associated with an account.'
+        return render_template('auth/signup.html', next=destination, values=values, errors=errors), 409
+    user = User(contact_name=values['contact_name'], phone_number=phone, whatsapp=phone,
+                is_verified=False)
+    user.set_password(password)
+    user.last_login_at = utc_now()
+    db.session.add(user)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        errors['phone_number'] = 'This phone number is already associated with an account.'
+        return render_template('auth/signup.html', next=destination, values=values, errors=errors), 409
+    if destination == url_for('main.index') and request.form.get('_language') == 'en':
+        destination = url_for('main.index', lang='en')
+    return establish_session(user, destination)
 
 
 @auth.get('/login')
 def login():
     return render_template('auth/login.html', next=auth_destination())
+
+
+@auth.post('/auth/password-login')
+def password_login():
+    try:
+        phone = normalize_phone(request.form.get('phone_number'))
+    except ValueError:
+        phone = None
+    user = db.session.scalar(select(User).where(User.phone_number == phone)) if phone else None
+    password = request.form.get('password', '')
+    if not user or not user.is_active or not user.check_password(password):
+        return render_template('auth/login.html', next=auth_destination(),
+                               error='Invalid phone number or password.'), 422
+    user.last_login_at = utc_now()
+    db.session.commit()
+    destination = auth_destination()
+    return establish_session(user, destination)
 
 
 @auth.post('/auth/request-otp')
