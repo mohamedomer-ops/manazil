@@ -33,8 +33,9 @@
         </div>
         <div class="account-field">
           <label for="whatsapp">{{ t('WhatsApp Number') }}</label>
-          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" aria-describedby="whatsapp-help{% if errors.whatsapp %} whatsapp-error{% endif %}" {% if errors.whatsapp %}aria-invalid="true"{% endif %} required>
+          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" aria-describedby="whatsapp-help{% if errors.whatsapp %} whatsapp-error{% endif %}" {% if errors.whatsapp %}aria-invalid="true"{% endif %} {% if facebook_connected and current_user.verified_whatsapp %}readonly{% endif %} required>
           <p id="whatsapp-help" class="account-field-help">{{ t('This number will be used for WhatsApp and phone calls.') }}</p>
+          {% if facebook_connected and current_user.verified_whatsapp %}<a href="{{ url_for('auth.facebook_profile', **suffix) }}">{{ t('Change verified number') }}</a>{% endif %}
           {% if errors.whatsapp %}<p id="whatsapp-error" role="alert">{{ t(errors.whatsapp) }}</p>{% endif %}
         </div>
         <div class="account-field">

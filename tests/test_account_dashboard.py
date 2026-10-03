@@ -14,8 +14,8 @@ from test_public_properties import add_property
 
 def account_user(client, method='phone'):
     user = User(id=777777, contact_name='Marketplace Member',
-                phone_number='+249912345678' if method == 'phone' else None,
-                is_verified=method == 'phone', whatsapp='+249911111111', contact_role='owner')
+                phone_number='+249912345678' if method == 'phone' else '+249911111111',
+                is_verified=True, whatsapp='+249911111111', contact_role='owner')
     db.session.add(user)
     db.session.flush()
     if method == 'facebook':
@@ -67,7 +67,7 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
     assert 'name="contact_name"' in content and 'value="Marketplace Member"' in content
     assert 'name="whatsapp"' in content and 'value="+249911111111"' in content
     assert 'value="owner" selected' in content
-    assert (re.search(r'id="phone_number"[^>]+readonly', content) is not None) == (method == 'phone')
+    assert re.search(r'id="phone_number"[^>]+readonly', content) is not None
     assert 'class="account-logout-form"' in content and 'action="/logout"' in content
     assert translate('Logout', language) in content
     if method == 'phone':
@@ -77,8 +77,9 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
     else:
         assert translate('Facebook account', language) in content
         assert translate('Development simulation', language) in content
-        assert translate('Phone login', language) not in content
-        assert 'id="phone_number"' not in content
+        assert translate('Phone login', language) in content
+        assert 'id="phone_number"' in content
+        assert translate('Change verified number', language) in content
     for secret in ('private-provider-identifier', 'private-pending-auth-value', '777777', 'provider_user_id', 'otp_hash'):
         assert secret not in page
 
@@ -105,14 +106,14 @@ def test_profile_edit_keeps_identity_and_existing_validation(client, method):
     user = account_user(client, method)
     page = client.get('/account?lang=en')
     response = client.post('/account', data={'csrf_token': csrf(page), '_language': 'en',
-        'contact_name': 'Edited Member', 'whatsapp': '0912222222', 'contact_role': 'broker',
+        'contact_name': 'Edited Member', 'whatsapp': '0912222222' if method == 'phone' else '0911111111', 'contact_role': 'broker',
         'phone_number': '+249999999999', 'provider_user_id': 'forged-provider'})
     assert response.status_code == 200
     assert 'Account information updated successfully' in response.text
     assert '<bdi>Edited Member</bdi>' in response.text
-    assert user.contact_name == 'Edited Member' and user.whatsapp == '+249912222222' and user.contact_role == 'broker'
-    assert user.phone_number == ('+249912345678' if method == 'phone' else None)
-    assert user.is_verified == (method == 'phone')
+    assert user.contact_name == 'Edited Member' and user.whatsapp == ('+249912222222' if method == 'phone' else '+249911111111') and user.contact_role == 'broker'
+    assert user.phone_number == ('+249912345678' if method == 'phone' else '+249911111111')
+    assert user.is_verified
     if method == 'facebook':
         assert db.session.query(UserIdentity).one().provider_user_id == 'private-provider-identifier'
     response = client.post('/account', data={'csrf_token': csrf(response), '_language': 'en',
@@ -121,16 +122,16 @@ def test_profile_edit_keeps_identity_and_existing_validation(client, method):
     assert 'aria-invalid="true" aria-describedby="contact-name-error"' in response.text
     assert 'aria-describedby="whatsapp-help whatsapp-error" aria-invalid="true"' in response.text
     assert 'aria-invalid="true" aria-describedby="contact-role-error"' in response.text
-    assert user.contact_name == 'Edited Member' and user.whatsapp == '+249912222222'
+    assert user.contact_name == 'Edited Member' and user.whatsapp == ('+249912222222' if method == 'phone' else '+249911111111')
     assert client.post('/account').status_code == 400
     response = client.post('/logout', data={'csrf_token': csrf(response)})
     assert response.status_code == 303
     assert client.get('/account').status_code == 302
 
 
-def test_facebook_display_name_fallback_without_contact_fields(client):
+def test_facebook_display_name_fallback_without_contact_name_or_role(client):
     user = account_user(client, 'facebook')
-    user.contact_name = user.whatsapp = user.contact_role = None
+    user.contact_name = user.contact_role = None
     db.session.commit()
     page = client.get('/account?lang=en').text
     assert '<bdi>Provider Display Name</bdi>' in page

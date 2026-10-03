@@ -10,6 +10,7 @@ from app.avatar_storage import AvatarError, MAX_DOWNLOAD_BYTES, fetch_facebook_a
 from app.models import User
 from app.photo_storage import LocalPhotoStorage, PhotoError, photo_storage
 from test_auth import client, csrf
+from test_facebook_auth import complete_facebook_profile
 from test_meta_facebook_auth import callback, meta_client, mock_meta, start
 from test_production_config import FakeContainer
 from test_properties import migrated_connection
@@ -56,6 +57,8 @@ def facebook_login(client):
     _, state = start(client)
     response = callback(client, state)
     assert response.status_code == 303
+    if response.location.startswith('/auth/complete-profile'):
+        complete_facebook_profile(client)
     return db.session.query(User).one()
 
 

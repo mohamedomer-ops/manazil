@@ -6,7 +6,7 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.auth import auth_destination, establish_session
+from app.auth import auth_destination, establish_session, safe_next
 from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
 from app.languages import current_language, translate
 from app.meta_facebook_provider import MetaFacebookAuthProvider, MetaProviderError
@@ -41,7 +41,7 @@ def valid_state(pending, supplied):
 @facebook.post('/auth/facebook')
 def start():
     pending = {'state': secrets.token_urlsafe(32), 'issued_at': time.time(),
-               'next': auth_destination(), 'language': current_language()}
+               'next': auth_destination(url_for('main.index')), 'language': current_language()}
     session['facebook_auth'] = pending
     provider = current_app.extensions['facebook_auth_provider']
     return redirect(provider.authorization_url(pending['state'], url_for('facebook.callback', _external=True)), code=303)
@@ -117,4 +117,13 @@ def callback():
     if isinstance(provider, MetaFacebookAuthProvider):
         from app.avatar_storage import sync_facebook_avatar
         sync_facebook_avatar(user, identity.picture_url)
-    return establish_session(user, pending['next'])
+    if not user.verified_whatsapp:
+        language = pending['language'] if pending['language'] in ('ar', 'en') else 'ar'
+        response = establish_session(user, url_for('auth.facebook_profile', **({'lang': 'en'} if language == 'en' else {})))
+        session['profile_next'] = safe_next(pending['next'], url_for('main.index'))
+        session['profile_language'] = language
+        return response
+    destination = pending['next']
+    if destination == url_for('main.index') and pending['language'] == 'en':
+        destination = url_for('main.index', lang='en')
+    return establish_session(user, destination)

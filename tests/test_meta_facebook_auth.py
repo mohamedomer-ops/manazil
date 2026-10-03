@@ -15,6 +15,7 @@ from app.meta_facebook_provider import (
 )
 from app.models import User, UserIdentity
 from test_auth import client, csrf, login
+from test_facebook_auth import complete_facebook_profile
 from test_properties import migrated_connection
 
 CALLBACK = 'https://manazilelsaudan.com/auth/facebook/callback'
@@ -176,7 +177,7 @@ def test_code_exchange_first_signup_and_returning_account(meta_client, monkeypat
     calls = mock_meta(monkeypatch)
     _, state = start(meta_client, '/account', 'en')
     response = callback(meta_client, state)
-    assert response.status_code == 303 and response.location == '/account'
+    assert response.status_code == 303 and response.location == '/auth/complete-profile?lang=en'
     assert len(calls) == 2 and all(timeout == 5 for _, timeout in calls)
     token_request = calls[0][0]
     assert token_request.full_url == f'https://graph.facebook.com/{GRAPH_VERSION}/oauth/access_token'
@@ -197,28 +198,29 @@ def test_code_exchange_first_signup_and_returning_account(meta_client, monkeypat
     with meta_client.session_transaction() as auth_session:
         assert auth_session['user_id'] == user.id and 'facebook_auth' not in auth_session
         assert 'access_token' not in str(auth_session)
+    assert complete_facebook_profile(meta_client).location == '/account'
     account = meta_client.get('/account?lang=en')
     assert 'Facebook login' in account.text and 'Development simulation' not in account.text
     user.contact_name = 'Edited Name'
-    user.whatsapp = '+249911111111'
     user.contact_role = 'broker'
     db.session.commit()
     meta_client.post('/logout', data={'csrf_token': csrf(account)})
     _, state = start(meta_client)
-    assert callback(meta_client, state).status_code == 303
+    assert callback(meta_client, state).location == '/account'
     assert db.session.query(User).count() == 1 and db.session.query(UserIdentity).count() == 1
     assert db.session.query(User).one().contact_name == 'Edited Name'
-    assert db.session.query(User).one().whatsapp == '+249911111111'
+    assert db.session.query(User).one().whatsapp == '+249912222222'
 
 
 @pytest.mark.parametrize('destination,expected', [
     ('/properties/new', '/properties/new'), ('/properties/25?lang=en', '/properties/25?lang=en'),
-    ('//evil.example', '/account'), ('https://evil.example', '/account'),
+    ('//evil.example', '/?lang=en'), ('https://evil.example', '/?lang=en'),
 ])
 def test_safe_next_destination(meta_client, monkeypatch, destination, expected):
     mock_meta(monkeypatch)
     _, state = start(meta_client, destination)
-    assert callback(meta_client, state).location == expected
+    assert callback(meta_client, state).location == '/auth/complete-profile?lang=en'
+    assert complete_facebook_profile(meta_client).location == expected
 
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
@@ -231,6 +233,7 @@ def test_real_meta_ui_language_and_no_simulation_label(meta_client, monkeypatch,
     mock_meta(monkeypatch)
     _, state = start(meta_client, language=language)
     assert callback(meta_client, state).status_code == 303
+    complete_facebook_profile(meta_client, language=language)
     account = meta_client.get('/account?lang=' + language)
     assert translate('Facebook login', language) in account.text
     assert translate('Development simulation', language) not in account.text
@@ -290,6 +293,7 @@ def test_suspended_identity_and_phone_account_remain_separate(meta_client, monke
     mock_meta(monkeypatch)
     _, state = start(meta_client)
     assert callback(meta_client, state).status_code == 303
+    complete_facebook_profile(meta_client)
     facebook_user = db.session.query(UserIdentity).one().user
     assert facebook_user.id != phone_user.id and facebook_user.role == 'user'
     meta_client.post('/logout', data={'csrf_token': csrf(meta_client.get('/account'))})

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app import create_app, db
 from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
 from app.languages import translate
-from app.models import SavedProperty, User, UserIdentity
+from app.models import OTPChallenge, SavedProperty, User, UserIdentity
 from test_auth import client, csrf, login
 from test_properties import migrated_connection, values
 from test_public_properties import add_property
@@ -31,6 +31,20 @@ def facebook_login(client, destination='/account', language='en', **extra):
     page, state = begin(client, destination, language)
     return client.post('/auth/facebook/callback', data={
         'csrf_token': csrf(page), 'state': state, **extra})
+
+
+def complete_facebook_profile(client, phone='0912222222', language='en'):
+    page = client.get('/auth/complete-profile?lang=' + language)
+    assert page.status_code == 200
+    sent = client.post('/auth/complete-profile', data={
+        'csrf_token': csrf(page), '_language': language, 'whatsapp': phone})
+    assert sent.status_code == 303
+    verify_page = client.get(sent.location)
+    assert verify_page.status_code == 200
+    from app.phone import normalize_phone
+    code = current_app.extensions['development_otps'][normalize_phone(phone)]
+    return client.post('/auth/complete-profile/verify', data={
+        'csrf_token': csrf(verify_page), '_language': language, 'code': code})
 
 
 @pytest.mark.parametrize('environment,testing,enabled,debug,expected', [
@@ -76,7 +90,10 @@ def test_provider_configuration_fails_closed(environment, testing, enabled, debu
 def test_first_login_session_and_safe_destination(client, destination):
     response = facebook_login(client, destination, provider_user_id='browser-forgery', display_name='Untrusted')
     assert response.status_code == 303
-    assert response.location == (destination if destination.startswith('/') and not destination.startswith('//') else '/account')
+    assert response.location == '/auth/complete-profile?lang=en'
+    expected = destination if destination.startswith('/') and not destination.startswith('//') else '/'
+    with client.session_transaction() as auth_session:
+        assert auth_session['profile_next'] == expected
     user = db.session.query(User).one()
     identity = db.session.query(UserIdentity).one()
     assert identity.provider == 'facebook'
@@ -89,20 +106,18 @@ def test_first_login_session_and_safe_destination(client, destination):
     with client.session_transaction() as auth_session:
         assert auth_session['user_id'] == user.id
         assert 'facebook_auth' not in auth_session
-    page = client.get('/account?lang=en')
-    assert page.status_code == 200
-    assert 'name="whatsapp"' in page.text and 'id="phone_number"' not in page.text
-    assert 'value="None"' not in page.text
-    # Posting needs a contact profile, independent of the Facebook login identity.
-    assert client.get('/properties/new').location == '/account'
+    assert client.get('/account?lang=en').location == '/auth/complete-profile?lang=en'
+    assert client.get('/properties/new').location == '/auth/complete-profile'
+    assert complete_facebook_profile(client).location == ('/?lang=en' if expected == '/' else expected)
+    assert user.phone_number == user.whatsapp == '+249912222222' and user.is_verified
 
 
 def test_returning_identity_same_user_and_profile_logout(client):
     facebook_login(client)
+    complete_facebook_profile(client)
     user = db.session.query(User).one()
     original_id = user.id
     user.contact_name = 'Saved Name'
-    user.whatsapp = '+249911111111'
     user.contact_role = 'broker'
     db.session.commit()
     page = client.get('/account')
@@ -114,17 +129,18 @@ def test_returning_identity_same_user_and_profile_logout(client):
     assert db.session.query(UserIdentity).count() == 1
     user = db.session.query(User).one()
     assert user.id == original_id and user.contact_name == 'Saved Name'
-    assert user.whatsapp == '+249911111111' and user.contact_role == 'broker'
+    assert user.whatsapp == '+249912222222' and user.contact_role == 'broker'
 
 
-def test_facebook_profile_contact_allows_posting_without_phone_identity(client):
+def test_facebook_profile_contact_allows_posting_after_phone_verification(client):
     facebook_login(client)
+    complete_facebook_profile(client)
     page = client.get('/account?lang=en')
     response = client.post('/account', data={'csrf_token': csrf(page), '_language': 'en',
         'contact_name': 'Facebook Member', 'whatsapp': '0912222222', 'contact_role': 'owner'})
     assert response.status_code == 200
     user = db.session.query(User).one()
-    assert user.contact_complete and user.phone_number is None and not user.is_verified
+    assert user.contact_complete and user.phone_number == '+249912222222' and user.is_verified
     listing = client.get('/properties/new?lang=en')
     assert listing.status_code == 200
     assert 'name="whatsapp" type="tel" value="+249912222222"' in listing.text
@@ -152,6 +168,7 @@ def test_existing_phone_login_coexists_without_automatic_linking(client):
     db.session.add(phone_user)
     db.session.commit()
     facebook_login(client)
+    complete_facebook_profile(client)
     facebook_user = db.session.query(UserIdentity).one().user
     assert facebook_user.id != phone_user.id
     page = client.get('/account')
@@ -194,7 +211,8 @@ def test_property_return_no_auto_save_and_account_scoped_lists(client, values):
     assert page.status_code == 200
     response = client.post(f'/properties/{theirs.id}/save', data={'csrf_token': csrf(client.get('/login')), '_language': 'en'})
     assert parse_qs(urlsplit(response.location).query)['next'] == [destination]
-    assert facebook_login(client, destination).location == destination
+    assert facebook_login(client, destination).location == '/auth/complete-profile?lang=en'
+    assert complete_facebook_profile(client).location == destination
     assert client.get(destination).status_code == 200
     user = db.session.query(UserIdentity).one().user
     assert db.session.get(SavedProperty, (user.id, theirs.id)) is None
@@ -213,6 +231,7 @@ def test_property_return_no_auto_save_and_account_scoped_lists(client, values):
     assert client.get(f'/properties/{theirs.id}/edit').status_code == 404
     current_app.config['FACEBOOK_DEVELOPMENT_USER_ID'] = 'development-another-account'
     facebook_login(client)
+    complete_facebook_profile(client, '0913333333')
     for route in ('/my-properties', '/saved-properties'):
         content = client.get(route + '?lang=en').text.split('<main', 1)[1]
         assert 'Facebook account property' not in content and 'Other account property' not in content
