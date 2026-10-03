@@ -1,4 +1,4 @@
-"""Facebook contact onboarding reuses the existing phone OTP challenge."""
+"""Facebook contact onboarding does not send an OTP; phone login still does."""
 from sqlalchemy import select
 
 from app import db
@@ -9,36 +9,28 @@ from test_facebook_auth import complete_facebook_profile, facebook_login
 from test_properties import migrated_connection
 
 
-def test_new_facebook_user_verifies_contact_before_using_account(client):
+def test_new_facebook_user_can_complete_profile_without_otp(client):
     response = facebook_login(client, '/properties/new', language='en')
     assert response.location == '/auth/complete-profile?lang=en'
     user = db.session.scalar(select(User))
     assert user.phone_number is None and user.whatsapp is None and not user.is_verified
     assert client.get('/properties/new').location == '/auth/complete-profile'
     page = client.get(response.location)
+    assert page.status_code == 200
     assert 'name="whatsapp"' in page.text and 'name="phone_number"' not in page.text
-    assert client.post('/auth/complete-profile', data={
-        'csrf_token': csrf(page), '_language': 'en', 'whatsapp': '0912222222'}).location == '/auth/complete-profile/verify?lang=en'
-    challenge = db.session.scalar(select(OTPChallenge))
-    assert challenge.phone_number == '+249912222222'
-    code = __import__('flask').current_app.extensions['development_otps'][challenge.phone_number]
-    wrong = '000000' if code != '000000' else '111111'
-    assert code not in challenge.otp_hash
-    assert user.phone_number is None and not user.is_verified
-    verify_page = client.get('/auth/complete-profile/verify?lang=en')
-    assert client.post('/auth/complete-profile/verify', data={
-        'csrf_token': csrf(verify_page), '_language': 'en', 'code': wrong}).status_code == 422
-    assert user.phone_number is None and not user.is_verified
-    completed = client.post('/auth/complete-profile/verify', data={
-        'csrf_token': csrf(verify_page), '_language': 'en', 'code': code})
+    assert 'verification code' not in page.text.lower()
+    completed = complete_facebook_profile(client)
     assert completed.status_code == 303 and completed.location == '/properties/new'
-    assert user.phone_number == user.whatsapp == '+249912222222' and user.is_verified
+    assert user.phone_number == user.whatsapp == '+249912222222'
+    assert not user.is_verified  # Entered contact information is not OTP-verified.
+    assert user.facebook_contact_complete
+    assert db.session.query(OTPChallenge).count() == 0
     assert client.get('/account?lang=en').status_code == 200
     with client.session_transaction() as stored:
-        assert 'profile_pending_phone' not in stored and 'profile_next' not in stored
+        assert 'profile_next' not in stored
 
 
-def test_incomplete_user_returns_to_onboarding_but_verified_user_goes_home(client):
+def test_incomplete_user_returns_to_onboarding_but_completed_user_goes_home(client):
     assert facebook_login(client, '/', language='en').location == '/auth/complete-profile?lang=en'
     user = db.session.scalar(select(User))
     page = client.get('/auth/complete-profile?lang=en')
@@ -50,7 +42,19 @@ def test_incomplete_user_returns_to_onboarding_but_verified_user_goes_home(clien
     client.post('/logout', data={'csrf_token': csrf(page)})
     assert facebook_login(client, '/', language='en').location == '/?lang=en'
     assert db.session.scalar(select(User)).id == user.id
-    assert db.session.query(OTPChallenge).count() == 1
+    assert db.session.query(OTPChallenge).count() == 0
+
+
+def test_existing_facebook_user_with_phone_bypasses_onboarding(client):
+    facebook_login(client)
+    user = db.session.scalar(select(User))
+    user.phone_number = '+249912222222'
+    user.is_verified = False
+    db.session.commit()
+    page = client.get('/auth/complete-profile')
+    client.post('/logout', data={'csrf_token': csrf(page)})
+    assert facebook_login(client, '/properties/new').location == '/properties/new'
+    assert db.session.query(OTPChallenge).count() == 0
 
 
 def test_existing_phone_number_is_not_linked_or_duplicated(client):
@@ -63,38 +67,29 @@ def test_existing_phone_number_is_not_linked_or_duplicated(client):
     conflict = client.post('/auth/complete-profile', data={
         'csrf_token': csrf(page), 'whatsapp': '0912345678'})
     assert conflict.status_code == 422
+    assert translate('This number cannot be used for this account.', 'ar') in conflict.text
     assert db.session.query(OTPChallenge).count() == 0
     assert facebook_user.id != phone_user.id and facebook_user.phone_number is None
     assert not facebook_user.is_verified
-    assert complete_facebook_profile(client, '0912222222').location == '/properties/new'
+    assert complete_facebook_profile(client).location == '/properties/new'
     assert db.session.query(User).count() == 2
     assert phone_user.phone_number == '+249912345678'
 
 
-def test_profile_otp_rate_limit_attempts_and_csrf(client):
+def test_invalid_phone_and_csrf_rejected_without_otp(client):
     facebook_login(client)
     page = client.get('/auth/complete-profile')
     assert client.post('/auth/complete-profile', data={'whatsapp': '0912222222'}).status_code == 400
+    invalid = client.post('/auth/complete-profile', data={
+        'csrf_token': csrf(page), 'whatsapp': 'not-a-number'})
+    assert invalid.status_code == 422
+    assert translate('Enter a valid phone number.', 'ar') in invalid.text
+    assert db.session.scalar(select(User)).phone_number is None
     assert db.session.query(OTPChallenge).count() == 0
-    sent = client.post('/auth/complete-profile', data={
-        'csrf_token': csrf(page), 'whatsapp': '0912222222'})
-    assert sent.status_code == 303
-    verify_page = client.get('/auth/complete-profile/verify')
-    assert client.post('/auth/complete-profile/verify', data={'code': '000000'}).status_code == 400
-    assert client.post('/auth/complete-profile/resend').status_code == 400
-    assert client.post('/auth/complete-profile/resend', data={'csrf_token': csrf(verify_page)}).status_code == 429
-    challenge = db.session.scalar(select(OTPChallenge))
-    code = __import__('flask').current_app.extensions['development_otps'][challenge.phone_number]
-    wrong = '111111' if code != '111111' else '222222'
-    for _ in range(5):
-        assert client.post('/auth/complete-profile/verify', data={
-            'csrf_token': csrf(verify_page), 'code': wrong}).status_code == 422
-    assert client.post('/auth/complete-profile/verify', data={
-        'csrf_token': csrf(verify_page), 'code': code}).status_code == 422
-    assert not db.session.scalar(select(User)).is_verified
+    assert client.get('/auth/complete-profile/verify').status_code == 404
 
 
-def test_verified_facebook_number_can_change_only_after_new_otp(client):
+def test_facebook_number_change_uses_same_form_without_marking_verified(client):
     facebook_login(client)
     complete_facebook_profile(client)
     user = db.session.scalar(select(User))
@@ -105,22 +100,23 @@ def test_verified_facebook_number_can_change_only_after_new_otp(client):
     assert tampered.status_code == 422
     assert user.phone_number == user.whatsapp == '+249912222222'
     assert complete_facebook_profile(client, '0913333333').location == '/account'
-    assert user.phone_number == user.whatsapp == '+249913333333' and user.is_verified
+    assert user.phone_number == user.whatsapp == '+249913333333' and not user.is_verified
 
 
 def test_profile_completion_is_bilingual_and_phone_login_still_works(client):
-    for language, direction in (('ar', 'rtl'), ('en', 'ltr')):
-        page = client.get('/auth/complete-profile?lang=' + language)
-        assert page.status_code == 302  # Authentication remains required.
+    for language in ('ar', 'en'):
+        assert client.get('/auth/complete-profile?lang=' + language).status_code == 302
     phone_user = User(phone_number='+249912345678', is_verified=True)
     db.session.add(phone_user)
     db.session.commit()
     facebook_login(client, language='ar')
     for language, direction in (('ar', 'rtl'), ('en', 'ltr')):
         page = client.get('/auth/complete-profile?lang=' + language)
+        assert page.status_code == 200
         assert f'<html lang="{language}" dir="{direction}">' in page.text
         assert translate('Complete your profile', language) in page.text
         assert translate('WhatsApp/mobile number', language) in page.text
+        assert translate('Add your WhatsApp/mobile number for Manazil contact and property listings.', language) in page.text
     complete_facebook_profile(client, language='ar')
     page = client.get('/account')
     client.post('/logout', data={'csrf_token': csrf(page)})

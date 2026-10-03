@@ -117,7 +117,7 @@ def callback():
     if isinstance(provider, MetaFacebookAuthProvider):
         from app.avatar_storage import sync_facebook_avatar
         sync_facebook_avatar(user, identity.picture_url)
-    if not user.verified_whatsapp:
+    if not user.facebook_contact_complete:
         language = pending['language'] if pending['language'] in ('ar', 'en') else 'ar'
         response = establish_session(user, url_for('auth.facebook_profile', **({'lang': 'en'} if language == 'en' else {})))
         session['profile_next'] = safe_next(pending['next'], url_for('main.index'))

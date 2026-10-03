@@ -224,8 +224,8 @@ class User(db.Model):
         return bool(self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
 
     @property
-    def verified_whatsapp(self):
-        return bool(self.is_verified and self.phone_number and self.whatsapp == self.phone_number)
+    def facebook_contact_complete(self):
+        return bool(self.whatsapp or self.phone_number)
 
 
 class UserIdentity(db.Model):

@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app import create_app, db
 from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
 from app.languages import translate
-from app.models import OTPChallenge, SavedProperty, User, UserIdentity
+from app.models import SavedProperty, User, UserIdentity
 from test_auth import client, csrf, login
 from test_properties import migrated_connection, values
 from test_public_properties import add_property
@@ -36,15 +36,8 @@ def facebook_login(client, destination='/account', language='en', **extra):
 def complete_facebook_profile(client, phone='0912222222', language='en'):
     page = client.get('/auth/complete-profile?lang=' + language)
     assert page.status_code == 200
-    sent = client.post('/auth/complete-profile', data={
+    return client.post('/auth/complete-profile', data={
         'csrf_token': csrf(page), '_language': language, 'whatsapp': phone})
-    assert sent.status_code == 303
-    verify_page = client.get(sent.location)
-    assert verify_page.status_code == 200
-    from app.phone import normalize_phone
-    code = current_app.extensions['development_otps'][normalize_phone(phone)]
-    return client.post('/auth/complete-profile/verify', data={
-        'csrf_token': csrf(verify_page), '_language': language, 'code': code})
 
 
 @pytest.mark.parametrize('environment,testing,enabled,debug,expected', [
@@ -109,7 +102,7 @@ def test_first_login_session_and_safe_destination(client, destination):
     assert client.get('/account?lang=en').location == '/auth/complete-profile?lang=en'
     assert client.get('/properties/new').location == '/auth/complete-profile'
     assert complete_facebook_profile(client).location == ('/?lang=en' if expected == '/' else expected)
-    assert user.phone_number == user.whatsapp == '+249912222222' and user.is_verified
+    assert user.phone_number == user.whatsapp == '+249912222222' and not user.is_verified
 
 
 def test_returning_identity_same_user_and_profile_logout(client):
@@ -132,7 +125,7 @@ def test_returning_identity_same_user_and_profile_logout(client):
     assert user.whatsapp == '+249912222222' and user.contact_role == 'broker'
 
 
-def test_facebook_profile_contact_allows_posting_after_phone_verification(client):
+def test_facebook_profile_contact_allows_posting_after_completion(client):
     facebook_login(client)
     complete_facebook_profile(client)
     page = client.get('/account?lang=en')
@@ -140,7 +133,7 @@ def test_facebook_profile_contact_allows_posting_after_phone_verification(client
         'contact_name': 'Facebook Member', 'whatsapp': '0912222222', 'contact_role': 'owner'})
     assert response.status_code == 200
     user = db.session.query(User).one()
-    assert user.contact_complete and user.phone_number == '+249912222222' and user.is_verified
+    assert user.contact_complete and user.phone_number == '+249912222222' and not user.is_verified
     listing = client.get('/properties/new?lang=en')
     assert listing.status_code == 200
     assert 'name="whatsapp" type="tel" value="+249912222222"' in listing.text

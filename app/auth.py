@@ -43,10 +43,8 @@ def login_required(view):
             destination = request.full_path if request.query_string else request.path
             return redirect(url_for('auth.entry', next=destination, **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if (any(identity.provider == 'facebook' for identity in g.user.identities) and
-                not g.user.verified_whatsapp and request.endpoint not in (
-                    'auth.facebook_profile', 'auth.facebook_profile_post',
-                    'auth.facebook_profile_verify', 'auth.facebook_profile_verify_post',
-                    'auth.facebook_profile_resend')):
+                not g.user.facebook_contact_complete and request.endpoint not in (
+                    'auth.facebook_profile', 'auth.facebook_profile_post')):
             return redirect(url_for('auth.facebook_profile', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if session.get('pending_setup_user_id') and request.endpoint not in ('auth.account', 'auth.account_post'):
             return redirect(url_for('auth.account', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
@@ -89,10 +87,10 @@ def validate_contact(form):
 
 def save_contact(user, form):
     values, errors = validate_contact(form)
-    if (not errors and user.verified_whatsapp and
+    if (not errors and user.facebook_contact_complete and user.phone_number and
             any(identity.provider == 'facebook' for identity in user.identities) and
             values['whatsapp'] != user.phone_number):
-        errors['whatsapp'] = 'Verify a new number before using it as your WhatsApp contact.'
+        errors['whatsapp'] = 'Change your number from the profile completion page.'
     if not errors:
         for key, value in values.items():
             setattr(user, key, value)
@@ -214,10 +212,9 @@ def facebook_profile_destination():
     return safe_next(destination, url_for('main.index'))
 
 
-def facebook_profile_error(message, status=422, *, verifying=False):
-    template = 'auth/facebook_profile_verify.html' if verifying else 'auth/facebook_profile.html'
-    return render_template(template, error=message, pending_phone=session.get('profile_pending_phone'),
-                           whatsapp=g.user.whatsapp or ''), status
+def facebook_profile_error(message, status=422):
+    return render_template('auth/facebook_profile.html', error=message,
+                           whatsapp=request.form.get('whatsapp', '')), status
 
 
 @auth.get('/auth/complete-profile')
@@ -237,66 +234,24 @@ def facebook_profile_post():
         phone = normalize_phone(request.form.get('whatsapp'))
     except ValueError:
         return facebook_profile_error('Enter a valid phone number.')
-    if g.user.verified_whatsapp and phone == g.user.phone_number:
+    if phone == g.user.phone_number and g.user.whatsapp == phone:
         return redirect(facebook_profile_destination(), code=303)
     if db.session.scalar(select(User.id).where(User.phone_number == phone, User.id != g.user.id)):
         return facebook_profile_error('This number cannot be used for this account.')
-    if not request_code(phone):
-        return facebook_profile_error('Please wait before requesting another code.', 429)
-    session['profile_pending_phone'] = phone
-    session['profile_pending_user_id'] = g.user.id
-    session['profile_language'] = 'en' if request.form.get('_language') == 'en' else 'ar'
-    return redirect(url_for('auth.facebook_profile_verify', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
-
-
-@auth.get('/auth/complete-profile/verify')
-@login_required
-def facebook_profile_verify():
-    if not session.get('profile_pending_phone') or session.get('profile_pending_user_id') != g.user.id:
-        return redirect(url_for('auth.facebook_profile'))
-    return render_template('auth/facebook_profile_verify.html', pending_phone=session['profile_pending_phone'])
-
-
-@auth.post('/auth/complete-profile/verify')
-@login_required
-def facebook_profile_verify_post():
-    phone = session.get('profile_pending_phone')
-    if not phone or session.get('profile_pending_user_id') != g.user.id:
-        return redirect(url_for('auth.facebook_profile'), code=303)
-    if not verify_code(phone, request.form.get('code')):
-        return facebook_profile_error('Invalid or expired verification code.', verifying=True)
-    if db.session.scalar(select(User.id).where(User.phone_number == phone, User.id != g.user.id)):
-        session.pop('profile_pending_phone', None)
-        session.pop('profile_pending_user_id', None)
-        return facebook_profile_error('This number cannot be used for this account.', 409)
+    if phone != g.user.phone_number:
+        g.user.is_verified = False
     g.user.phone_number = phone
     g.user.whatsapp = phone
-    g.user.is_verified = True
     try:
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        session.pop('profile_pending_phone', None)
-        session.pop('profile_pending_user_id', None)
         return facebook_profile_error('This number cannot be used for this account.', 409)
-    session.pop('profile_pending_phone', None)
-    session.pop('profile_pending_user_id', None)
+    session['profile_language'] = 'en' if request.form.get('_language') == 'en' else 'ar'
     destination = facebook_profile_destination()
     session.pop('profile_next', None)
     session.pop('profile_language', None)
     return redirect(destination, code=303)
-
-
-@auth.post('/auth/complete-profile/resend')
-@login_required
-def facebook_profile_resend():
-    phone = session.get('profile_pending_phone')
-    if not phone or session.get('profile_pending_user_id') != g.user.id:
-        return redirect(url_for('auth.facebook_profile'), code=303)
-    if not request_code(phone):
-        return facebook_profile_error('Please wait before requesting another code.', 429, verifying=True)
-    session['profile_language'] = 'en' if request.form.get('_language') == 'en' else 'ar'
-    return redirect(url_for('auth.facebook_profile_verify', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
 
 
 @auth.post('/logout')

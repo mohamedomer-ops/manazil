@@ -79,7 +79,7 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
         assert translate('Development simulation', language) in content
         assert translate('Phone login', language) in content
         assert 'id="phone_number"' in content
-        assert translate('Change verified number', language) in content
+        assert translate('Change WhatsApp/mobile number', language) in content
     for secret in ('private-provider-identifier', 'private-pending-auth-value', '777777', 'provider_user_id', 'otp_hash'):
         assert secret not in page
 
