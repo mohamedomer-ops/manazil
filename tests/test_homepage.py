@@ -86,6 +86,7 @@ def test_homepage_hero_slideshow_uses_four_local_images(client):
         html = client.get('/' + suffix).text
         hero = re.search(r'<section class="home-hero".*?</section>', html, re.S).group()
         assert 'data-home-hero' in html and 'js/home-hero.js' in html
+        assert 'data-mobile-initial' in hero
         assert hero.count('<img class="home-hero-slide') == 4
         assert hero.count('<img class="home-hero-slide is-active"') == 1
         assert 'fetchpriority="high" loading="eager"' in hero
@@ -109,6 +110,9 @@ def test_hero_slideshow_keeps_automatic_timing_and_reduced_motion():
     assert 'document.hidden' in script
     assert '.home-hero-slide { transition: none; }' in styles
     assert 'home-hero-toggle' not in script and 'home-hero-toggle' not in styles
+    assert "window.matchMedia('(max-width: 767px)').matches" in script
+    assert "hero.removeAttribute('data-mobile-initial')" in script
+    assert '.home-hero[data-mobile-initial] .home-hero-slide:last-child { opacity: 1; }' in styles
 
 
 def test_hero_is_outside_constrained_home_content(client):
@@ -135,15 +139,15 @@ def test_hero_has_no_search_control_and_single_search_form_below_discovery_headi
         assert 'class="home-search"' not in hero and '<form' not in hero
         assert translate('Search for Property', language) not in hero
         assert 'href="#property-search"' not in hero
-        assert f'href="/properties/new{suffix}">{translate("Post Property", language)}</a>' in hero
+        assert f'href="/properties/new{suffix}"><span class="home-hero-action-plus" aria-hidden="true">+</span><span class="home-hero-label-desktop">{translate("Post Property", language)}</span><span class="home-hero-label-mobile">{translate("Post a Property", language)}</span></a>' in hero
         assert html.count('class="home-search"') == 1
         assert search_section.index('id="home-discover-title"') < search_section.index('class="home-search"')
         assert 'home-discovery-grid' not in search_section
         assert f'<h2 id="home-discover-title">{translate("Find what fits you", language)}</h2>' in search_section
         assert '<form class="home-search" method="get" action="/properties"' in search_section
         assert all(f'name="{name}"' in search_section for name in ('transaction', 'state', 'property_type'))
-        assert all(translate(label, language) in search_section for label in ('Transaction', 'State', 'Property type', 'For Rent', 'For Sale'))
-        assert f'<button type="submit">{translate("Search", language)}</button>' in search_section
+        assert all(translate(label, language) in search_section for label in ('Transaction', 'State', 'Property type', 'For Rent', 'For Sale', 'Rent', 'Buy', 'Find a property'))
+        assert f'{translate("Search", language)}</button>' in search_section
         assert html.index('id="property-search"') < html.index('id="home-latest-title"')
 
 
@@ -155,6 +159,59 @@ def test_mobile_hero_actions_keep_shared_content_start_and_desktop_layout():
     assert '.home-hero-actions .home-hero-action { width: 66.6667%' in mobile
     assert '.home-hero-actions { flex-direction: column; align-items: stretch; }' not in styles
     assert '.home-hero-content { display: flex; flex-direction: column;' in styles
+
+
+def test_mobile_homepage_search_and_bottom_navigation_keep_existing_routes(client):
+    for suffix, language, direction in (('', 'ar', 'rtl'), ('?lang=en', 'en', 'ltr')):
+        html = client.get('/' + suffix).text
+        assert f'<html lang="{language}" dir="{direction}">' in html
+        assert html.count('class="home-search"') == 1
+        assert '<form class="home-search" method="get" action="/properties"' in html
+        assert '<select id="home-transaction" name="transaction"><option value="rent">' in html
+        assert '<option value="sale">' in html
+        assert '<button type="button" data-transaction="rent" aria-pressed="true">' in html
+        assert '<button type="button" data-transaction="sale" aria-pressed="false">' in html
+        assert 'js/home-search.js' in html
+        assert '<select id="home-state" name="state">' in html
+        assert '<select id="home-property-type" name="property_type">' in html
+        assert f'<h2 class="home-search-mobile-title">{translate("Find a property", language)}</h2>' in html
+        navigation = re.search(r'<nav class="home-mobile-bottom-nav".*?</nav>', html, re.S).group()
+        assert f'aria-label="{translate("Mobile navigation", language)}"' in navigation
+        assert navigation.count('<a href=') == 4
+        for route in ('/', '/properties', '/properties/new', '/auth'):
+            assert f'href="{route}{suffix}"' in navigation
+        assert 'aria-current="page"' in navigation
+
+
+def test_mobile_latest_cards_use_real_price_period_size_and_existing_save(client, values):
+    property = public_property(values, 'Measured rental', size=120, price=500000,
+                               rent_period='monthly')
+    html = client.get('/?lang=en').text
+    card = re.search(r'<article class="market-result">(.*?)</article>', html, re.S).group(1)
+    assert f'href="/properties/{property.id}?lang=en"' in card
+    assert 'class="home-card-transaction is-rent">For Rent' in card
+    assert '500,000 SDG' in card and 'class="home-card-period">/ Monthly' in card
+    assert 'class="market-result-fact home-card-size"' in card and '120 m²' in card
+    assert 'class="market-result-facts"' in card
+    assert 'Save Property' in card
+
+
+def test_mobile_homepage_css_is_scoped_and_scrolls_cards_without_page_overflow():
+    styles = Path('app/static/css/style.css').read_text(encoding='utf-8')
+    mobile = styles.split('@media (max-width: 767px) {\n  .home-page', 1)[1].split('\n}', 1)[0]
+    assert '.home-latest-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 87%);' in mobile
+    assert 'overflow-x: auto' in mobile and 'scroll-snap-type: x proximity' in mobile
+    assert '.home-mobile-bottom-nav { position: fixed;' in mobile
+    assert 'env(safe-area-inset-bottom)' in mobile
+    assert '.home-search { grid-template-columns: minmax(0, 1fr);' in mobile
+    assert '.home-page .home-hero { min-height: 225px;' in mobile
+    assert '.home-footer' in mobile
+    assert '.home-mobile-bottom-nav { display: none; }' in styles
+    assert '.home-search-segments { display: none; }' in styles
+    assert '.home-search-transaction.home-search-enhanced .home-search-segments { display: grid;' in mobile
+    script = Path('app/static/js/home-search.js').read_text(encoding='utf-8')
+    assert 'select.value = value' in script
+    assert "field.classList.add('home-search-enhanced')" in script
 
 
 def test_homepage_search_uses_marketplace_filters(client, values):
@@ -325,7 +382,7 @@ def test_empty_homepage_cta_auth_and_navigation(client):
     assert 'class="home-latest-grid"' not in arabic.text
     english = client.get('/?lang=en')
     assert 'No properties are currently available.' in english.text
-    assert '<a class="home-hero-action home-hero-action-secondary" href="/properties/new?lang=en">Post Property</a>' in english.text
+    assert '<a class="home-hero-action home-hero-action-secondary" href="/properties/new?lang=en"><span class="home-hero-action-plus" aria-hidden="true">+</span><span class="home-hero-label-desktop">Post Property</span><span class="home-hero-label-mobile">Post a Property</span></a>' in english.text
     assert '<a class="primary-link" href="/properties/new?lang=en">Post Property</a>' in english.text
     assert 'href="/auth?lang=en"' in english.text
     assert '/my-properties' not in english.text and '/saved-properties' not in english.text

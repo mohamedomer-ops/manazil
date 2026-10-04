@@ -405,7 +405,7 @@ def test_mobile_header_keeps_account_outside_menu_and_language_inside(client, la
     account = re.search(r'<a class="mobile-account-link".*?</a>', header, re.S).group(0)
     assert header.index(account) >= header.index(panel) + len(panel)
     assert f'href="/auth{suffix}"' in account
-    assert translate('Login / Sign Up', language) in account
+    assert translate('Sign in', language) in account
     assert 'class="mobile-account-icon"' in account and 'aria-hidden="true"' in account
     assert header.count('class="mobile-account-link"') == 1
     assert 'class="mobile-menu-toggle"' in header

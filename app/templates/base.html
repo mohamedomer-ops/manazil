@@ -36,7 +36,7 @@
       </div>
       <a class="mobile-account-link" href="{{ url_for('auth.account' if current_user else 'auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">
         <svg class="mobile-account-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20c.5-4 3.1-6 7.5-6s7 2 7.5 6"/></svg>
-        <span>{{ t('My Account') if current_user else t('Login / Sign Up') }}</span>
+        <span>{{ t('My Account') if current_user else t('Sign in') if request.endpoint == 'main.index' else t('Login / Sign Up') }}</span>
       </a>
       <button class="mobile-menu-toggle" type="button" aria-expanded="false" aria-controls="site-navigation">
         <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
