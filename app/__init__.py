@@ -106,10 +106,10 @@ def create_app(test_config=None):
 
     @app.before_request
     def canonical_production_host():
-        if app.config['ENVIRONMENT'] == 'production' and request.host.split(':', 1)[0] == 'www.manazilelsaudan.com':
+        if app.config['ENVIRONMENT'] == 'production' and request.host.split(':', 1)[0] == 'manazilelsaudan.com':
             path = request.path
             query = request.query_string.decode('latin-1')
-            destination = f'https://manazilelsaudan.com{path}'
+            destination = f'https://www.manazilelsaudan.com{path}'
             if query:
                 destination += f'?{query}'
             return redirect(destination, code=308)

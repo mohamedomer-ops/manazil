@@ -170,7 +170,7 @@ def test_production_trusts_exact_custom_and_azure_hosts_without_opening_other_ho
     assert app.config['TRUSTED_HOSTS'] == [
         'manazilelsaudan.com', 'www.manazilelsaudan.com', 'manazil-prod.azurewebsites.net']
     for host in app.config['TRUSTED_HOSTS']:
-        expected = 308 if host == 'www.manazilelsaudan.com' else 200
+        expected = 308 if host == 'manazilelsaudan.com' else 200
         assert client.get('/_host-check', base_url=f'https://{host}').status_code == expected
     for host in ('localhost', 'other.azurewebsites.net', 'fake.manazilelsaudan.com'):
         assert client.get('/_host-check', base_url=f'https://{host}').status_code == 400
@@ -187,16 +187,17 @@ def test_production_keeps_additional_explicit_hosts_and_development_is_unchanged
     assert local.test_client().get('/_host-check', base_url='http://localhost').status_code == 200
 
 
-def test_www_redirects_to_apex_before_any_production_route_runs():
+def test_apex_redirects_to_www_before_any_production_route_runs():
     app = create_app(production_config())
     app.add_url_rule('/_host-check', view_func=lambda: 'ok')
     browser = app.test_client()
     for path in ('/properties?state=khartoum&lang=en', '/auth?next=%2Fproperties%2Fnew',
                  '/auth/facebook/callback?state=example'):
-        result = browser.get(path, base_url='https://www.manazilelsaudan.com')
+        result = browser.get(path, base_url='https://manazilelsaudan.com')
         assert result.status_code == 308
-        assert result.location == 'https://manazilelsaudan.com' + path
-    assert browser.get('/_host-check', base_url='https://manazilelsaudan.com').status_code == 200
+        assert result.location == 'https://www.manazilelsaudan.com' + path
+    assert browser.get('/_host-check', base_url='http://manazilelsaudan.com').location == 'https://www.manazilelsaudan.com/_host-check'
+    assert browser.get('/_host-check', base_url='https://www.manazilelsaudan.com').status_code == 200
     assert browser.get('/_host-check', base_url='https://manazil-prod.azurewebsites.net').status_code == 200
     assert browser.get('/_host-check', base_url='https://other.example').status_code == 400
 

@@ -118,11 +118,11 @@ def test_legacy_azure_callback_allows_startup_but_disables_facebook_login(caplog
     assert 'facebook_auth_provider' not in app.extensions
     assert '/auth/facebook' not in {rule.rule for rule in app.url_map.iter_rules()}
     browser = app.test_client()
-    assert browser.get('/auth?lang=en', base_url='https://manazilelsaudan.com').status_code == 200
-    page = browser.get('/login?lang=en', base_url='https://manazilelsaudan.com')
+    assert browser.get('/auth?lang=en', base_url='https://www.manazilelsaudan.com').status_code == 200
+    page = browser.get('/login?lang=en', base_url='https://www.manazilelsaudan.com')
     assert 'Continue with Facebook' not in page.text
     assert 'WhatsApp/mobile number' in page.text
-    assert browser.get('/auth/facebook/callback', base_url='https://manazilelsaudan.com').status_code == 404
+    assert browser.get('/auth/facebook/callback', base_url='https://www.manazilelsaudan.com').status_code == 404
     assert 'Facebook Login is disabled until the canonical callback is configured.' in caplog.text
     assert legacy not in caplog.text
     assert APP_SECRET not in caplog.text
@@ -151,24 +151,28 @@ def test_authorization_url_scope_callback_csrf_and_language(meta_client):
     assert meta_client.get('/auth/facebook/development', query_string={'state': state}).status_code == 404
 
 
-def test_production_oauth_starts_on_apex_after_www_redirect():
+def test_production_oauth_starts_on_www_after_apex_redirect():
     app = create_app(production_config())
     browser = app.test_client()
-    from_www = browser.get('/auth?lang=en&next=%2Fproperties%2Fnew',
-                           base_url='https://www.manazilelsaudan.com')
-    assert from_www.status_code == 308
-    assert from_www.location == 'https://manazilelsaudan.com/auth?lang=en&next=%2Fproperties%2Fnew'
+    from_apex = browser.get('/auth?lang=en&next=%2Fproperties%2Fnew',
+                            base_url='https://manazilelsaudan.com')
+    assert from_apex.status_code == 308
+    assert from_apex.location == 'https://www.manazilelsaudan.com/auth?lang=en&next=%2Fproperties%2Fnew'
     page = browser.get('/login?lang=en&next=%2Fproperties%2Fnew',
-                       base_url='https://manazilelsaudan.com')
+                       base_url='https://www.manazilelsaudan.com')
     assert page.status_code == 200
-    response = browser.post('/auth/facebook', base_url='https://manazilelsaudan.com',
-                            headers={'Referer': 'https://manazilelsaudan.com/auth?lang=en'}, data={
+    response = browser.post('/auth/facebook', base_url='https://www.manazilelsaudan.com',
+                            headers={'Referer': 'https://www.manazilelsaudan.com/auth?lang=en'}, data={
         'csrf_token': csrf(page), 'next': '/properties/new', '_language': 'en'})
     assert response.status_code == 303
     parameters = parse_qs(urlsplit(response.location).query)
     assert parameters['redirect_uri'] == [CALLBACK]
-    denied = browser.get('/auth/facebook/callback', base_url='https://manazilelsaudan.com',
-                         query_string={'state': parameters['state'][0], 'error': 'access_denied'})
+    callback_query = {'state': parameters['state'][0], 'error': 'access_denied'}
+    callback_redirect = browser.get('/auth/facebook/callback', base_url='https://manazilelsaudan.com',
+                                    query_string=callback_query)
+    assert callback_redirect.status_code == 308
+    denied = browser.get('/auth/facebook/callback', base_url='https://www.manazilelsaudan.com',
+                         query_string=callback_query)
     assert denied.status_code == 400
     assert 'Facebook sign-in was cancelled.' in denied.text
 

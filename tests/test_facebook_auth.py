@@ -67,7 +67,7 @@ def test_provider_configuration_fails_closed(environment, testing, enabled, debu
     assert ('/auth/facebook' in routes) == expected
     if not expected:
         browser = app.test_client()
-        base_url = 'https://manazilelsaudan.com' if environment == 'production' else 'http://localhost'
+        base_url = 'https://www.manazilelsaudan.com' if environment == 'production' else 'http://localhost'
         page = browser.get('/auth?lang=en', base_url=base_url)
         assert 'Continue with Facebook' not in page.text
         token = csrf(browser.get('/login', base_url=base_url))
