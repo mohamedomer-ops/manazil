@@ -1,6 +1,6 @@
 # Manazil
 
-Manazil is a Sudan-focused property marketplace for rent and sale. Visitors can browse, search, and view listings without an account. Accounts support property posting and management, saved properties, and contact profiles. Arabic is the default language, with an English switch and RTL/LTR layouts.
+Manazil is a Sudan-focused property marketplace for rent and sale, available at <https://www.manazilelsaudan.com>. Visitors can browse, search, and view listings without an account. Accounts support property posting and management, saved properties, and contact profiles. Arabic is the default language, with an English switch and RTL/LTR layouts.
 
 ## Stack and structure
 
@@ -16,8 +16,8 @@ app/
   ownership.py            Owner-only property management and photo actions
   auth.py, otp.py, phone.py
                           Phone authentication, OTP, phone normalization
-  facebook_auth.py, facebook_provider.py
-                          Development Facebook authentication
+  facebook_auth.py, facebook_provider.py, meta_facebook_provider.py
+                          Development simulator and real Meta OAuth
   saved.py                Saved-property routes
   property_filters.py     Public listing filters
   models.py               Users, identities, properties, photos, OTPs, saves
@@ -30,6 +30,7 @@ migrations/versions/      Alembic schema revisions
 tests/                    pytest coverage
 run.py                    Flask entry point
 docker-compose.yml        Web and PostgreSQL services
+.github/workflows/        Container image build and GHCR publishing
 ```
 
 ## Run locally
@@ -128,35 +129,47 @@ docker compose exec web pytest
 
 The tests cover authentication and redirects, account ownership, posting and editing, photos, public visibility and filters, saved properties, language rendering, and responsive template behavior. The full suite should pass before committing or deploying.
 
-## Production Deployment
+## Production deployment
 
-This repository is prepared for **Azure App Service → Flask/Gunicorn → Neon PostgreSQL + private Azure Blob Storage**. It does not provision or connect to those services. Local Docker Compose still runs Flask with its local PostgreSQL service and `PHOTO_STORAGE_BACKEND=local`.
+Production runs the Docker image on **Azure Container Apps** (`manazil-container` in `manazil-container-env`, resource group `rg-manazil-prod`). The container starts Flask through Gunicorn on port **5000**. The app connects to **Neon PostgreSQL** and stores property photos in a **private Azure Blob Storage** container. Container Apps scales from **0 to 2 replicas**. Azure Container Apps managed certificates provide HTTPS for both custom domains. Local development remains Docker Compose with its own PostgreSQL `db` service and local photo storage; it does not use Neon or Azure Blob Storage.
 
-Configure these App Service environment settings when infrastructure is provisioned:
+<https://www.manazilelsaudan.com> is canonical. In production, requests to <https://manazilelsaudan.com> receive an HTTP **308** redirect to the equivalent `www` URL, retaining path and query string. Both hosts are trusted by the application. The production health endpoint is <https://www.manazilelsaudan.com/api/health>; it checks database connectivity without exposing credentials.
 
-| Setting | Production purpose |
+### Container image and updates
+
+The [GitHub Actions workflow](.github/workflows/container-image.yml) builds the repository's Dockerfile on pushes to `main` and by manual dispatch. It logs in to GHCR using GitHub Actions' `GITHUB_TOKEN` and publishes `ghcr.io/mohamedomer-ops/manazil` with `latest` and commit-SHA tags. The Dockerfile runs `gunicorn --bind 0.0.0.0:5000 --workers 2 --access-logfile - --error-logfile - run:app`; local Compose overrides this with `python run.py`.
+
+For an update: run the full test suite, push the reviewed change to `main` or dispatch the workflow, confirm its image build succeeds, and deploy the immutable commit-SHA tag to the existing Container App (with its existing GHCR registry access):
+
+```powershell
+$commitSha = (git rev-parse HEAD).Trim()
+az containerapp update --name manazil-container --resource-group rg-manazil-prod --image "ghcr.io/mohamedomer-ops/manazil:$commitSha"
+Invoke-RestMethod https://www.manazilelsaudan.com/api/health
+```
+
+Check the new revision and application logs after updating. Keep the Container App ingress target port at **5000**. The image workflow publishes an image; it does not itself update the running Container App. Do not place registry credentials in this repository. [Azure Container Apps CLI reference](https://learn.microsoft.com/en-us/cli/azure/containerapp?view=azure-cli-latest) documents the image update command.
+
+### Runtime settings and migrations
+
+Configure runtime settings and secrets in Azure Container Apps, not in source control. These are the application variable **names**; obtain values from the appropriate secret store or service configuration:
+
+| Variable | Purpose |
 | --- | --- |
-| `MANAZIL_ENV=production` | Select strict production configuration (`APP_ENV` or `FLASK_ENV` is accepted when `MANAZIL_ENV` is absent). |
-| `SECRET_KEY` | Stable, random secret of at least 32 characters, stored outside the repository. |
-| `DATABASE_URL` | Neon connection string from Neon, including `sslmode=require` or stronger. `postgresql://` is converted to the installed psycopg driver without changing credentials. |
-| `PHOTO_STORAGE_BACKEND=azure_blob` | Store staged and published photos in Blob Storage. |
-| `AZURE_STORAGE_CONNECTION_STRING` | Private storage credential supplied as an App Service setting. |
-| `AZURE_STORAGE_CONTAINER` | Name of an existing **private** blob container. |
-| `TRUST_PROXY_HEADERS=1` | Trust one `X-Forwarded-Proto` hop only when behind the trusted App Service proxy. |
-| `TRUSTED_HOSTS` | Comma-separated exact hostnames. Set to `manazilelsaudan.com,www.manazilelsaudan.com,manazil-prod.azurewebsites.net` in App Service; production also includes these three trusted hosts in code. Do not use a wildcard. |
-| `FACEBOOK_AUTH_PROVIDER=meta` | Explicitly select real Meta login; unset/disabled leaves Facebook login unavailable in production. |
-| `FACEBOOK_APP_ID` | Meta app ID. |
-| `FACEBOOK_APP_SECRET` | Private Meta app secret, supplied only as a runtime setting. |
-| `FACEBOOK_REDIRECT_URI` | Set to exactly `https://manazilelsaudan.com/auth/facebook/callback` to enable production Meta login. During a code-first deployment, the former Azure-host callback is temporarily accepted at startup, but Facebook Login stays disabled until this setting is updated. Other noncanonical production callbacks are rejected. |
-| `DATA_DELETION_CONTACT_EMAIL` | Optional override for the public account and Facebook-login data deletion mailbox (default: `support@manazilelsaudan.com`). |
+| `MANAZIL_ENV` | Select the production configuration. |
+| `SECRET_KEY` | Stable Flask session/CSRF secret. |
+| `DATABASE_URL` | Neon PostgreSQL connection URL with TLS required. |
+| `PHOTO_STORAGE_BACKEND` | Select Azure Blob Storage. |
+| `AZURE_STORAGE_CONNECTION_STRING` | Private Blob Storage credential. |
+| `AZURE_STORAGE_CONTAINER` | Private property-photo container name. |
+| `TRUST_PROXY_HEADERS` | Trust the configured HTTPS proxy hop. |
+| `TRUSTED_HOSTS` | Optional additional exact hosts; both custom domains are already included in production code. |
+| `FACEBOOK_AUTH_PROVIDER`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_REDIRECT_URI`, `PUBLIC_FACEBOOK_LOGIN_ENABLED` | Meta provider configuration and separate public-button switch, if enabled. |
+| `DATA_DELETION_CONTACT_EMAIL` | Optional public deletion-request mailbox override. |
+| `OTP_DEVELOPMENT_MODE`, `FACEBOOK_DEVELOPMENT_MODE` | Development providers; production rejects them when enabled. |
 
-Production refuses a missing/short secret, a non-TLS database URL, local photo storage, missing Blob settings, and development authentication flags. It disables debug mode and uses secure, HTTP-only, SameSite=Lax session cookies. The database health check at `/api/health` remains lightweight and does not reveal credentials. Existing migrations are **not** run during HTTP requests. For a database-only migration before Blob Storage is provisioned, set `MANAZIL_MIGRATION_ONLY=1` only on the `flask --app run db upgrade` process. This CLI-only mode bypasses the unrelated Blob credential requirement while retaining the production secret, TLS database, and development-authentication checks. Never set it on the web server.
+Production requires a strong secret, a TLS PostgreSQL URL, and Azure Blob configuration; it disables debug mode and uses secure, HTTP-only, SameSite=Lax session cookies. The private Blob container must remain nonpublic. Local photos are not copied to Azure automatically. The current phone OTP provider is development-only, including admin OTP login; manual password signup/login does not depend on it.
 
-For a Linux App Service **code deployment**, set the startup command to `gunicorn --bind=0.0.0.0:8000 --workers=2 --access-logfile=- --error-logfile=- run:app`. The Dockerfile also defaults to Gunicorn on port 5000 if a container deployment is chosen later; Compose overrides it with `python run.py` for local use. Configure HTTPS-only at App Service and set the trusted proxy option only for its proxy path.
-
-Both storage backends retain the same generated `staging/...` and `properties/...` keys. Blob staging manifests live in the private container so different workers can handle successive form requests. Photos are served through the existing Flask public/owner/admin authorization routes; the Blob container should not allow anonymous public access. Existing local photo files are **not** copied to Azure automatically. If database records are ever moved between environments, copy their referenced files to the corresponding Blob keys separately. The Flask request cap is 102 MB for the current 20 × 5 MB photo limit plus form overhead; verify any App Service front-end upload limit before launch.
-
-The phone OTP provider is development-only, including administrator login; development providers are disabled in production. Manual password signup/login does not depend on OTP. A production OTP delivery provider is still required for OTP login and admin login. Meta login requires its configured app credentials and callback. No Meta credentials are stored in this repository.
+Schema changes use the existing Flask-Migrate/Alembic revisions. Run `flask --app run db upgrade` **once as a separate production process with production settings and access to Neon**, before activating a revision that requires the new schema. Never run migrations during HTTP requests or container startup. `MANAZIL_MIGRATION_ONLY` is reserved for the supported database-only Flask migration CLI path when Blob credentials are unavailable; do not set it on the web process. Local migrations continue to use `docker compose exec web flask --app run db upgrade`.
 
 ## Not yet implemented
 
