@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import User, utc_now
 from app.otp import request_code, verify_code
-from app.phone import normalize_phone
+from app.phone import AUTH_COUNTRIES, normalize_auth_phone, normalize_phone
 
 auth = Blueprint('auth', __name__)
 
@@ -30,10 +30,13 @@ def auth_template_context():
     from flask import current_app
     from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
     provider = current_app.extensions.get('facebook_auth_provider')
-    enabled = bool(provider) and (not isinstance(provider, DevelopmentFacebookAuthProvider) or development_enabled(current_app.config))
+    enabled = (current_app.config.get('PUBLIC_FACEBOOK_LOGIN_ENABLED') is True and bool(provider) and
+               (not isinstance(provider, DevelopmentFacebookAuthProvider) or development_enabled(current_app.config)))
     facebook_next = safe_next(request.values.get('next') or session.get('auth_next'), url_for('main.index'))
     return {'current_user': g.get('user'), 'facebook_auth_enabled': enabled, 'facebook_next': facebook_next,
-            'facebook_is_development': enabled and isinstance(provider, DevelopmentFacebookAuthProvider)}
+            'auth_countries': AUTH_COUNTRIES,
+            'facebook_is_development': isinstance(provider, DevelopmentFacebookAuthProvider) and
+            development_enabled(current_app.config)}
 
 
 def login_required(view):
@@ -118,12 +121,13 @@ def signup():
 @auth.post('/signup')
 def signup_post():
     values = {'contact_name': request.form.get('contact_name', '').strip(),
+              'country_code': request.form.get('country_code', '+249'),
               'phone_number': request.form.get('phone_number', '').strip()}
     errors = {}
     if not values['contact_name'] or '\x00' in values['contact_name']:
         errors['contact_name'] = 'This field is required.'
     try:
-        phone = normalize_phone(request.form.get('phone_number'))
+        phone = normalize_auth_phone(values['country_code'], values['phone_number'])
     except ValueError:
         errors['phone_number'] = 'Enter a valid phone number.'
         phone = None
@@ -161,19 +165,21 @@ def signup_post():
 
 @auth.get('/login')
 def login():
-    return render_template('auth/login.html', next=auth_destination())
+    return render_template('auth/login.html', next=auth_destination(), values={})
 
 
 @auth.post('/auth/password-login')
 def password_login():
+    values = {'country_code': request.form.get('country_code', '+249'),
+              'phone_number': request.form.get('phone_number', '').strip()}
     try:
-        phone = normalize_phone(request.form.get('phone_number'))
+        phone = normalize_auth_phone(values['country_code'], values['phone_number'])
     except ValueError:
         phone = None
     user = db.session.scalar(select(User).where(User.phone_number == phone)) if phone else None
     password = request.form.get('password', '')
     if not user or not user.is_active or not user.check_password(password):
-        return render_template('auth/login.html', next=auth_destination(),
+        return render_template('auth/login.html', next=auth_destination(), values=values,
                                error='Invalid phone number or password.'), 422
     user.last_login_at = utc_now()
     db.session.commit()

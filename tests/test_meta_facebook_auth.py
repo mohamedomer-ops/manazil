@@ -60,7 +60,7 @@ def mock_meta(monkeypatch, *, token=None, profile=None, failure=None):
 
 
 def start(client, destination='/account', language='en'):
-    page = client.get('/auth', query_string={'next': destination, 'lang': language})
+    page = client.get('/login', query_string={'next': destination, 'lang': language})
     response = client.post('/auth/facebook', data={
         'csrf_token': csrf(page), 'next': destination, '_language': language})
     assert response.status_code == 303
@@ -121,7 +121,7 @@ def test_legacy_azure_callback_allows_startup_but_disables_facebook_login(caplog
     assert browser.get('/auth?lang=en', base_url='https://manazilelsaudan.com').status_code == 200
     page = browser.get('/login?lang=en', base_url='https://manazilelsaudan.com')
     assert 'Continue with Facebook' not in page.text
-    assert 'Phone number' in page.text
+    assert 'WhatsApp/mobile number' in page.text
     assert browser.get('/auth/facebook/callback', base_url='https://manazilelsaudan.com').status_code == 404
     assert 'Facebook Login is disabled until the canonical callback is configured.' in caplog.text
     assert legacy not in caplog.text
@@ -145,7 +145,7 @@ def test_authorization_url_scope_callback_csrf_and_language(meta_client):
     with meta_client.session_transaction() as stored:
         assert stored['facebook_auth']['next'] == '/properties/new'
         assert stored['facebook_auth']['language'] == 'ar'
-    page = meta_client.get('/auth?lang=ar')
+    page = meta_client.get('/login?lang=ar')
     assert meta_client.post('/auth/facebook/callback', data={
         'csrf_token': csrf(page), 'state': state}).status_code == 405
     assert meta_client.get('/auth/facebook/development', query_string={'state': state}).status_code == 404
@@ -158,7 +158,7 @@ def test_production_oauth_starts_on_apex_after_www_redirect():
                            base_url='https://www.manazilelsaudan.com')
     assert from_www.status_code == 308
     assert from_www.location == 'https://manazilelsaudan.com/auth?lang=en&next=%2Fproperties%2Fnew'
-    page = browser.get('/auth?lang=en&next=%2Fproperties%2Fnew',
+    page = browser.get('/login?lang=en&next=%2Fproperties%2Fnew',
                        base_url='https://manazilelsaudan.com')
     assert page.status_code == 200
     response = browser.post('/auth/facebook', base_url='https://manazilelsaudan.com',
@@ -225,6 +225,7 @@ def test_safe_next_destination(meta_client, monkeypatch, destination, expected):
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
 def test_real_meta_ui_language_and_no_simulation_label(meta_client, monkeypatch, language, direction):
+    current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
     for route in ('/auth', '/login', '/signup'):
         page = meta_client.get(route, query_string={'lang': language, 'next': '/account'})
         assert f'<html lang="{language}" dir="{direction}">' in page.text
@@ -311,6 +312,7 @@ def test_suspended_identity_and_phone_account_remain_separate(meta_client, monke
 
 def test_development_provider_remains_guarded(client):
     assert isinstance(current_app.extensions['facebook_auth_provider'], DevelopmentFacebookAuthProvider)
+    current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
     page = client.get('/auth?lang=en')
     assert 'Development simulation only.' in page.text
     assert client.get('/auth/facebook/callback').status_code == 405

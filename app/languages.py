@@ -142,6 +142,8 @@ ARABIC = {
 
     "Menu": "القائمة",
     "Create Account": "إنشاء حساب",
+    "Sign In": "تسجيل الدخول",
+    "Country calling code": "رمز الاتصال الدولي",
     "Full name": "الاسم الكامل",
     "Password": "كلمة المرور",
     "Confirm password": "تأكيد كلمة المرور",

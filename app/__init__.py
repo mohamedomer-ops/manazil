@@ -52,6 +52,7 @@ def create_app(test_config=None):
         FACEBOOK_APP_ID=os.environ.get('FACEBOOK_APP_ID'),
         FACEBOOK_APP_SECRET=os.environ.get('FACEBOOK_APP_SECRET'),
         FACEBOOK_REDIRECT_URI=os.environ.get('FACEBOOK_REDIRECT_URI'),
+        PUBLIC_FACEBOOK_LOGIN_ENABLED=os.environ.get('PUBLIC_FACEBOOK_LOGIN_ENABLED') == '1',
         DATA_DELETION_CONTACT_EMAIL=os.environ.get('DATA_DELETION_CONTACT_EMAIL', 'support@manazilelsaudan.com'),
         FACEBOOK_DEVELOPMENT_USER_ID=os.environ.get('FACEBOOK_DEVELOPMENT_USER_ID', 'development-facebook-user'),
         FACEBOOK_DEVELOPMENT_DISPLAY_NAME=os.environ.get('FACEBOOK_DEVELOPMENT_DISPLAY_NAME', 'Development Facebook User'),

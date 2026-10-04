@@ -17,7 +17,7 @@ from test_public_properties import add_property
 
 
 def begin(client, destination='/account', language='en'):
-    page = client.get('/auth', query_string={'next': destination, 'lang': language})
+    page = client.get('/login', query_string={'next': destination, 'lang': language})
     response = client.post('/auth/facebook', data={
         'csrf_token': csrf(page), 'next': destination, '_language': language})
     assert response.status_code == 303
@@ -176,6 +176,7 @@ def test_existing_phone_login_coexists_without_automatic_linking(client):
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
 def test_auth_cards_and_simulation_languages(client, language, direction):
+    current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
     for route in ('/auth', '/login', '/signup'):
         page = client.get(route, query_string={'next': '/properties/new', 'lang': language})
         assert f'<html lang="{language}" dir="{direction}">' in page.text

@@ -343,7 +343,7 @@ def test_compact_auth_ui_and_actions(client, language, direction):
         assert f'<html lang="{language}" dir="{direction}">' in page
         content = page.split('<main', 1)[1].split('</main>', 1)[0]
         assert 'auth-page' in content
-        assert translate('Create Account', language) in content
+        assert translate('Create Account' if route != '/login' else 'Sign Up', language) in content
         assert 'next=/properties/new' in content
     entry = client.get('/auth?lang=' + language).get_data(as_text=True)
     assert 'button-secondary' in entry
@@ -352,7 +352,9 @@ def test_compact_auth_ui_and_actions(client, language, direction):
     assert translate('Full name', language) in signup_page
     assert translate('Password', language) in signup_page
     assert translate('Confirm password', language) in signup_page
-    assert f'<button type="submit">{translate("Continue with code", language)}</button>' in client.get('/login?lang=' + language).get_data(as_text=True)
+    login_page = client.get('/login?lang=' + language).get_data(as_text=True)
+    assert f'<button type="submit">{translate("Sign In", language)}</button>' in login_page
+    assert '/auth/request-otp' not in login_page and '/auth/facebook' not in login_page
     with client.session_transaction() as auth_session:
         auth_session['pending_phone'] = '+249912345678'
         auth_session['auth_next'] = '/properties/new'

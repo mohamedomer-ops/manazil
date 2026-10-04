@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}{{ t('Create Account') }} &middot; {{ t('Manazil') }}{% endblock %}
+{% block scripts %}<script defer src="{{ url_for('static', filename='js/auth-phone.js') }}"></script>{% endblock %}
 {% block language_switcher %}
 <a href="{{ url_for('auth.signup', next=next, lang='ar') }}" lang="ar">العربية</a>
 <a href="{{ url_for('auth.signup', next=next, lang='en') }}" lang="en">English</a>
@@ -14,18 +15,18 @@
     <label for="contact_name">{{ t('Full name') }}</label>
     <input id="contact_name" name="contact_name" type="text" autocomplete="name" value="{{ values.get('contact_name', '') }}" {% if errors.get('contact_name') %}aria-invalid="true" aria-describedby="contact-name-error"{% endif %} required>
     {% if errors.get('contact_name') %}<p id="contact-name-error" role="alert">{{ t(errors.contact_name) }}</p>{% endif %}
-    <label for="phone_number">{{ t('WhatsApp/mobile number') }}</label>
-    <input id="phone_number" name="phone_number" type="tel" autocomplete="tel" value="{{ values.get('phone_number', '') }}" {% if errors.get('phone_number') %}aria-invalid="true" aria-describedby="phone-number-error"{% endif %} required>
-    {% if errors.get('phone_number') %}<p id="phone-number-error" role="alert">{{ t(errors.phone_number) }}</p>{% endif %}
+    {% set phone_error = errors.get('phone_number') %}
+    {% include 'auth/_country_phone.html' %}
     <label for="password">{{ t('Password') }}</label>
-    <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" {% if errors.get('password') %}aria-invalid="true" aria-describedby="password-error"{% endif %} required>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" aria-describedby="password-help{% if errors.get('password') %} password-error{% endif %}" {% if errors.get('password') %}aria-invalid="true"{% endif %} required>
+    <p id="password-help" class="auth-field-help">{{ t('Use a password between 8 and 128 characters.') }}</p>
     {% if errors.get('password') %}<p id="password-error" role="alert">{{ t(errors.password) }}</p>{% endif %}
     <label for="confirm_password">{{ t('Confirm password') }}</label>
     <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="8" maxlength="128" {% if errors.get('confirm_password') %}aria-invalid="true" aria-describedby="confirm-password-error"{% endif %} required>
     {% if errors.get('confirm_password') %}<p id="confirm-password-error" role="alert">{{ t(errors.confirm_password) }}</p>{% endif %}
     <button type="submit">{{ t('Create Account') }}</button>
   </form>
-  <p class="auth-footer">{{ t('Already have an account?') }} <a href="{{ url_for('auth.login', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login') }}</a></p>
+  <p class="auth-footer">{{ t('Already have an account?') }} <a href="{{ url_for('auth.login', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Sign In') }}</a></p>
   {% include 'auth/_facebook.html' %}
 </main>
 {% endblock %}

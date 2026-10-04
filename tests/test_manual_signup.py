@@ -6,17 +6,18 @@ from sqlalchemy import select
 from app import db
 from app.languages import translate
 from app.models import OTPChallenge, User, UserIdentity
+from app.phone import normalize_auth_phone
 from test_auth import client, csrf
 from test_facebook_auth import facebook_login
 from test_properties import migrated_connection
 
 
-def register(client, *, phone='0912345678', name='Mohamed Ahmed', password='correct-horse-password',
-             confirmation=None, destination=None, language='en'):
+def register(client, *, phone='0912345678', country_code='+249', name='Mohamed Ahmed',
+             password='correct-horse-password', confirmation=None, destination=None, language='en'):
     query = '?lang=' + language + ('&next=' + destination if destination else '')
     page = client.get('/signup' + query)
     data = {'csrf_token': csrf(page), '_language': language, 'contact_name': name,
-            'phone_number': phone, 'password': password,
+            'country_code': country_code, 'phone_number': phone, 'password': password,
             'confirm_password': password if confirmation is None else confirmation}
     if destination is not None:
         data['next'] = destination
@@ -34,11 +35,81 @@ def test_signup_form_is_bilingual_and_manual_first(client, language, direction):
     for field in ('contact_name', 'phone_number', 'password', 'confirm_password'):
         assert f'name="{field}"' in page.text
     assert 'name="email"' not in page.text and 'name="contact_role"' not in page.text
-    assert page.text.index('action="/signup"') < page.text.index('action="/auth/facebook"')
+    assert 'action="/auth/facebook"' not in page.text
+    assert 'action="/auth/request-otp"' not in page.text
+    assert 'name="country_code"' in page.text
+    assert '<option value="+249" data-example="912345678" selected>' in page.text
+    assert 'placeholder="912345678"' in page.text
+    assert translate('Use a password between 8 and 128 characters.', language) in page.text
+    assert 'aria-describedby="password-help' in page.text
+    assert '/static/js/auth-phone.js' in page.text
+
+
+@pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
+def test_public_sign_in_shows_only_password_authentication(client, language, direction):
+    page = client.get('/login?lang=' + language)
+    assert page.status_code == 200
+    assert f'<html lang="{language}" dir="{direction}">' in page.text
+    assert 'action="/auth/password-login"' in page.text
+    assert 'name="country_code"' in page.text
+    assert '<option value="+249" data-example="912345678" selected>' in page.text
+    assert translate('Sign In', language) in page.text
+    assert translate('Sign Up', language) in page.text
+    assert 'action="/auth/request-otp"' not in page.text
+    assert 'action="/auth/facebook"' not in page.text
+    assert 'action="/auth/facebook"' not in client.get('/auth?lang=' + language).text
+
+
+def test_facebook_public_button_can_be_reenabled_without_changing_backend(client):
+    assert 'action="/auth/facebook"' not in client.get('/login').text
+    current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
+    assert 'action="/auth/facebook"' in client.get('/login').text
+    assert 'action="/auth/facebook"' in client.get('/signup').text
+
+
+@pytest.mark.parametrize('code,local,expected', [
+    ('+249', '912345678', '+249912345678'),
+    ('+249', '0912 345-678', '+249912345678'),
+    ('+249', '249912345678', '+249912345678'),
+    ('+249', '+249912345678', '+249912345678'),
+    ('+249', '00249912345678', '+249912345678'),
+    ('+20', '0100 123 4567', '+201001234567'),
+    ('+966', '0512345678', '+966512345678'),
+])
+def test_selected_country_and_local_number_use_existing_normalizer(code, local, expected):
+    assert normalize_auth_phone(code, local) == expected
+
+
+def test_another_country_can_register_and_sign_in(client):
+    page = client.get('/signup?lang=en')
+    assert 'value="+20"' in page.text and 'Egypt' in page.text
+    response = register(client, country_code='+20', phone='01001234567')
+    assert response.status_code == 303
+    user = db.session.scalar(select(User))
+    assert user.phone_number == user.whatsapp == '+201001234567'
+    assert not user.is_verified and db.session.query(OTPChallenge).count() == 0
+    client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
+    page = client.get('/login?lang=en')
+    signed_in = client.post('/auth/password-login', data={'csrf_token': csrf(page),
+        '_language': 'en', 'country_code': '+20', 'phone_number': '1001234567',
+        'password': 'correct-horse-password'})
+    assert signed_in.status_code == 303
+    client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
+    page = client.get('/login?lang=en')
+    legacy_full_number = client.post('/auth/password-login', data={'csrf_token': csrf(page),
+        '_language': 'en', 'country_code': '+249', 'phone_number': '+201001234567',
+        'password': 'correct-horse-password'})
+    assert legacy_full_number.status_code == 303
+
+
+def test_unsupported_country_code_is_rejected_server_side(client):
+    response = register(client, country_code='+999', phone='912345678')
+    assert response.status_code == 422
+    assert db.session.query(User).count() == 0
 
 
 def test_successful_signup_normalizes_hashes_and_signs_in_without_otp(client):
-    response = register(client, phone='00249912345678')
+    response = register(client, phone='912345678')
     assert response.status_code == 303 and response.location == '/?lang=en'
     user = db.session.scalar(select(User))
     assert user.contact_name == 'Mohamed Ahmed'

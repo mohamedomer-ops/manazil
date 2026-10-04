@@ -1,0 +1,12 @@
+{% set phone_values = values|default({}) %}
+{% set selected_code = phone_values.get('country_code', '+249') %}
+<label for="phone_number">{{ t('WhatsApp/mobile number') }}</label>
+<div class="auth-phone-row" data-auth-phone>
+  <select id="country_code" name="country_code" aria-label="{{ t('Country calling code') }}" dir="ltr">
+    {% for code, english_name, arabic_name, example in auth_countries %}
+    <option value="{{ code }}" data-example="{{ example }}" {% if selected_code == code %}selected{% endif %}>{{ code }} · {{ arabic_name if language == 'ar' else english_name }}</option>
+    {% endfor %}
+  </select>
+  <input id="phone_number" name="phone_number" type="tel" inputmode="tel" autocomplete="tel-national" dir="ltr" placeholder="912345678" value="{{ phone_values.get('phone_number', '') }}" {% if phone_error|default(false) %}aria-invalid="true" aria-describedby="phone-number-error"{% endif %} required>
+</div>
+{% if phone_error|default(false) %}<p id="phone-number-error" role="alert">{{ t(phone_error) }}</p>{% endif %}
