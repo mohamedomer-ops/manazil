@@ -53,6 +53,10 @@ def create_app(test_config=None):
         FACEBOOK_APP_SECRET=os.environ.get('FACEBOOK_APP_SECRET'),
         FACEBOOK_REDIRECT_URI=os.environ.get('FACEBOOK_REDIRECT_URI'),
         PUBLIC_FACEBOOK_LOGIN_ENABLED=os.environ.get('PUBLIC_FACEBOOK_LOGIN_ENABLED') == '1',
+        GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID'),
+        GOOGLE_CLIENT_SECRET=os.environ.get('GOOGLE_CLIENT_SECRET'),
+        GOOGLE_REDIRECT_URI=os.environ.get('GOOGLE_REDIRECT_URI'),
+        PUBLIC_GOOGLE_LOGIN_ENABLED=os.environ.get('PUBLIC_GOOGLE_LOGIN_ENABLED') == '1',
         DATA_DELETION_CONTACT_EMAIL=os.environ.get('DATA_DELETION_CONTACT_EMAIL', 'support@manazilelsaudan.com'),
         FACEBOOK_DEVELOPMENT_USER_ID=os.environ.get('FACEBOOK_DEVELOPMENT_USER_ID', 'development-facebook-user'),
         FACEBOOK_DEVELOPMENT_DISPLAY_NAME=os.environ.get('FACEBOOK_DEVELOPMENT_DISPLAY_NAME', 'Development Facebook User'),
@@ -145,6 +149,8 @@ def create_app(test_config=None):
     app.register_blueprint(saved)
     from app.facebook_provider import configure_facebook
     configure_facebook(app)
+    from app.google_provider import configure_google
+    configure_google(app)
     app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])
     register_cli(app)
     app.context_processor(template_language)

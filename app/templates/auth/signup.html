@@ -26,7 +26,7 @@
     {% if errors.get('confirm_password') %}<p id="confirm-password-error" role="alert">{{ t(errors.confirm_password) }}</p>{% endif %}
     <button type="submit">{{ t('Create Account') }}</button>
   </form>
+  {% include 'auth/_google.html' %}
   <p class="auth-footer">{{ t('Already have an account?') }} <a href="{{ url_for('auth.login', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Sign In') }}</a></p>
-  {% include 'auth/_facebook.html' %}
 </main>
 {% endblock %}

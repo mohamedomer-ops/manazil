@@ -196,7 +196,7 @@ class User(db.Model):
     __tablename__ = 'users'
     __table_args__ = (
         db.CheckConstraint("role IN ('user', 'admin')", name='ck_users_role'),
-        db.CheckConstraint("avatar_source IN ('facebook', 'manual')", name='ck_users_avatar_source'),
+        db.CheckConstraint("avatar_source IN ('facebook', 'google', 'manual')", name='ck_users_avatar_source'),
     )
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(16), nullable=True, unique=True)
@@ -235,6 +235,10 @@ class User(db.Model):
     @property
     def facebook_contact_complete(self):
         return bool(self.whatsapp or self.phone_number)
+
+    @property
+    def social_contact_complete(self):
+        return self.facebook_contact_complete
 
 
 class UserIdentity(db.Model):

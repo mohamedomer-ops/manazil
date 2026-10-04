@@ -30,7 +30,7 @@ def _open_picture(request):
     return build_opener(_NoRedirect).open(request, timeout=DOWNLOAD_TIMEOUT)
 
 
-def _allowed_picture_url(url):
+def _allowed_picture_url(url, provider='facebook'):
     if not isinstance(url, str) or len(url) > 4096:
         return False
     try:
@@ -38,14 +38,15 @@ def _allowed_picture_url(url):
         hostname = (parsed.hostname or '').lower()
         return (parsed.scheme == 'https' and parsed.port in (None, 443) and
                 not parsed.username and not parsed.password and not parsed.fragment and
-                (hostname.endswith('.fbcdn.net') or hostname == 'platform-lookaside.fbsbx.com') and
+                ((provider == 'facebook' and (hostname.endswith('.fbcdn.net') or hostname == 'platform-lookaside.fbsbx.com')) or
+                 (provider == 'google' and (hostname == 'googleusercontent.com' or hostname.endswith('.googleusercontent.com')))) and
                 not {'access_token', 'appsecret_proof'} & set(parse_qs(parsed.query)))
     except ValueError:
         return False
 
 
-def fetch_facebook_avatar(url):
-    if not _allowed_picture_url(url):
+def fetch_avatar(url, provider):
+    if not _allowed_picture_url(url, provider):
         raise AvatarError('Avatar URL is invalid.')
     try:
         with _open_picture(Request(url, headers={'Accept': 'image/webp,image/jpeg,image/png'})) as response:
@@ -78,20 +79,28 @@ def fetch_facebook_avatar(url):
         raise AvatarError('Avatar could not be imported.') from error
 
 
-def sync_facebook_avatar(user, picture_url):
-    """Never replace a manual avatar; authentication does not depend on this import."""
-    if not picture_url or user.avatar_source == 'manual':
+def fetch_facebook_avatar(url):
+    return fetch_avatar(url, 'facebook')
+
+
+def fetch_google_avatar(url):
+    return fetch_avatar(url, 'google')
+
+
+def sync_avatar(user, picture_url, provider):
+    """Only refresh an avatar owned by this provider; login never depends on it."""
+    if not picture_url or user.avatar_source not in (None, provider):
         return
     try:
-        payload = fetch_facebook_avatar(picture_url)
+        payload = fetch_facebook_avatar(picture_url) if provider == 'facebook' else fetch_google_avatar(picture_url)
         storage = photo_storage()
         new_key = storage.save_avatar(user.id, payload)
     except (AvatarError, PhotoError, OSError):
-        current_app.logger.warning('Facebook avatar import was skipped.')
+        current_app.logger.warning('Social avatar import was skipped.')
         return
-    old_key = user.avatar_storage_key if user.avatar_source == 'facebook' else None
+    old_key = user.avatar_storage_key if user.avatar_source == provider else None
     user.avatar_storage_key = new_key
-    user.avatar_source = 'facebook'
+    user.avatar_source = provider
     try:
         db.session.commit()
     except SQLAlchemyError:
@@ -100,10 +109,18 @@ def sync_facebook_avatar(user, picture_url):
             storage.delete_avatar(new_key, user.id)
         except (PhotoError, OSError):
             current_app.logger.warning('An unused avatar could not be removed.')
-        current_app.logger.warning('Facebook avatar import was skipped.')
+        current_app.logger.warning('Social avatar import was skipped.')
         return
     if old_key and old_key != new_key:
         try:
             storage.delete_avatar(old_key, user.id)
         except (PhotoError, OSError):
             current_app.logger.warning('A replaced avatar could not be removed.')
+
+
+def sync_facebook_avatar(user, picture_url):
+    sync_avatar(user, picture_url, 'facebook')
+
+
+def sync_google_avatar(user, picture_url):
+    sync_avatar(user, picture_url, 'google')

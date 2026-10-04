@@ -33,9 +33,9 @@
         </div>
         <div class="account-field">
           <label for="whatsapp">{{ t('WhatsApp Number') }}</label>
-          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" aria-describedby="whatsapp-help{% if errors.whatsapp %} whatsapp-error{% endif %}" {% if errors.whatsapp %}aria-invalid="true"{% endif %} {% if facebook_connected and current_user.facebook_contact_complete and current_user.phone_number %}readonly{% endif %} required>
+          <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" value="{{ values.whatsapp }}" aria-describedby="whatsapp-help{% if errors.whatsapp %} whatsapp-error{% endif %}" {% if errors.whatsapp %}aria-invalid="true"{% endif %} {% if social_connected and current_user.social_contact_complete and current_user.phone_number %}readonly{% endif %} required>
           <p id="whatsapp-help" class="account-field-help">{{ t('This number will be used for WhatsApp and phone calls.') }}</p>
-          {% if facebook_connected and current_user.facebook_contact_complete and current_user.phone_number %}<a href="{{ url_for('auth.facebook_profile', **suffix) }}">{{ t('Change WhatsApp/mobile number') }}</a>{% endif %}
+          {% if social_connected and current_user.social_contact_complete and current_user.phone_number %}<a href="{{ url_for('auth.facebook_profile', **suffix) }}">{{ t('Change WhatsApp/mobile number') }}</a>{% endif %}
           {% if errors.whatsapp %}<p id="whatsapp-error" role="alert">{{ t(errors.whatsapp) }}</p>{% endif %}
         </div>
         <div class="account-field">
@@ -60,6 +60,7 @@
       {% if current_user.is_verified %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Phone login') }}</strong><p class="account-muted">{{ t('Verified phone number') }}</p></div></div>{% endif %}
       {% if current_user.password_hash %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Password login') }}</strong></div></div>{% endif %}
       {% if facebook_connected %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Facebook account') }}</strong><p class="account-muted">{{ t('Development simulation') if facebook_is_development else t('Facebook login') }}</p></div></div>{% endif %}
+      {% if google_connected %}<div class="account-identity"><span class="account-identity-icon" aria-hidden="true">✓</span><div><strong>{{ t('Google account') }}</strong><p class="account-muted">{{ t('Google login') }}</p></div></div>{% endif %}
       <form method="post" action="{{ url_for('auth.logout') }}" class="account-logout-form">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit">{{ t('Logout') }}</button>

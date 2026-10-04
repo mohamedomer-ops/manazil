@@ -50,7 +50,8 @@ def complete_facebook_profile(client, phone='0912222222', language='en'):
 def test_provider_configuration_fails_closed(environment, testing, enabled, debug, expected):
     config = {'ENVIRONMENT': environment, 'TESTING': testing,
               'FACEBOOK_DEVELOPMENT_MODE': enabled, 'DEBUG': debug,
-              'OTP_DEVELOPMENT_MODE': environment != 'production'}
+              'OTP_DEVELOPMENT_MODE': environment != 'production',
+              'PUBLIC_GOOGLE_LOGIN_ENABLED': False}
     assert development_enabled(config) == expected
     if environment == 'production':
         config.update(SECRET_KEY='production-test-secret-that-is-long-enough',
@@ -180,10 +181,11 @@ def test_auth_cards_and_simulation_languages(client, language, direction):
     for route in ('/auth', '/login', '/signup'):
         page = client.get(route, query_string={'next': '/properties/new', 'lang': language})
         assert f'<html lang="{language}" dir="{direction}">' in page.text
-        assert translate('Continue with Facebook', language) in page.text
-        assert translate('Development simulation only. No connection to Facebook.', language) in page.text
+        assert translate('Continue with Facebook', language) not in page.text
+        assert translate('Development simulation only. No connection to Facebook.', language) not in page.text
         assert 'class="form-page auth-page"' in page.text
-        assert 'name="next" value="/properties/new"' in page.text
+        assert ('name="next" value="/properties/new"' in page.text or
+                'next=/properties/new' in page.text)
     page, state = begin(client, '/properties/new', language)
     assert f'<html lang="{language}" dir="{direction}">' in page.text
     assert translate('Development Facebook Login', language) in page.text

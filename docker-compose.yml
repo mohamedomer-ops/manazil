@@ -13,6 +13,10 @@ services:
       MANAZIL_ENV: "development"
       PHOTO_STORAGE_BACKEND: "local"
       FACEBOOK_DEVELOPMENT_MODE: "1"
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      PUBLIC_GOOGLE_LOGIN_ENABLED: ${PUBLIC_GOOGLE_LOGIN_ENABLED:-0}
     depends_on:
       db:
         condition: service_healthy

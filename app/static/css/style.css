@@ -210,6 +210,10 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .auth-page .auth-facebook { padding-block-end: 14px; margin-block-end: 14px; border-block-end: 1px solid var(--border); }
 .auth-page .auth-facebook button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .auth-page .auth-facebook button img { flex: none; }
+.auth-page .auth-social-divider { display: flex; align-items: center; gap: 12px; margin-block: 20px 8px; color: var(--muted); font-size: 13px; }
+.auth-page .auth-social-divider::before, .auth-page .auth-social-divider::after { content: ""; flex: 1; border-block-start: 1px solid var(--border); }
+.auth-page .auth-google button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.auth-page .auth-google button img { flex: none; }
 .auth-page .auth-development-note { margin-block: 8px 0; font-size: 12px; text-align: center; }
 .auth-page .auth-footer { margin: 20px 0 0; padding-block-start: 16px; border-block-start: 1px solid var(--border); color: var(--muted); font-size: 14px; text-align: center; }
 .auth-page .auth-footer a, .auth-page .auth-change-phone { color: var(--green); font-weight: 600; text-underline-offset: 3px; }
