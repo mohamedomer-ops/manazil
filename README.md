@@ -54,7 +54,7 @@ Schema changes are managed by Flask-Migrate/Alembic. Apply all existing migratio
 
 ## Homepage and public browsing
 
-The homepage has a Sudan-focused hero image slideshow with Search and Post Property actions. Its filter form sits under Find What Fits You, followed by the newest four public properties. Search uses the same GET filters as `/properties`.
+The homepage has a Sudan-focused hero image slideshow with a Post Property action. Its filter form sits under Find What Fits You, followed by the newest four public properties. Search uses the same GET filters as `/properties`.
 
 `GET /properties` displays only **published and available** properties. Its validated query parameters are:
 

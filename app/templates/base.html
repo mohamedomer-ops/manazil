@@ -11,7 +11,7 @@
   <body>
     <a class="skip-link" href="#main-content">{{ t('Skip to content') }}</a>
     <header class="site-header">
-      <a class="site-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}"><img class="brand-logo brand-logo-light" src="{{ url_for('static', filename='images/manazil-logo-light-v2.png') }}" alt="{{ 'منازل السودان' if language == 'ar' else 'Manazil Sudan' }}" width="1918" height="820"></a>
+      <a class="site-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}"><img class="brand-logo" src="{{ url_for('static', filename='images/manazil-logo.png') }}" alt="{{ 'منازل السودان' if language == 'ar' else 'Manazil Sudan' }}" width="1254" height="1254"></a>
       <div class="site-navigation-panel" id="site-navigation">
         <nav aria-label="{{ 'التنقل الرئيسي' if language == 'ar' else 'Main navigation' }}">
         <a href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}" {% if request.endpoint == 'main.index' %}aria-current="page"{% endif %}>{{ t('Home') }}</a>

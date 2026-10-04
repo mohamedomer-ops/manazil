@@ -15,7 +15,6 @@
       <p>{{ t('Properties for rent and sale across Sudan') }}</p>
     </div>
     <div class="home-hero-actions">
-      <a class="home-hero-action home-hero-action-primary" href="#property-search">{{ t('Search for Property') }}</a>
       <a class="home-hero-action home-hero-action-secondary" href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a>
     </div>
     </div>
@@ -51,5 +50,5 @@
 </main>
 {% endblock %}
 {% block footer %}
-<footer class="site-footer home-footer"><div class="home-footer-inner"><div><a class="home-footer-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}"><img class="brand-logo brand-logo-light" src="{{ url_for('static', filename='images/manazil-logo-light-v2.png') }}" alt="{{ 'منازل السودان' if language == 'ar' else 'Manazil Sudan' }}" width="1918" height="820" loading="lazy"></a><p>{{ t('A Sudanese property marketplace') }}</p></div><nav aria-label="{{ t('Footer navigation') }}"><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Properties') }}</a><a href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a>{% if current_user %}<a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>{% else %}<a href="{{ url_for('auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login / Sign Up') }}</a>{% endif %}{% include 'components/legal_links.html' %}</nav></div></footer>
+<footer class="site-footer home-footer"><div class="home-footer-inner"><div><a class="home-footer-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}"><img class="brand-logo" src="{{ url_for('static', filename='images/manazil-logo.png') }}" alt="{{ 'منازل السودان' if language == 'ar' else 'Manazil Sudan' }}" width="1254" height="1254" loading="lazy"></a><p>{{ t('A Sudanese property marketplace') }}</p></div><nav aria-label="{{ t('Footer navigation') }}"><a href="{{ url_for('main.properties', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Properties') }}</a><a href="{{ url_for('property_new', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Post Property') }}</a>{% if current_user %}<a href="{{ url_for('auth.account', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('My Account') }}</a>{% else %}<a href="{{ url_for('auth.entry', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Login / Sign Up') }}</a>{% endif %}{% include 'components/legal_links.html' %}</nav></div></footer>
 {% endblock %}
