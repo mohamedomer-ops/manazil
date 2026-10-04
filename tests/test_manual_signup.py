@@ -101,11 +101,12 @@ def test_country_selection_is_preserved_after_signup_validation_error(client):
     assert re.search(r'<option value="\+966"[^>]* selected>', response.text)
 
 
-def test_facebook_public_button_can_be_reenabled_without_changing_backend(client):
+def test_facebook_backend_remains_available_but_public_button_is_removed(client):
     assert 'action="/auth/facebook"' not in client.get('/login').text
     current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
-    assert 'action="/auth/facebook"' in client.get('/login').text
-    assert 'action="/auth/facebook"' in client.get('/signup').text
+    assert 'action="/auth/facebook"' not in client.get('/login').text
+    assert 'action="/auth/facebook"' not in client.get('/signup').text
+    assert client.post('/auth/facebook').status_code == 400  # CSRF remains enforced.
 
 
 @pytest.mark.parametrize('code,local,expected', [

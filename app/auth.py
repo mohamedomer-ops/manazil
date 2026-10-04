@@ -30,10 +30,10 @@ def auth_template_context():
     from flask import current_app
     from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
     provider = current_app.extensions.get('facebook_auth_provider')
-    enabled = (current_app.config.get('PUBLIC_FACEBOOK_LOGIN_ENABLED') is True and bool(provider) and
-               (not isinstance(provider, DevelopmentFacebookAuthProvider) or development_enabled(current_app.config)))
     facebook_next = safe_next(request.values.get('next') or session.get('auth_next'), url_for('main.index'))
-    return {'current_user': g.get('user'), 'facebook_auth_enabled': enabled, 'facebook_next': facebook_next,
+    return {'current_user': g.get('user'), 'google_auth_enabled': bool(
+                current_app.config.get('PUBLIC_GOOGLE_LOGIN_ENABLED') and current_app.extensions.get('google_auth_provider')),
+            'facebook_next': facebook_next,
             'auth_countries': AUTH_COUNTRIES,
             'facebook_is_development': isinstance(provider, DevelopmentFacebookAuthProvider) and
             development_enabled(current_app.config)}
@@ -45,8 +45,8 @@ def login_required(view):
         if g.get('user') is None:
             destination = request.full_path if request.query_string else request.path
             return redirect(url_for('auth.entry', next=destination, **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
-        if (any(identity.provider == 'facebook' for identity in g.user.identities) and
-                not g.user.facebook_contact_complete and request.endpoint not in (
+        if (any(identity.provider in ('facebook', 'google') for identity in g.user.identities) and
+                not g.user.social_contact_complete and request.endpoint not in (
                     'auth.facebook_profile', 'auth.facebook_profile_post')):
             return redirect(url_for('auth.facebook_profile', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if session.get('pending_setup_user_id') and request.endpoint not in ('auth.account', 'auth.account_post'):
@@ -90,8 +90,8 @@ def validate_contact(form):
 
 def save_contact(user, form):
     values, errors = validate_contact(form)
-    if (not errors and user.facebook_contact_complete and user.phone_number and
-            any(identity.provider == 'facebook' for identity in user.identities) and
+    if (not errors and user.social_contact_complete and user.phone_number and
+            any(identity.provider in ('facebook', 'google') for identity in user.identities) and
             values['whatsapp'] != user.phone_number):
         errors['whatsapp'] = 'Change your number from the profile completion page.'
     if not errors:
@@ -263,7 +263,7 @@ def facebook_profile_error(message, status=422):
 @auth.get('/auth/complete-profile')
 @login_required
 def facebook_profile():
-    if not any(identity.provider == 'facebook' for identity in g.user.identities):
+    if not any(identity.provider in ('facebook', 'google') for identity in g.user.identities):
         return redirect(url_for('auth.account'))
     return render_template('auth/facebook_profile.html', whatsapp=g.user.whatsapp or '')
 
@@ -271,7 +271,7 @@ def facebook_profile():
 @auth.post('/auth/complete-profile')
 @login_required
 def facebook_profile_post():
-    if not any(identity.provider == 'facebook' for identity in g.user.identities):
+    if not any(identity.provider in ('facebook', 'google') for identity in g.user.identities):
         abort(403)
     try:
         phone = normalize_phone(request.form.get('whatsapp'))
@@ -328,9 +328,12 @@ def account_avatar():
 
 def render_account(values, errors, **options):
     facebook_identity = next((identity for identity in g.user.identities if identity.provider == 'facebook'), None)
-    profile_name = (g.user.contact_name or '').strip() or (facebook_identity.display_name if facebook_identity else '')
+    google_identity = next((identity for identity in g.user.identities if identity.provider == 'google'), None)
+    social_identity = google_identity or facebook_identity
+    profile_name = (g.user.contact_name or '').strip() or (social_identity.display_name if social_identity else '')
     return render_template('auth/account.html', values=values, errors=errors,
-                           profile_name=profile_name, facebook_connected=bool(facebook_identity), **options)
+                           profile_name=profile_name, facebook_connected=bool(facebook_identity),
+                           google_connected=bool(google_identity), social_connected=bool(social_identity), **options)
 
 
 @auth.post('/account')

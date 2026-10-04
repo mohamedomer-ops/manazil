@@ -16,6 +16,14 @@ PROPERTY_TYPE_NAMES = {
 
 
 ARABIC = {
+    'OR': 'أو',
+    'Continue with Google': 'المتابعة باستخدام جوجل',
+    'Google account': 'حساب جوجل',
+    'Google login': 'تسجيل الدخول بجوجل',
+    'Google sign-in was cancelled.': 'تم إلغاء تسجيل الدخول بجوجل.',
+    'Google sign-in could not be completed. Please try again.': 'تعذر إكمال تسجيل الدخول بجوجل. يرجى المحاولة مرة أخرى.',
+    'For Google login, we receive your Google account ID, verified email address, display name, and profile picture when available. We use the account ID to recognize you. We do not store Google access tokens.': 'لتسجيل الدخول بجوجل، نتلقى معرّف حساب جوجل والبريد الإلكتروني المؤكد واسم العرض وصورة الملف الشخصي عند توفرها. نستخدم معرّف الحساب للتعرف عليك. لا نخزن رموز وصول جوجل.',
+    'A deletion request also covers any Google identity and Google profile picture associated with your Manazil account.': 'يشمل طلب الحذف أيضًا أي هوية جوجل أو صورة ملف شخصي من جوجل مرتبطة بحسابك في منازل.',
     'Legal information': 'المعلومات القانونية',
     'Privacy Policy': 'سياسة الخصوصية',
     'Data Deletion': 'حذف البيانات',

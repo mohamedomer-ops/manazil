@@ -199,11 +199,11 @@ def test_avatar_route_rejects_missing_or_invalid_key(avatar_client, monkeypatch)
 
 @pytest.mark.parametrize('language', ['ar', 'en'])
 @pytest.mark.parametrize('route', ['/login', '/signup'])
-def test_facebook_button_has_local_decorative_icon(client, route, language):
+def test_facebook_button_is_not_public(client, route, language):
     current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
     page = client.get(route + '?lang=' + language).text
-    assert 'src="/static/images/facebook-f.svg" alt="" aria-hidden="true"' in page
-    assert 'Continue with Facebook' in page or 'المتابعة باستخدام فيسبوك' in page
+    assert 'src="/static/images/facebook-f.svg"' not in page
+    assert 'Continue with Facebook' not in page and 'المتابعة باستخدام فيسبوك' not in page
 
 
 def test_fallback_initial_for_account_without_avatar(avatar_client, monkeypatch):

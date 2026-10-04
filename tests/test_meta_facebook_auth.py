@@ -78,7 +78,8 @@ def production_config(**changes):
                 DATA_DELETION_CONTACT_EMAIL='privacy@example.test',
                 OTP_DEVELOPMENT_MODE=False, FACEBOOK_DEVELOPMENT_MODE=False,
                 FACEBOOK_AUTH_PROVIDER='meta', FACEBOOK_APP_ID=APP_ID,
-                FACEBOOK_APP_SECRET=APP_SECRET, FACEBOOK_REDIRECT_URI=CALLBACK) | changes
+                FACEBOOK_APP_SECRET=APP_SECRET, FACEBOOK_REDIRECT_URI=CALLBACK,
+                PUBLIC_GOOGLE_LOGIN_ENABLED=False) | changes
 
 
 @pytest.mark.parametrize('change', [
@@ -233,7 +234,7 @@ def test_real_meta_ui_language_and_no_simulation_label(meta_client, monkeypatch,
     for route in ('/auth', '/login', '/signup'):
         page = meta_client.get(route, query_string={'lang': language, 'next': '/account'})
         assert f'<html lang="{language}" dir="{direction}">' in page.text
-        assert translate('Continue with Facebook', language) in page.text
+        assert translate('Continue with Facebook', language) not in page.text
         assert 'Development simulation only.' not in page.text
     mock_meta(monkeypatch)
     _, state = start(meta_client, language=language)
@@ -318,5 +319,5 @@ def test_development_provider_remains_guarded(client):
     assert isinstance(current_app.extensions['facebook_auth_provider'], DevelopmentFacebookAuthProvider)
     current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
     page = client.get('/auth?lang=en')
-    assert 'Development simulation only.' in page.text
+    assert 'Development simulation only.' not in page.text
     assert client.get('/auth/facebook/callback').status_code == 405

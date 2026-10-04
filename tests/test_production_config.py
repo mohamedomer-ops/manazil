@@ -87,6 +87,7 @@ def production_config(**overrides):
         'PHOTO_STORAGE_BACKEND': 'azure_blob',
         'AZURE_BLOB_CONTAINER_CLIENT': FakeContainer(),
         'OTP_DEVELOPMENT_MODE': False, 'FACEBOOK_DEVELOPMENT_MODE': False,
+        'PUBLIC_GOOGLE_LOGIN_ENABLED': False,
     } | overrides
 
 
