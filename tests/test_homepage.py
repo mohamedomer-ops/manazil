@@ -27,6 +27,32 @@ def homepage_titles(html):
     return re.findall(r'<div class="market-result-info">\s*<h2>(.*?)</h2>', section)
 
 
+def test_official_logo_replaces_public_header_and_homepage_footer_brand(client):
+    logo = Path('app/static/images/manazil-logo-light-v2.png')
+    assert logo.is_file() and logo.read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
+    assert logo.read_bytes()[16:24] == bytes.fromhex('0000077e00000334')
+    for suffix, alt in (('', 'منازل السودان'), ('?lang=en', 'Manazil Sudan')):
+        for route in ('/', '/properties'):
+            page = client.get(route + suffix).text
+            header = re.search(r'<header class="site-header">.*?</header>', page, re.S).group()
+            brand = re.search(r'<a class="site-brand".*?</a>', header, re.S).group()
+            assert f'<img class="brand-logo brand-logo-light" src="/static/images/manazil-logo-light-v2.png" alt="{alt}" width="1918" height="820">' in brand
+            assert re.search(r'href="/(?:\?lang=en)?"', brand)
+            assert 'Manazil</a>' not in brand and 'منازل</a>' not in brand
+            assert '/static/images/manazil-logo.png' not in page
+        homepage = client.get('/' + suffix).text
+        footer = re.search(r'<a class="home-footer-brand".*?</a>', homepage, re.S).group()
+        assert f'<img class="brand-logo brand-logo-light" src="/static/images/manazil-logo-light-v2.png" alt="{alt}" width="1918" height="820" loading="lazy">' in footer
+        assert re.search(r'href="/(?:\?lang=en)?"', footer)
+
+    styles = Path('app/static/css/style.css').read_text(encoding='utf-8')
+    assert '.brand-logo { display: block; max-width: 100%; height: auto; object-fit: contain; }' in styles
+    assert '.site-brand .brand-logo { width: 128px; }' in styles
+    mobile = styles.split('@media (max-width: 959px) {', 1)[1].split('\n}', 1)[0]
+    assert '.site-header .site-brand .brand-logo { width: 102px; }' in mobile
+    assert '.home-footer-brand .brand-logo { width: 154px; }' in styles
+
+
 def test_homepage_languages_search_discovery_and_footer(client):
     for suffix, direction, heading, rent, sale in (
         ('', 'rtl', 'ابحث عن بيتك القادم', 'عقارات للإيجار', 'عقارات للبيع'),

@@ -1,12 +1,17 @@
 {% set phone_values = values|default({}) %}
 {% set selected_code = phone_values.get('country_code', '+249') %}
+{% set selected = namespace(country=auth_countries[0]) %}
+{% for country in auth_countries %}{% if country[0] == selected_code %}{% set selected.country = country %}{% endif %}{% endfor %}
 <label for="phone_number">{{ t('WhatsApp/mobile number') }}</label>
 <div class="auth-phone-row" data-auth-phone>
-  <select id="country_code" name="country_code" aria-label="{{ t('Country calling code') }}" dir="ltr">
-    {% for code, english_name, arabic_name, example in auth_countries %}
-    <option value="{{ code }}" data-example="{{ example }}" {% if selected_code == code %}selected{% endif %}>{{ code }} · {{ arabic_name if language == 'ar' else english_name }}</option>
-    {% endfor %}
-  </select>
+  <span class="auth-country-control">
+    <span class="auth-country-display" aria-hidden="true"><span data-country-flag>{{ selected.country[4] }}</span><span data-country-code>{{ selected.country[0] }}</span><span class="auth-country-chevron">▾</span></span>
+    <select id="country_code" name="country_code" aria-label="{{ t('Country calling code') }}, {{ selected.country[2] if language == 'ar' else selected.country[1] }} {{ selected.country[0] }}" data-label="{{ t('Country calling code') }}" dir="ltr">
+      {% for code, english_name, arabic_name, example, flag in auth_countries %}
+      <option value="{{ code }}" data-example="{{ example }}" data-country="{{ arabic_name if language == 'ar' else english_name }}" data-flag="{{ flag }}" {% if selected_code == code %}selected{% endif %}>{{ flag }} {{ arabic_name if language == 'ar' else english_name }} {{ code }}</option>
+      {% endfor %}
+    </select>
+  </span>
   <input id="phone_number" name="phone_number" type="tel" inputmode="tel" autocomplete="tel-national" dir="ltr" placeholder="912345678" value="{{ phone_values.get('phone_number', '') }}" {% if phone_error|default(false) %}aria-invalid="true" aria-describedby="phone-number-error"{% endif %} required>
 </div>
 {% if phone_error|default(false) %}<p id="phone-number-error" role="alert">{{ t(phone_error) }}</p>{% endif %}

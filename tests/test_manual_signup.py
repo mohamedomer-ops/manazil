@@ -1,4 +1,7 @@
 """Public password registration and login coexist with OTP and Facebook identities."""
+import re
+from pathlib import Path
+
 import pytest
 from flask import current_app
 from sqlalchemy import select
@@ -6,7 +9,7 @@ from sqlalchemy import select
 from app import db
 from app.languages import translate
 from app.models import OTPChallenge, User, UserIdentity
-from app.phone import normalize_auth_phone
+from app.phone import AUTH_COUNTRIES, normalize_auth_phone
 from test_auth import client, csrf
 from test_facebook_auth import facebook_login
 from test_properties import migrated_connection
@@ -38,7 +41,7 @@ def test_signup_form_is_bilingual_and_manual_first(client, language, direction):
     assert 'action="/auth/facebook"' not in page.text
     assert 'action="/auth/request-otp"' not in page.text
     assert 'name="country_code"' in page.text
-    assert '<option value="+249" data-example="912345678" selected>' in page.text
+    assert re.search(r'<option value="\+249"[^>]* selected>', page.text)
     assert 'placeholder="912345678"' in page.text
     assert translate('Use a password between 8 and 128 characters.', language) in page.text
     assert 'aria-describedby="password-help' in page.text
@@ -52,12 +55,50 @@ def test_public_sign_in_shows_only_password_authentication(client, language, dir
     assert f'<html lang="{language}" dir="{direction}">' in page.text
     assert 'action="/auth/password-login"' in page.text
     assert 'name="country_code"' in page.text
-    assert '<option value="+249" data-example="912345678" selected>' in page.text
+    assert re.search(r'<option value="\+249"[^>]* selected>', page.text)
     assert translate('Sign In', language) in page.text
     assert translate('Sign Up', language) in page.text
     assert 'action="/auth/request-otp"' not in page.text
     assert 'action="/auth/facebook"' not in page.text
     assert 'action="/auth/facebook"' not in client.get('/auth?lang=' + language).text
+
+
+@pytest.mark.parametrize('path', ['/signup', '/login'])
+@pytest.mark.parametrize('language', ['ar', 'en'])
+def test_country_selector_has_compact_closed_display_and_localized_native_options(client, path, language):
+    page = client.get(f'{path}?lang={language}')
+    html = page.text
+    closed = html.split('class="auth-country-display"', 1)[1].split('</span></span>', 1)[0]
+    assert '🇸🇩' in closed and '+249' in closed
+    assert 'Sudan' not in closed and 'السودان' not in closed
+    assert 'aria-hidden="true"' in closed
+    assert 'placeholder="912345678"' in html
+    assert 'selected' in re.search(r'<option value="\+249"[^>]*>', html).group()
+    for code, english_name, arabic_name, example, flag in AUTH_COUNTRIES:
+        name = arabic_name if language == 'ar' else english_name
+        option = re.search(rf'<option value="{re.escape(code)}"[^>]*>[^<]*</option>', html).group()
+        assert f'{flag} {name} {code}' in option
+        assert f'data-example="{example}"' in option
+    selected_name = 'السودان' if language == 'ar' else 'Sudan'
+    assert f'aria-label="{translate("Country calling code", language)}, {selected_name} +249"' in html
+
+
+def test_country_change_updates_closed_flag_code_accessible_name_and_example():
+    script = (Path(__file__).resolve().parents[1] / 'app/static/js/auth-phone.js').read_text(encoding='utf-8')
+    assert "country.addEventListener('change', updateCountry)" in script
+    assert 'flag.textContent = selected.dataset.flag' in script
+    assert 'code.textContent = selected.value' in script
+    assert 'number.placeholder = selected.dataset.example' in script
+    assert "country.setAttribute('aria-label'" in script
+
+
+def test_country_selection_is_preserved_after_signup_validation_error(client):
+    response = register(client, country_code='+966', phone='512345678', password='short')
+    assert response.status_code == 422
+    closed = response.text.split('class="auth-country-display"', 1)[1].split('</span></span>', 1)[0]
+    assert '🇸🇦' in closed and '+966' in closed and 'Saudi Arabia' not in closed
+    assert 'aria-label="Country calling code, Saudi Arabia +966"' in response.text
+    assert re.search(r'<option value="\+966"[^>]* selected>', response.text)
 
 
 def test_facebook_public_button_can_be_reenabled_without_changing_backend(client):
