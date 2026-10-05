@@ -37,4 +37,11 @@ assert.deepEqual(wizard.reviewFields(metadata, 'land', 'sale', [
 assert.deepEqual(wizard.reviewFields(metadata, 'apartment', 'rent', [
   {name: 'comment', value: '  '}, {name: 'comment', value: null}
 ]), []);
-console.log(`${checks} type/transaction paths and legacy/Review/comment checks passed`);
+const emptyPosting = {changed: false, choice: false, stagedCount: 0, editing: false, entered: false};
+assert.equal(wizard.shouldConfirmCancel(emptyPosting), false);
+for (const change of [{changed: true}, {choice: true}, {stagedCount: 1}, {entered: true}]) {
+  assert.equal(wizard.shouldConfirmCancel({...emptyPosting, ...change}), true);
+}
+assert.equal(wizard.shouldConfirmCancel({...emptyPosting, editing: true, entered: true}), false);
+assert.equal(wizard.shouldConfirmCancel({...emptyPosting, editing: true, stagedCount: 1}), true);
+console.log(`${checks} type/transaction paths and legacy/Review/comment/cancellation checks passed`);

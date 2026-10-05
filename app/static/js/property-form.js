@@ -1,6 +1,9 @@
 "use strict";
 // Pure flow helpers consume server metadata; there is no client property matrix.
 const ManazilPropertyWizard = {
+  shouldConfirmCancel({changed, choice, stagedCount, editing, entered}) {
+    return Boolean(changed || choice || stagedCount > 0 || (!editing && entered));
+  },
   applicability(metadata, type, transaction) {
     return metadata.types[type]?.transactions[transaction] || {};
   },
@@ -30,6 +33,32 @@ const back = document.getElementById("wizard-back");
 const next = document.getElementById("wizard-next");
 const state = document.getElementById("wizard-section");
 const review = document.getElementById("wizard-review");
+const cancel = document.getElementById("wizard-cancel");
+const cancelDialog = document.getElementById("wizard-cancel-dialog");
+// Compare controls without resetting the form or touching staged photo records.
+const cancelSnapshot = () => JSON.stringify([...form.querySelectorAll("input,select,textarea")]
+  .filter(control => control.name && !control.name.startsWith("_") && control.name !== "csrf_token")
+  .map(control => [control.name, control.type === "file" ? [...control.files].map(file => [file.name, file.size, file.lastModified]) :
+    control.type === "radio" || control.type === "checkbox" ? control.checked : control.value]));
+const originalSnapshot = cancelSnapshot();
+let meaningfulChoice = false;
+form.querySelectorAll('.choice-button input').forEach(control => control.addEventListener('click', () => { meaningfulChoice = true; }));
+function hasUnsavedPosting() {
+  const entered = ['property_type', 'title_ar', 'description_ar', 'comment', 'size', 'neighborhood_ar', 'latitude']
+    .some(name => [...form.querySelectorAll(`[name="${name}"]`)].some(control =>
+      control.type === 'radio' ? control.checked : control.value.trim() !== ''));
+  return ManazilPropertyWizard.shouldConfirmCancel({changed: cancelSnapshot() !== originalSnapshot,
+    choice: meaningfulChoice || cancel.dataset.rerendered === 'true', stagedCount: Number(cancel.dataset.stagedCount), editing: cancel.dataset.editing === 'true', entered});
+}
+cancel.addEventListener('click', event => {
+  if (!hasUnsavedPosting()) return;
+  event.preventDefault();
+  if (typeof cancelDialog.showModal === 'function') cancelDialog.showModal();
+  else if (window.confirm(cancelDialog.querySelector('p').textContent)) window.location.assign(cancel.href);
+});
+document.getElementById('wizard-continue-editing').addEventListener('click', () => cancelDialog.close());
+cancelDialog.addEventListener('close', () => cancel.focus());
+document.getElementById('wizard-confirm-cancel').addEventListener('click', () => { window.location.assign(cancel.href); });
 const completed = new Set();
 const value = name => {
   const controls = [...form.querySelectorAll(`[name="${name}"]`)];
