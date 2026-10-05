@@ -7,6 +7,7 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import validates
 
 from app import db
+from app.property_rules import LAND_USES, TRANSACTION_RULES, OCCUPANCIES, field_rules
 
 
 REQUIRED_TEXT_FIELDS = (
@@ -17,11 +18,12 @@ REQUIRED_TEXT_FIELDS = (
 DRAFT_OPTIONAL_TEXT_FIELDS = ("title_en", "description_en", "city_en", "area_en")
 PHOTO_CATEGORIES = ("exterior", "entrance", "living_room", "bedroom", "kitchen", "bathroom", "other")
 CURRENCIES = ("SDG", "USD")
+MAX_COMMENT_LENGTH = 2000
 CHOICES = {
     "currency": CURRENCIES,
     "contact_role": ("owner", "broker"),
-    "transaction_type": ("rent", "sale"),
-    "property_occupancy": ("room", "entire_property"),
+    "transaction_type": tuple(TRANSACTION_RULES),
+    "property_occupancy": OCCUPANCIES,
     "publication_status": ("draft", "published"),
     "availability_status": ("available", "rented"),
 }
@@ -45,6 +47,8 @@ class Property(db.Model):
         db.CheckConstraint("transaction_type IN ('rent', 'sale')", name="ck_properties_transaction_type"),
         db.CheckConstraint("property_occupancy IN ('room', 'entire_property')", name="ck_properties_property_occupancy"),
         db.CheckConstraint("(transaction_type = 'rent' AND rent_period IN ('monthly', 'weekly')) OR (transaction_type = 'sale' AND rent_period IS NULL)", name="ck_properties_rent_period"),
+        db.CheckConstraint("floor >= 0", name="ck_properties_floor_nonnegative"),
+        db.CheckConstraint("land_use IN ('residential', 'commercial', 'agricultural', 'industrial', 'mixed')", name="ck_properties_land_use"),
         db.CheckConstraint("bedrooms >= 0", name="ck_properties_bedrooms_nonnegative"),
         db.CheckConstraint("bathrooms >= 0", name="ck_properties_bathrooms_nonnegative"),
         db.CheckConstraint("size >= 0 AND size < 'Infinity'::numeric", name="ck_properties_size_nonnegative"),
@@ -53,6 +57,7 @@ class Property(db.Model):
         db.CheckConstraint("moderation_status IN ('clear', 'disabled')", name="ck_properties_moderation_status"),
         db.CheckConstraint("availability_status IN ('available', 'rented')", name="ck_properties_availability_status"),
         db.CheckConstraint("jsonb_typeof(amenities) = 'array'", name="ck_properties_amenities_array"),
+        db.CheckConstraint("char_length(comment) <= 2000", name="ck_properties_comment_length"),
         db.CheckConstraint("(latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL)", name="ck_properties_coordinate_pair"),
         db.CheckConstraint("latitude IS NULL OR latitude BETWEEN -90 AND 90", name="ck_properties_latitude_range"),
         db.CheckConstraint("longitude IS NULL OR longitude BETWEEN -180 AND 180", name="ck_properties_longitude_range"),
@@ -66,6 +71,7 @@ class Property(db.Model):
     title_ar = db.Column(db.String, nullable=False)
     description_en = db.Column(db.Text, nullable=False)
     description_ar = db.Column(db.Text, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
     state_en = db.Column(db.String, nullable=False)
     state_ar = db.Column(db.String, nullable=False)
     city_en = db.Column(db.String, nullable=False)
@@ -82,8 +88,10 @@ class Property(db.Model):
     price = db.Column(db.Numeric, nullable=False)
     monthly_rent = db.Column(db.Numeric, nullable=True)
     currency = db.Column(db.String, nullable=False, default="SDG", server_default="SDG")
-    bedrooms = db.Column(db.Integer, nullable=False)
-    bathrooms = db.Column(db.Integer, nullable=False)
+    bedrooms = db.Column(db.Integer, nullable=True)
+    bathrooms = db.Column(db.Integer, nullable=True)
+    floor = db.Column(db.Integer, nullable=True)
+    land_use = db.Column(db.String(32), nullable=True)
     size = db.Column(db.Numeric, nullable=True)
     furnished = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     amenities = db.Column(MutableList.as_mutable(JSONB), nullable=False, default=list, server_default=db.text("'[]'::jsonb"))
@@ -99,6 +107,10 @@ class Property(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now(), onupdate=utc_now)
     photos = db.relationship("PropertyPhoto", back_populates="property", cascade="all, delete-orphan", order_by="PropertyPhoto.display_order")
+
+    @property
+    def furnishing_applicable(self):
+        return field_rules(self.property_type, self.transaction_type)["furnished"] != "inapplicable"
 
     def __init__(self, **kwargs):
         defaults = {
@@ -133,11 +145,27 @@ class Property(db.Model):
             raise ValueError(f"{key} must be a finite nonnegative decimal")
         return number
 
-    @validates("bedrooms", "bathrooms")
+    @validates("bedrooms", "bathrooms", "floor")
     def validate_integer(self, key, value):
+        if value is None:
+            return None
         if type(value) is not int or value < 0:
             raise ValueError(f"{key} must be a nonnegative integer")
         return value
+
+    @validates("land_use")
+    def validate_land_use(self, key, value):
+        if value is not None and value not in LAND_USES:
+            raise ValueError("invalid land use")
+        return value
+
+    @validates("comment")
+    def validate_comment(self, key, value):
+        if value is None:
+            return None
+        if not isinstance(value, str) or '\x00' in value or len(value.strip()) > MAX_COMMENT_LENGTH:
+            raise ValueError('invalid comment')
+        return value.strip() or None
 
     @validates("furnished")
     def validate_boolean(self, key, value):
@@ -168,6 +196,7 @@ class Property(db.Model):
 @event.listens_for(Property, "before_insert")
 @event.listens_for(Property, "before_update")
 def validate_property(mapper, connection, target):
+    target.comment = target.validate_comment('comment', target.comment)
     # Also catch omitted required fields and in-place changes to the JSON list.
     for key in REQUIRED_TEXT_FIELDS:
         target.validate_text(key, getattr(target, key))
@@ -177,12 +206,13 @@ def validate_property(mapper, connection, target):
         target.validate_decimal(key, getattr(target, key))
     for key in ("transaction_type", "property_occupancy"):
         target.validate_text(key, getattr(target, key))
-    if (target.transaction_type == "rent" and target.rent_period not in ("monthly", "weekly")) or (target.transaction_type == "sale" and target.rent_period is not None):
+    if (target.transaction_type == "rent" and target.rent_period not in TRANSACTION_RULES["rent"]["allowed_values"]["rent_period"]) or (target.transaction_type == "sale" and target.rent_period is not None):
         raise ValueError("invalid rent period")
     if target.neighborhood_ar is not None and not target.neighborhood_ar.strip():
         raise ValueError("neighborhood must not be blank")
-    for key in ("bedrooms", "bathrooms"):
+    for key in ("bedrooms", "bathrooms", "floor"):
         target.validate_integer(key, getattr(target, key))
+    target.validate_land_use("land_use", target.land_use)
     target.validate_boolean("furnished", target.furnished)
     target.validate_amenities("amenities", target.amenities)
     if (target.latitude is None) != (target.longitude is None):
@@ -255,12 +285,8 @@ class User(db.Model):
         return bool(self.contact_name and self.contact_name.strip() and self.whatsapp and self.contact_role in CHOICES['contact_role'])
 
     @property
-    def facebook_contact_complete(self):
-        return bool(self.whatsapp or self.phone_number)
-
-    @property
     def social_contact_complete(self):
-        return self.facebook_contact_complete
+        return bool(self.whatsapp or self.phone_number)
 
 
 class UserIdentity(db.Model):

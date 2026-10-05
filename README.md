@@ -16,8 +16,8 @@ app/
   ownership.py            Owner-only property management and photo actions
   auth.py, otp.py, phone.py
                           Phone authentication, OTP, phone normalization
-  facebook_auth.py, facebook_provider.py, meta_facebook_provider.py
-                          Development simulator and real Meta OAuth
+  google_auth.py, google_provider.py
+                          Google OpenID Connect authorization-code flow
   saved.py                Saved-property routes
   property_filters.py     Public listing filters
   models.py               Users, identities, properties, photos, OTPs, saves
@@ -50,7 +50,7 @@ docker compose ps
 docker compose logs web db
 ```
 
-Schema changes are managed by Flask-Migrate/Alembic. Apply all existing migrations with `docker compose exec web flask --app run db upgrade`; the repository contains revisions beyond the original property table, including users, OTP challenges, photos, saved-property relationships, and Facebook identities.
+Schema changes are managed by Flask-Migrate/Alembic. Apply all existing migrations with `docker compose exec web flask --app run db upgrade`; the repository contains revisions beyond the original property table, including users, OTP challenges, photos, and saved-property relationships.
 
 ## Homepage and public browsing
 
@@ -89,7 +89,7 @@ An owner can set the primary photo, move photos in display order, and delete the
 
 ## Accounts and authentication
 
-`/auth` offers Sign In and Sign Up. The public forms use a calling-code selector (Sudan +249 by default) and a local phone number. Manual Sign Up collects a full name, WhatsApp/mobile number, and password; it normalizes the combined number, stores a password hash, and signs the user in without OTP. The number is not marked verified. Password login uses the same normalized number. Facebook and phone OTP authentication remain implemented but are hidden from the public auth UI while their providers are being prepared. Authentication preserves a safe local `next` destination, such as `/properties/new` or a property detail URL. Logout ends the session.
+`/auth` offers Sign In and Sign Up. The public forms use a calling-code selector (Sudan +249 by default) and a local phone number. Manual Sign Up collects a full name, WhatsApp/mobile number, and password; it normalizes the combined number, stores a password hash, and signs the user in without OTP. The number is not marked verified. Password login uses the same normalized number. Google Sign-In is available when configured; phone OTP remains available internally. Authentication preserves a safe local `next` destination, such as `/properties/new` or a property detail URL. Logout ends the session.
 
 The current OTP delivery is a **development provider**. It stores the code locally for development; it does **not** send a real WhatsApp message. OTP codes are hashed in the database and protected by expiry, attempt limits, single use, and request throttling. After requesting a code locally, inspect it with:
 
@@ -97,8 +97,7 @@ The current OTP delivery is a **development provider**. It stores the code local
 docker compose exec web flask --app run dev-otp +249912345678
 ```
 
-Manazil also retains Facebook authentication behind a provider setting for existing linked accounts. Local Compose uses a **simulated development provider** with a stable fake identity; it does not contact Meta. Selecting `FACEBOOK_AUTH_PROVIDER=meta` enables the real authorization-code provider only when its app ID, secret, and HTTPS callback are configured. Facebook is not presented in the public authentication UI. Production never falls back to the simulator. Phone OTP remains available internally. A Facebook-only account can complete its contact profile and post without a verified OTP-login phone; its WhatsApp contact number is separate from authentication identity.
-Google Sign-In is the public social-login option when `PUBLIC_GOOGLE_LOGIN_ENABLED=1` and a Google OAuth web client is configured. It uses OpenID Connect authorization code, signed ID-token verification, and the stable Google account ID. Google users complete a contact number using the existing social-profile page; their number is not marked OTP-verified. Existing Facebook-linked accounts and backend routes remain available, but Facebook is not shown on the public Sign In or Sign Up pages. Social identities are never automatically merged with phone/password accounts.
+Google Sign-In is the public social-login option when `PUBLIC_GOOGLE_LOGIN_ENABLED=1` and a Google OAuth web client is configured. It uses OpenID Connect authorization code, signed ID-token verification, and the stable Google account ID. Google users complete a contact number using the existing profile-completion page; their number is not marked OTP-verified. Social identities are never automatically merged with phone/password accounts.
 
 `/account` displays account identity and contact information. Users can edit contact name, WhatsApp number, and Owner/Broker role; the account phone is read-only in Account & Security, with verification indicated only when OTP has actually verified it. The page links to Saved Properties and Post Property. My Properties remains available in authenticated navigation. Arabic interface text is the default on each request; the language switch selects English (`lang=en`) or Arabic, with RTL Arabic and LTR English. Optional English property title/description fall back to Arabic content when absent.
 
@@ -164,10 +163,9 @@ Configure runtime settings and secrets in Azure Container Apps, not in source co
 | `AZURE_STORAGE_CONTAINER` | Private property-photo container name. |
 | `TRUST_PROXY_HEADERS` | Trust the configured HTTPS proxy hop. |
 | `TRUSTED_HOSTS` | Optional additional exact hosts; both custom domains are already included in production code. |
-| `FACEBOOK_AUTH_PROVIDER`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `FACEBOOK_REDIRECT_URI`, `PUBLIC_FACEBOOK_LOGIN_ENABLED` | Retained Meta provider configuration for existing linked users; the public Facebook button is no longer rendered. |
 | `PUBLIC_GOOGLE_LOGIN_ENABLED`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Enable public Google Sign-In and configure its OAuth web client and exact callback. Production callback: `https://www.manazilelsaudan.com/auth/google/callback`; local callback: `http://localhost:5000/auth/google/callback`. |
 | `DATA_DELETION_CONTACT_EMAIL` | Optional public deletion-request mailbox override. |
-| `OTP_DEVELOPMENT_MODE`, `FACEBOOK_DEVELOPMENT_MODE` | Development providers; production rejects them when enabled. |
+| `OTP_DEVELOPMENT_MODE` | Development providers; production rejects them when enabled. |
 
 Production requires a strong secret, a TLS PostgreSQL URL, and Azure Blob configuration; it disables debug mode and uses secure, HTTP-only, SameSite=Lax session cookies. The private Blob container must remain nonpublic. Local photos are not copied to Azure automatically. The current phone OTP provider is development-only, including admin OTP login; manual password signup/login does not depend on it.
 
@@ -175,4 +173,4 @@ Schema changes use the existing Flask-Migrate/Alembic revisions. Run `flask --ap
 
 ## Not yet implemented
 
-The repository has no production WhatsApp/OTP delivery, Facebook-to-verified-phone linking, or per-property WhatsApp contact verification. Maps, payments, and AI features are not part of the current application.
+The repository has no production WhatsApp/OTP delivery or per-property WhatsApp contact verification. Maps, payments, and AI features are not part of the current application.

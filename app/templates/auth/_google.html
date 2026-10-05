@@ -2,7 +2,7 @@
 <div class="auth-social-divider"><span>{{ t('OR') }}</span></div>
 <form class="auth-google" method="post" action="{{ url_for('google.start') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <input type="hidden" name="next" value="{{ facebook_next }}">
+  <input type="hidden" name="next" value="{{ google_next }}">
   <input type="hidden" name="_language" value="{{ language }}">
   <button class="button-secondary" type="submit"><img src="{{ url_for('static', filename='images/google-g.svg') }}" alt="" aria-hidden="true" width="18" height="18"> <span>{{ t('Continue with Google') }}</span></button>
 </form>

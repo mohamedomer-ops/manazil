@@ -6,22 +6,21 @@
   <p>{{ t('Manazil is a Sudanese property marketplace. This page explains the information used to provide accounts, property listings, and saved properties.') }}</p>
   <section>
     <h2>{{ t('Information we process') }}</h2>
-    <p>{{ t('For phone login, we process your phone number and a short-lived verification challenge. For Facebook login, we receive your app-scoped Facebook ID, display name, and profile picture when available. We do not store Facebook access tokens.') }}</p>
     <p>{{ t('For Google login, we receive your Google account ID, verified email address, display name, and profile picture when available. We use the account ID to recognize you. We do not store Google access tokens.') }}</p>
     <p>{{ t('If you provide them, we store your account contact name, WhatsApp number, and Owner or Broker role. Listings include the property details, photos, price, location, and the contact information you choose for that listing. We also store your saved-property choices.') }}</p>
   </section>
   <section>
     <h2>{{ t('How information is used and shared') }}</h2>
     <p>{{ t('We use this information to sign you in, manage your account and listings, show public property details, and let people contact the listing contact. Public listings may show their photos and listing contact information to visitors.') }}</p>
-    <p>{{ t('Application data is stored in PostgreSQL and photos in private managed storage. Infrastructure providers process data to operate Manazil. We do not use your Facebook account to post on your behalf.') }}</p>
+    <p>{{ t('Application data is stored in PostgreSQL and photos in private managed storage. Infrastructure providers process data to operate Manazil.') }}</p>
   </section>
   <section>
     <h2>{{ t('Sessions and security') }}</h2>
-    <p>{{ t('Manazil uses a session cookie to keep you signed in and security tokens to protect forms and Facebook login. Verification codes have a limited lifetime and are not stored in plain text.') }}</p>
+    <p>{{ t('Manazil uses a session cookie to keep you signed in and security tokens to protect forms and Google Sign-In. Verification codes have a limited lifetime and are not stored in plain text.') }}</p>
   </section>
   <section>
     <h2>{{ t('Your choices and deletion') }}</h2>
-    <p>{{ t('You can edit your account contact information and manage your property listings. For an account and associated Facebook-login data deletion request, see our Data Deletion page. We may need to verify that the account is yours before acting on a request.') }} <a href="{{ url_for('main.data_deletion', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Data Deletion') }}</a></p>
+    <p>{{ t('You can edit your account contact information and manage your property listings. For an account and associated sign-in data deletion request, see our Data Deletion page. We may need to verify that the account is yours before acting on a request.') }} <a href="{{ url_for('main.data_deletion', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Data Deletion') }}</a></p>
   </section>
 </main>
 {% endblock %}

@@ -43,6 +43,12 @@
         <h2 id="description-heading">{{ t('Description') }}</h2>
         <p class="detail-description">{{ description }}</p>
       </section>
+      {% if property.comment %}
+      <section class="detail-panel" aria-labelledby="comment-heading">
+        <h2 id="comment-heading">{{ t('Comment') }}</h2>
+        <p class="detail-description" dir="auto">{{ property.comment }}</p>
+      </section>
+      {% endif %}
       {% if property.amenities %}
       <section class="detail-panel" aria-labelledby="amenities-heading">
         <h2 id="amenities-heading">{{ t('Amenities') }}</h2>
@@ -55,10 +61,10 @@
         <h2 id="facts-heading">{{ t('Property details') }}</h2>
         <dl class="detail-facts">
           <div><dt>{{ t('Property type') }}</dt><dd>{{ property_type_label(property.property_type, language) }}</dd></div>
-          <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
-          <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
+          {% if property.bedrooms is not none %}<div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>{% endif %}
+          {% if property.bathrooms is not none %}<div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>{% endif %}
           {% if property.size is not none %}<div><dt>{{ t('Size in square meters') }}</dt><dd>{{ format_rent(property.size) }}</dd></div>{% endif %}
-          <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>
+          {% if property.furnishing_applicable %}<div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>{% endif %}
           <div><dt>{{ t('Availability') }}</dt><dd>{{ availability_label(property.available_from_date, language, today) }}</dd></div>
           <div><dt>{{ t('Location') }}</dt><dd>{% if city and state != city %}{{ state }} · {{ city }}{% else %}{{ state }}{% endif %}{% if area %} · {{ area }}{% endif %}</dd></div>
         </dl>

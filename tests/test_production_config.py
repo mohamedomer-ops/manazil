@@ -14,7 +14,6 @@ from werkzeug.datastructures import FileStorage
 from app import create_app
 from app import db
 from app.azure_photo_storage import AzureBlobPhotoStorage
-from app.facebook_provider import development_enabled
 from app.otp import DevelopmentOTPProvider, provider
 from app.photo_storage import LocalPhotoStorage, PhotoError, photo_storage
 from app.models import Property, PropertyPhoto
@@ -86,7 +85,7 @@ def production_config(**overrides):
         'DATA_DELETION_CONTACT_EMAIL': 'privacy@example.test',
         'PHOTO_STORAGE_BACKEND': 'azure_blob',
         'AZURE_BLOB_CONTAINER_CLIENT': FakeContainer(),
-        'OTP_DEVELOPMENT_MODE': False, 'FACEBOOK_DEVELOPMENT_MODE': False,
+        'OTP_DEVELOPMENT_MODE': False,
         'PUBLIC_GOOGLE_LOGIN_ENABLED': False,
     } | overrides
 
@@ -110,7 +109,7 @@ def test_production_fails_closed_for_missing_security_configuration():
                     {'PHOTO_STORAGE_BACKEND': 'local'},
                     {'AZURE_BLOB_CONTAINER_CLIENT': None, 'AZURE_STORAGE_CONNECTION_STRING': None},
                     {'SQLALCHEMY_DATABASE_URI': NEON_EXAMPLE.replace('?sslmode=require', '')},
-                    {'OTP_DEVELOPMENT_MODE': True}, {'FACEBOOK_DEVELOPMENT_MODE': True}):
+                    {'OTP_DEVELOPMENT_MODE': True}):
         with pytest.raises(ValueError):
             create_app(production_config(**changes))
 
@@ -134,10 +133,9 @@ def test_migration_cli_skips_only_unrelated_blob_credentials(monkeypatch):
         create_app(migration)
 
 
-def test_production_auth_providers_are_not_simulations():
+def test_production_authentication_fails_closed_for_development_otp():
     app = create_app(production_config(DEBUG=True))
     assert not app.debug and app.config['SESSION_COOKIE_SECURE']
-    assert not development_enabled(app.config)
     with app.app_context():
         with pytest.raises(RuntimeError):
             provider()
@@ -193,7 +191,7 @@ def test_apex_redirects_to_www_before_any_production_route_runs():
     app.add_url_rule('/_host-check', view_func=lambda: 'ok')
     browser = app.test_client()
     for path in ('/properties?state=khartoum&lang=en', '/auth?next=%2Fproperties%2Fnew',
-                 '/auth/facebook/callback?state=example'):
+                 '/auth/google/callback?state=example'):
         result = browser.get(path, base_url='https://manazilelsaudan.com')
         assert result.status_code == 308
         assert result.location == 'https://www.manazilelsaudan.com' + path

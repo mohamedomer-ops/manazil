@@ -21,7 +21,7 @@ def test_public_legal_pages_and_footer_links(client, language, direction, suffix
         assert f'<h1>{translate(title, language)}</h1>' in html
         assert f'href="/privacy-policy{suffix}"' in html
         assert f'href="/data-deletion{suffix}"' in html
-        assert 'facebook_auth' not in html
+        assert 'class="auth-choice"' not in html
 
     deletion = client.get('/data-deletion' + suffix).text
     assert 'mailto:privacy@example.test?subject=Manazil%20data%20deletion' in deletion

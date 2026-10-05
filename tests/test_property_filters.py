@@ -177,7 +177,10 @@ def test_logged_out_save_uses_detail_destination_and_card_link_is_separate(clien
     assert '<a href="/auth?next=' in article
     save_url = unescape(re.search(r'<a href="([^"]+)"><span aria-hidden="true">♡', article).group(1))
     assert parse_qs(urlsplit(save_url).query)['next'] == [f'/properties/{property.id}?lang=en']
-    assert client.get(save_url).status_code == 200
+    entry = client.get(save_url, follow_redirects=False)
+    assert entry.status_code == 302 and urlsplit(entry.location).path == '/login'
+    assert parse_qs(urlsplit(entry.location).query)['next'] == [f'/properties/{property.id}?lang=en']
+    assert 'class="signin-main"' in client.get(entry.location).text
     assert db.session.query(SavedProperty).count() == 0
 
 

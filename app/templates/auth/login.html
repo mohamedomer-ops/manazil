@@ -1,24 +1,64 @@
 {% extends 'base.html' %}
 {% block title %}{{ t('Sign In') }} &middot; {{ t('Manazil') }}{% endblock %}
-{% block scripts %}<script defer src="{{ url_for('static', filename='js/auth-phone.js') }}"></script>{% endblock %}
+{% block scripts %}
+<script defer src="{{ url_for('static', filename='js/auth-phone.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/auth-password-toggle.js') }}"></script>
+{% endblock %}
 {% block language_switcher %}
 <a href="{{ url_for('auth.login', next=next, lang='ar') }}" lang="ar">العربية</a>
 <a href="{{ url_for('auth.login', next=next, lang='en') }}" lang="en">English</a>
 {% endblock %}
 {% block content %}
-<main id="main-content" class="form-page auth-page">
-  <h1>{{ t('Sign In') }}</h1>
-  {% if error %}<p role="alert">{{ t(error) }}</p>{% endif %}
-  <form method="post" action="{{ url_for('auth.password_login') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="next" value="{{ next }}">
-    <input type="hidden" name="_language" value="{{ language }}">
-    {% include 'auth/_country_phone.html' %}
-    <label for="password">{{ t('Password') }}</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required>
-    <button type="submit">{{ t('Sign In') }}</button>
-  </form>
-  {% include 'auth/_google.html' %}
-  <p class="auth-footer">{{ t("Don't have an account?") }} <a href="{{ url_for('auth.signup', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Sign Up') }}</a></p>
+<main id="main-content" class="signin-main">
+  <div class="signin-shell">
+    <section class="signin-promo" aria-label="{{ t('Why choose Manazil') }}">
+      <p class="signin-eyebrow">{{ t('Manazil · Sudan') }}</p>
+      <h1>{{ t('Homes closer to your life') }}</h1>
+      <p class="signin-promo-copy">{{ t('Find a suitable home in Sudan easily and safely.') }}</p>
+      <ul class="signin-features">
+        <li>
+          <span class="signin-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/><path d="m8 10 2 2 5-5"/></svg></span>
+          <span>{{ t('Trusted properties') }}</span>
+        </li>
+        <li>
+          <span class="signin-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+          <span>{{ t('A secure experience') }}</span>
+        </li>
+        <li>
+          <span class="signin-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3.5 7.8 8.5 4.4 8.5-4.4M12 12.2V21"/><path d="M7 5.5v4l5 2.7"/></svg></span>
+          <span>{{ t('Coverage across Sudan') }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="auth-page signin-card" aria-labelledby="signin-title">
+      <a class="signin-card-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}">
+        <img src="{{ url_for('static', filename='images/manazil-logo.png') }}" alt="{{ t('Manazil Sudan') }}" width="1254" height="1254">
+      </a>
+      <h2 id="signin-title">{{ t('Welcome back') }}</h2>
+      <p class="signin-card-subtitle">{{ t('Sign in to continue to Manazil') }}</p>
+      {% if error %}<p class="signin-error" role="alert">{{ t(error) }}</p>{% endif %}
+
+      {% include 'auth/_google.html' %}
+
+      <form class="signin-password-form" method="post" action="{{ url_for('auth.password_login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next }}">
+        <input type="hidden" name="_language" value="{{ language }}">
+        {% include 'auth/_country_phone.html' %}
+        <label for="password">{{ t('Password') }}</label>
+        <div class="signin-password-control">
+          <input id="password" name="password" type="password" autocomplete="current-password" required>
+          <button class="signin-password-toggle" type="button" data-password-toggle aria-controls="password"
+                  data-show-label="{{ t('Show password') }}" data-hide-label="{{ t('Hide password') }}"
+                  aria-label="{{ t('Show password') }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <button class="signin-submit" type="submit">{{ t('Sign In') }}</button>
+      </form>
+      <p class="auth-footer signin-card-footer">{{ t("Don't have an account?") }} <a href="{{ url_for('auth.signup', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Sign Up') }}</a></p>
+    </section>
+  </div>
 </main>
 {% endblock %}

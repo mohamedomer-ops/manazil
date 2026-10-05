@@ -13,6 +13,9 @@ if (mapElement && window.L) {
     scrollWheelZoom: false,
     dragging: !window.matchMedia("(pointer: coarse)").matches,
   }).setView(hasLocation ? selected : [15.5, 30.2], hasLocation ? 14 : 5);
+  document.addEventListener('property-wizard-section', event => {
+    if (event.detail === 'location') requestAnimationFrame(() => map.invalidateSize());
+  });
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

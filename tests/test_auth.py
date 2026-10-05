@@ -205,12 +205,37 @@ def test_choices_and_next_preserved(client):
     response = client.get('/properties/new')
     assert urlsplit(response.location).path == '/auth'
     assert parse_qs(urlsplit(response.location).query)['next'] == ['/properties/new']
-    page = client.get(response.location).get_data(as_text=True)
-    assert '/login?next=/properties/new' in page and '/signup?next=/properties/new' in page
+    entry_response = client.get(response.location, follow_redirects=False)
+    assert urlsplit(entry_response.location).path == '/login'
+    assert parse_qs(urlsplit(entry_response.location).query)['next'] == ['/properties/new']
+    page = client.get(entry_response.location).get_data(as_text=True)
+    assert 'class="signin-main"' in page
+    assert '/signup?next=/properties/new' in page
     for route in ('/login', '/signup'):
         page = client.get(route + '?next=/properties/new&lang=en').get_data(as_text=True)
         assert 'name="next" value="/properties/new"' in page
         assert 'next=/properties/new' in page and 'lang=ar' in page and 'lang=en' in page
+
+
+@pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
+def test_auth_entry_redirects_into_signin_and_preserves_language_and_safe_next(client, language, direction):
+    from urllib.parse import parse_qs, urlsplit
+
+    response = client.get('/auth?next=/properties/new&lang=' + language, follow_redirects=False)
+    target = urlsplit(response.location)
+    query = parse_qs(target.query)
+    assert response.status_code == 302
+    assert target.path == '/login'
+    assert query['next'] == ['/properties/new']
+    assert query['lang'] == [language]
+    signin = client.get(response.location).get_data(as_text=True)
+    assert f'<html lang="{language}" dir="{direction}">' in signin
+    assert 'class="signin-main"' in signin
+    assert 'href="/signup?next=/properties/new' in signin
+
+    unsafe = client.get('/auth?next=https://evil.example&lang=' + language, follow_redirects=False)
+    safe_query = parse_qs(urlsplit(unsafe.location).query)
+    assert safe_query['next'] == ['/account']
 
 
 def test_duplicate_and_returning_profile(client):
@@ -305,9 +330,12 @@ def test_navigation_auth_entry_for_logged_out_users(client, language, direction)
     assert links == [(path + ('?lang=en' if language == 'en' else ''), translate(label, language))
                      for path, label in [('/', 'Home'), ('/properties', 'Properties'),
                                          ('/properties/new', 'Post Property'), ('/auth', 'Login / Sign Up')]]
-    entry = client.get(links[-1][0]).get_data(as_text=True)
-    assert translate('Already have an account?', language) in entry
-    assert translate('New to Manazil?', language) in entry
+    entry_response = client.get(links[-1][0], follow_redirects=False)
+    assert entry_response.status_code == 302
+    signin = unescape(client.get(entry_response.location).get_data(as_text=True))
+    assert 'class="signin-main"' in signin
+    assert translate("Don't have an account?", language) in signin
+    assert 'href="/signup' in signin
     assert '/account' not in navigation and '/logout' not in navigation and '/my-properties' not in navigation and '/saved-properties' not in navigation
 
 
@@ -338,23 +366,24 @@ def test_navigation_authenticated_users_unchanged(client, language, direction):
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
 def test_compact_auth_ui_and_actions(client, language, direction):
     from app.languages import translate
-    for route in ('/auth', '/login', '/signup'):
+    entry = client.get('/auth?next=/properties/new&lang=' + language, follow_redirects=False)
+    assert entry.status_code == 302 and entry.location.startswith('/login?')
+    assert 'next=/properties/new' in entry.location
+    for route in ('/login', '/signup'):
         page = client.get(route + '?next=/properties/new&lang=' + language).get_data(as_text=True)
         assert f'<html lang="{language}" dir="{direction}">' in page
         content = page.split('<main', 1)[1].split('</main>', 1)[0]
         assert 'auth-page' in content
         assert translate('Create Account' if route != '/login' else 'Sign Up', language) in content
         assert 'next=/properties/new' in content
-    entry = client.get('/auth?lang=' + language).get_data(as_text=True)
-    assert 'button-secondary' in entry
     signup_page = client.get('/signup?lang=' + language).get_data(as_text=True)
     assert f'<button type="submit">{translate("Create Account", language)}</button>' in signup_page
     assert translate('Full name', language) in signup_page
     assert translate('Password', language) in signup_page
     assert translate('Confirm password', language) in signup_page
     login_page = client.get('/login?lang=' + language).get_data(as_text=True)
-    assert f'<button type="submit">{translate("Sign In", language)}</button>' in login_page
-    assert '/auth/request-otp' not in login_page and '/auth/facebook' not in login_page
+    assert f'<button class="signin-submit" type="submit">{translate("Sign In", language)}</button>' in login_page
+    assert '/auth/request-otp' not in login_page
     with client.session_transaction() as auth_session:
         auth_session['pending_phone'] = '+249912345678'
         auth_session['auth_next'] = '/properties/new'
@@ -362,6 +391,52 @@ def test_compact_auth_ui_and_actions(client, language, direction):
     assert 'auth-page' in otp_page and 'auth-resend' in otp_page
     assert 'auth-change-phone' in otp_page
     assert '/login?next=/properties/new' in otp_page
+
+
+@pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
+def test_redesigned_signin_preserves_auth_forms_and_localized_layout(client, language, direction):
+    from app.languages import translate
+
+    response = client.get('/login?next=/properties/new&lang=' + language)
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert f'<html lang="{language}" dir="{direction}">' in page
+    assert 'class="signin-main"' in page
+    assert 'class="signin-promo"' in page
+    assert 'class="auth-page signin-card"' in page
+    for phrase in (
+        'Homes closer to your life',
+        'Find a suitable home in Sudan easily and safely.',
+        'Trusted properties',
+        'A secure experience',
+        'Coverage across Sudan',
+        'Welcome back',
+        'Sign in to continue to Manazil',
+    ):
+        assert translate(phrase, language) in page
+    assert 'manazil-logo.png' in page
+    assert 'auth-password-toggle' in page
+    assert 'data-password-toggle' in page
+    assert 'data-show-label="' + translate('Show password', language) + '"' in page
+    assert 'action="/auth/password-login"' in page
+    assert 'name="csrf_token"' in page
+    assert 'name="next" value="/properties/new"' in page
+    assert 'name="country_code"' in page and 'name="phone_number"' in page
+    assert '/static/js/auth-password-toggle.js' in page
+
+
+def test_signin_background_asset_is_served_from_static_images(client):
+    response = client.get('/static/images/manazil-login-background.png')
+    assert response.status_code == 200
+    assert response.mimetype == 'image/png'
+    assert len(response.data) > 100_000
+
+    css = Path('app/static/css/style.css').read_text(encoding='utf-8')
+    assert "url('../images/manazil-login-background.png')" in css
+    assert 'background-size: cover' in css
+    assert '@media (max-width: 767px)' in css
+    assert '.signin-promo { display: none; }' in css
+    assert 'width: min(calc(100% - 24px), 480px)' in css
 
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])

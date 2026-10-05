@@ -1,7 +1,7 @@
 {% macro poster_identity(property, t, large=false) -%}
   {% set poster = property.owner %}
   {% set identities = poster.identities if poster else [] %}
-  {% set identity = (identities|selectattr('provider', 'equalto', 'google')|first) or (identities|selectattr('provider', 'equalto', 'facebook')|first) or (identities|first) %}
+  {% set identity = (identities|selectattr('provider', 'equalto', 'google')|first) or (identities|first) %}
   {% set name = (poster.contact_name or '')|trim if poster else '' %}
   {% set name = name or (identity.display_name if identity else '') or t('Property poster') %}
   <div class="poster-identity{{ ' poster-identity-large' if large else '' }}">

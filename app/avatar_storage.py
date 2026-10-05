@@ -1,4 +1,4 @@
-"""Best-effort Facebook avatar import into private Manazil photo storage."""
+"""Best-effort Google avatar import into private Manazil photo storage."""
 import io
 import warnings
 from urllib.error import HTTPError, URLError
@@ -30,7 +30,7 @@ def _open_picture(request):
     return build_opener(_NoRedirect).open(request, timeout=DOWNLOAD_TIMEOUT)
 
 
-def _allowed_picture_url(url, provider='facebook'):
+def _allowed_picture_url(url):
     if not isinstance(url, str) or len(url) > 4096:
         return False
     try:
@@ -38,15 +38,14 @@ def _allowed_picture_url(url, provider='facebook'):
         hostname = (parsed.hostname or '').lower()
         return (parsed.scheme == 'https' and parsed.port in (None, 443) and
                 not parsed.username and not parsed.password and not parsed.fragment and
-                ((provider == 'facebook' and (hostname.endswith('.fbcdn.net') or hostname == 'platform-lookaside.fbsbx.com')) or
-                 (provider == 'google' and (hostname == 'googleusercontent.com' or hostname.endswith('.googleusercontent.com')))) and
+                (hostname == 'googleusercontent.com' or hostname.endswith('.googleusercontent.com')) and
                 not {'access_token', 'appsecret_proof'} & set(parse_qs(parsed.query)))
     except ValueError:
         return False
 
 
-def fetch_avatar(url, provider):
-    if not _allowed_picture_url(url, provider):
+def fetch_avatar(url):
+    if not _allowed_picture_url(url):
         raise AvatarError('Avatar URL is invalid.')
     try:
         with _open_picture(Request(url, headers={'Accept': 'image/webp,image/jpeg,image/png'})) as response:
@@ -79,28 +78,24 @@ def fetch_avatar(url, provider):
         raise AvatarError('Avatar could not be imported.') from error
 
 
-def fetch_facebook_avatar(url):
-    return fetch_avatar(url, 'facebook')
-
-
 def fetch_google_avatar(url):
-    return fetch_avatar(url, 'google')
+    return fetch_avatar(url)
 
 
-def sync_avatar(user, picture_url, provider):
-    """Only refresh an avatar owned by this provider; login never depends on it."""
-    if not picture_url or user.avatar_source not in (None, provider):
+def sync_google_avatar(user, picture_url):
+    """Refresh only a Google-managed avatar; never overwrite a manual choice."""
+    if not picture_url or user.avatar_source not in (None, 'google'):
         return
     try:
-        payload = fetch_facebook_avatar(picture_url) if provider == 'facebook' else fetch_google_avatar(picture_url)
+        payload = fetch_google_avatar(picture_url)
         storage = photo_storage()
         new_key = storage.save_avatar(user.id, payload)
     except (AvatarError, PhotoError, OSError):
         current_app.logger.warning('Social avatar import was skipped.')
         return
-    old_key = user.avatar_storage_key if user.avatar_source == provider else None
+    old_key = user.avatar_storage_key if user.avatar_source == 'google' else None
     user.avatar_storage_key = new_key
-    user.avatar_source = provider
+    user.avatar_source = 'google'
     try:
         db.session.commit()
     except SQLAlchemyError:
@@ -116,11 +111,3 @@ def sync_avatar(user, picture_url, provider):
             storage.delete_avatar(old_key, user.id)
         except (PhotoError, OSError):
             current_app.logger.warning('A replaced avatar could not be removed.')
-
-
-def sync_facebook_avatar(user, picture_url):
-    sync_avatar(user, picture_url, 'facebook')
-
-
-def sync_google_avatar(user, picture_url):
-    sync_avatar(user, picture_url, 'google')

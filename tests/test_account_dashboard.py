@@ -18,8 +18,8 @@ def account_user(client, method='phone'):
                 is_verified=True, whatsapp='+249911111111', contact_role='owner')
     db.session.add(user)
     db.session.flush()
-    if method == 'facebook':
-        db.session.add(UserIdentity(provider='facebook', provider_user_id='private-provider-identifier',
+    if method == 'google':
+        db.session.add(UserIdentity(provider='google', provider_user_id='private-provider-identifier',
                                     user_id=user.id, display_name='Provider Display Name'))
     db.session.commit()
     with client.session_transaction() as auth_session:
@@ -36,7 +36,7 @@ def test_account_dashboard_requires_authentication(client):
     assert client.post('/account', data={'csrf_token': csrf(client.get('/login'))}).status_code == 302
 
 
-@pytest.mark.parametrize('method', ['phone', 'facebook'])
+@pytest.mark.parametrize('method', ['phone', 'google'])
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
 def test_dashboard_profile_actions_identity_and_languages(client, method, language, direction):
     user = account_user(client, method)
@@ -72,11 +72,11 @@ def test_dashboard_profile_actions_identity_and_languages(client, method, langua
     assert translate('Logout', language) in content
     if method == 'phone':
         assert translate('Phone login', language) in content
-        assert translate('Facebook account', language) not in content
+        assert translate('Google account', language) not in content
         assert 'value="+249912345678"' in content
     else:
-        assert translate('Facebook account', language) in content
-        assert translate('Development simulation', language) in content
+        assert translate('Google account', language) in content
+        assert translate('Google login', language) in content
         assert translate('Phone login', language) in content
         assert 'id="phone_number"' in content
         assert translate('Change WhatsApp/mobile number', language) in content
@@ -101,7 +101,7 @@ def test_removed_account_section_does_not_affect_my_properties(client, values):
     assert 'Owned Home' in management and 'Other Home' not in management
 
 
-@pytest.mark.parametrize('method', ['phone', 'facebook'])
+@pytest.mark.parametrize('method', ['phone', 'google'])
 def test_profile_edit_keeps_identity_and_existing_validation(client, method):
     user = account_user(client, method)
     page = client.get('/account?lang=en')
@@ -114,7 +114,7 @@ def test_profile_edit_keeps_identity_and_existing_validation(client, method):
     assert user.contact_name == 'Edited Member' and user.whatsapp == ('+249912222222' if method == 'phone' else '+249911111111') and user.contact_role == 'broker'
     assert user.phone_number == ('+249912345678' if method == 'phone' else '+249911111111')
     assert user.is_verified
-    if method == 'facebook':
+    if method == 'google':
         assert db.session.query(UserIdentity).one().provider_user_id == 'private-provider-identifier'
     response = client.post('/account', data={'csrf_token': csrf(response), '_language': 'en',
         'contact_name': '', 'whatsapp': 'bad', 'contact_role': 'invalid'})
@@ -129,8 +129,8 @@ def test_profile_edit_keeps_identity_and_existing_validation(client, method):
     assert client.get('/account').status_code == 302
 
 
-def test_facebook_display_name_fallback_without_contact_name_or_role(client):
-    user = account_user(client, 'facebook')
+def test_google_display_name_fallback_without_contact_name_or_role(client):
+    user = account_user(client, 'google')
     user.contact_name = user.contact_role = None
     db.session.commit()
     page = client.get('/account?lang=en').text

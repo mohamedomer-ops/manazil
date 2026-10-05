@@ -47,19 +47,11 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=102 * 1024 * 1024,
         OTP_DEVELOPMENT_MODE=os.environ.get('OTP_DEVELOPMENT_MODE') == '1',
         ENVIRONMENT=environment,
-        FACEBOOK_DEVELOPMENT_MODE=os.environ.get('FACEBOOK_DEVELOPMENT_MODE') == '1',
-        FACEBOOK_AUTH_PROVIDER=os.environ.get('FACEBOOK_AUTH_PROVIDER'),
-        FACEBOOK_APP_ID=os.environ.get('FACEBOOK_APP_ID'),
-        FACEBOOK_APP_SECRET=os.environ.get('FACEBOOK_APP_SECRET'),
-        FACEBOOK_REDIRECT_URI=os.environ.get('FACEBOOK_REDIRECT_URI'),
-        PUBLIC_FACEBOOK_LOGIN_ENABLED=os.environ.get('PUBLIC_FACEBOOK_LOGIN_ENABLED') == '1',
         GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID'),
         GOOGLE_CLIENT_SECRET=os.environ.get('GOOGLE_CLIENT_SECRET'),
         GOOGLE_REDIRECT_URI=os.environ.get('GOOGLE_REDIRECT_URI'),
         PUBLIC_GOOGLE_LOGIN_ENABLED=os.environ.get('PUBLIC_GOOGLE_LOGIN_ENABLED') == '1',
         DATA_DELETION_CONTACT_EMAIL=os.environ.get('DATA_DELETION_CONTACT_EMAIL', 'support@manazilelsaudan.com'),
-        FACEBOOK_DEVELOPMENT_USER_ID=os.environ.get('FACEBOOK_DEVELOPMENT_USER_ID', 'development-facebook-user'),
-        FACEBOOK_DEVELOPMENT_DISPLAY_NAME=os.environ.get('FACEBOOK_DEVELOPMENT_DISPLAY_NAME', 'Development Facebook User'),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_SECURE=environment == 'production',
@@ -87,7 +79,7 @@ def create_app(test_config=None):
         app.config['DEBUG'] = False
         app.config['SESSION_COOKIE_SECURE'] = True
         app.config['PREFERRED_URL_SCHEME'] = 'https'
-        if app.config.get('OTP_DEVELOPMENT_MODE') or app.config.get('FACEBOOK_DEVELOPMENT_MODE'):
+        if app.config.get('OTP_DEVELOPMENT_MODE'):
             raise ValueError('Development authentication modes are forbidden in production.')
     if app.config['PHOTO_STORAGE_BACKEND'] not in ('local', 'azure_blob'):
         raise ValueError('PHOTO_STORAGE_BACKEND must be local or azure_blob.')
@@ -148,8 +140,6 @@ def create_app(test_config=None):
     app.register_blueprint(auth)
     app.register_blueprint(ownership)
     app.register_blueprint(saved)
-    from app.facebook_provider import configure_facebook
-    configure_facebook(app)
     from app.google_provider import configure_google
     configure_google(app)
     app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])

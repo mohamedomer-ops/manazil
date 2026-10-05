@@ -1,15 +1,15 @@
 {% extends 'base.html' %}
 {% block title %}{{ t('Complete your profile') }} · {{ t('Manazil') }}{% endblock %}
 {% block language_switcher %}
-<a href="{{ url_for('auth.facebook_profile', lang='ar') }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a>
-<a href="{{ url_for('auth.facebook_profile', lang='en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
+<a href="{{ url_for('auth.complete_profile', lang='ar') }}" lang="ar" {% if language == 'ar' %}aria-current="true"{% endif %}>العربية</a>
+<a href="{{ url_for('auth.complete_profile', lang='en') }}" lang="en" {% if language == 'en' %}aria-current="true"{% endif %}>English</a>
 {% endblock %}
 {% block content %}
 <main id="main-content" class="form-page auth-page">
   <h1>{{ t('Complete your profile') }}</h1>
   <p class="auth-support">{{ t('Add your WhatsApp/mobile number for Manazil contact and property listings.') }}</p>
   {% if error %}<p role="alert">{{ t(error) }}</p>{% endif %}
-  <form method="post" action="{{ url_for('auth.facebook_profile_post') }}">
+  <form method="post" action="{{ url_for('auth.complete_profile_post') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="_language" value="{{ language }}">
     <label for="whatsapp">{{ t('WhatsApp/mobile number') }}</label>

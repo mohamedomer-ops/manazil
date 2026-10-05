@@ -86,9 +86,11 @@ def find_or_create_user(identity):
 
 
 def failure(pending, message, status):
+    pending = pending if isinstance(pending, dict) else {}
     language = pending.get('language') if pending.get('language') in ('ar', 'en') else current_language()
-    return render_template('auth/entry.html', next=pending.get('next', '/'),
-                           signup_next=pending.get('next', '/'), error=message,
+    destination = safe_next(pending.get('next'), url_for('main.index'))
+    return render_template('auth/login.html', next=destination,
+                           google_next=destination, values={}, error=message,
                            language=language, t=lambda phrase: translate(phrase, language)), status
 
 
@@ -96,7 +98,7 @@ def failure(pending, message, status):
 def callback():
     pending = session.pop('google_auth', None)
     if not valid_state(pending, request.args.get('state')):
-        abort(400)
+        return failure(pending, 'Google sign-in could not be completed. Please try again.', 400)
     if request.args.get('error'):
         return failure(pending, 'Google sign-in was cancelled.', 400)
     code = request.args.get('code')
@@ -122,7 +124,7 @@ def callback():
     sync_google_avatar(user, identity.picture_url)
     language = pending['language'] if pending['language'] in ('ar', 'en') else 'ar'
     if not user.social_contact_complete:
-        response = establish_session(user, url_for('auth.facebook_profile', **({'lang': 'en'} if language == 'en' else {})))
+        response = establish_session(user, url_for('auth.complete_profile', **({'lang': 'en'} if language == 'en' else {})))
         session['profile_next'] = safe_next(pending['next'], url_for('main.index'))
         session['profile_language'] = language
         return response

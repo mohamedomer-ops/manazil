@@ -1,11 +1,14 @@
 """Google OIDC is mocked; these tests never contact Google."""
 import json
+import io
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from flask import current_app
+from PIL import Image
+from types import SimpleNamespace
 from sqlalchemy import select
 
 from app import create_app, db
@@ -14,14 +17,42 @@ from app.google_provider import GoogleAuthProvider, GoogleIdentity, GoogleProvid
 from app.models import User, UserIdentity
 from app.photo_storage import photo_storage
 from test_auth import client, csrf, signup
-from test_meta_facebook_auth import production_config
-from test_facebook_avatar import PictureResponse, image_bytes
 from test_properties import migrated_connection
 
 CLIENT_ID = 'test-client.apps.googleusercontent.com'
 CLIENT_SECRET = 'test-only-google-secret-never-real'
 CALLBACK = 'http://localhost:5000/auth/google/callback'
 PRODUCTION_CALLBACK = 'https://www.manazilelsaudan.com/auth/google/callback'
+
+
+def production_config(**overrides):
+    return {'TESTING': True, 'ENVIRONMENT': 'production',
+            'SQLALCHEMY_DATABASE_URI': 'postgresql+psycopg://account:example-password@ep-example.aws.neon.tech/neondb?sslmode=require',
+            'SECRET_KEY': 'production-test-secret-that-is-long-enough',
+            'DATA_DELETION_CONTACT_EMAIL': 'privacy@example.test',
+            'PHOTO_STORAGE_BACKEND': 'azure_blob',
+            'AZURE_BLOB_CONTAINER_CLIENT': SimpleNamespace(),
+            'OTP_DEVELOPMENT_MODE': False,
+            'PUBLIC_GOOGLE_LOGIN_ENABLED': False} | overrides
+
+
+def image_bytes(color='green'):
+    output = io.BytesIO()
+    Image.new('RGB', (40, 40), color).save(output, format='JPEG')
+    return output.getvalue()
+
+
+class PictureResponse:
+    def __init__(self, payload, content_type='image/jpeg', size=None):
+        self.payload = payload
+        self.headers = {'Content-Type': content_type,
+                        'Content-Length': str(len(payload) if size is None else size)}
+    def __enter__(self):
+        return self
+    def __exit__(self, *args):
+        return False
+    def read(self, limit):
+        return self.payload[:limit]
 
 
 @pytest.fixture
@@ -63,27 +94,28 @@ def complete(client, phone='0912222222', language='en'):
 
 
 def test_configuration_disabled_and_production_fails_closed():
-    app = create_app(production_config(FACEBOOK_AUTH_PROVIDER='disabled'))
+    app = create_app(production_config())
     assert 'google_auth_provider' not in app.extensions
     assert '/auth/google' not in {rule.rule for rule in app.url_map.iter_rules()}
     required = dict(PUBLIC_GOOGLE_LOGIN_ENABLED=True, GOOGLE_CLIENT_ID=CLIENT_ID,
                     GOOGLE_CLIENT_SECRET=CLIENT_SECRET, GOOGLE_REDIRECT_URI=PRODUCTION_CALLBACK)
-    ready = create_app(production_config(FACEBOOK_AUTH_PROVIDER='disabled', **required))
+    ready = create_app(production_config(**required))
     assert ready.extensions['google_auth_provider'].redirect_uri == PRODUCTION_CALLBACK
     for key, value in [('GOOGLE_CLIENT_ID', None), ('GOOGLE_CLIENT_SECRET', None),
                        ('GOOGLE_REDIRECT_URI', None), ('GOOGLE_REDIRECT_URI', CALLBACK),
                        ('GOOGLE_REDIRECT_URI', 'https://evil.example/auth/google/callback')]:
         with pytest.raises(ValueError):
-            create_app(production_config(FACEBOOK_AUTH_PROVIDER='disabled', **(required | {key: value})))
+            create_app(production_config(**(required | {key: value})))
 
 
 @pytest.mark.parametrize('language,direction', [('ar', 'rtl'), ('en', 'ltr')])
 def test_public_ui_and_authorization_url(google_client, language, direction):
     for path in ('/auth', '/login', '/signup'):
-        page = google_client.get(path + '?lang=' + language)
+        page = google_client.get(path + '?lang=' + language, follow_redirects=(path == '/auth'))
         assert f'<html lang="{language}" dir="{direction}">' in page.text
+        if path == '/auth':
+            assert 'class="signin-main"' in page.text
         assert 'action="/auth/google"' in page.text
-        assert 'action="/auth/facebook"' not in page.text
         assert '/static/images/google-g.svg' in page.text
         assert ('المتابعة باستخدام جوجل' if language == 'ar' else 'Continue with Google') in page.text
     result, state = begin(google_client, language=language)
@@ -125,7 +157,7 @@ def test_new_identity_profile_completion_and_returning_login(google_client, monk
     assert db.session.query(UserIdentity).filter_by(provider='google').count() == 1
 
 
-def test_google_never_merges_with_phone_or_facebook_accounts(google_client, monkeypatch):
+def test_google_never_merges_with_phone_accounts(google_client, monkeypatch):
     signup(google_client, phone='0912345678')
     manual = db.session.scalar(select(User).where(User.phone_number == '+249912345678'))
     google_client.post('/logout', data={'csrf_token': csrf(google_client.get('/account'))})
@@ -146,7 +178,10 @@ def test_google_never_merges_with_phone_or_facebook_accounts(google_client, monk
 def test_invalid_state_is_rejected_before_exchange(google_client, monkeypatch, callback):
     fake_identity(monkeypatch)
     _, state = begin(google_client)
-    assert google_client.get('/auth/google/callback', query_string=callback).status_code == 400
+    response = google_client.get('/auth/google/callback', query_string=callback)
+    assert response.status_code == 400
+    assert 'class="signin-main"' in response.text
+    assert 'Google sign-in could not be completed. Please try again.' in response.text
     assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).status_code == 400
     assert db.session.query(UserIdentity).filter_by(provider='google').count() == 0
 
@@ -164,6 +199,19 @@ def test_expired_state_denial_missing_code_and_replay(google_client, monkeypatch
     _, state = begin(google_client)
     assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).status_code == 303
     assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).status_code == 400
+
+
+def test_google_failure_returns_to_redesigned_login_and_keeps_safe_next(google_client, monkeypatch):
+    def reject(*args):
+        raise GoogleProviderError('unexpected_provider_error')
+    monkeypatch.setattr(GoogleAuthProvider, 'authenticate', reject)
+    _, state = begin(google_client, '/saved-properties', 'en')
+    response = google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'})
+    assert response.status_code == 502
+    assert 'class="signin-main"' in response.text
+    assert 'Google sign-in could not be completed. Please try again.' in response.text
+    assert 'value="/saved-properties"' in response.text
+    assert 'auth-choice' not in response.text
 
 
 def test_unsafe_next_and_incomplete_user_on_return(google_client, monkeypatch):

@@ -4,12 +4,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import db
-from app.models import Property, PropertyPhoto
+from app.models import Property, PropertyPhoto, MAX_COMMENT_LENGTH
 from app.property_forms import FORM_DEFAULTS, FORM_FIELDS, validate_posting
 from app.languages import current_language, translate
 from app.states import STATE_BY_NAME, state_options
 from app.photo_storage import MAX_PHOTOS_PER_PROPERTY, photo_storage, PhotoError
 from app.auth import login_required
+from app.property_rules import PROPERTY_RULES, LAND_USES, public_rules
 from flask import g
 
 
@@ -29,10 +30,30 @@ def render_form(values, errors, language, **kwargs):
         photos = sorted(storage.read(token)["photos"], key=lambda photo: photo["display_order"])
     except PhotoError:
         token, photos = storage.new_token(), []
+    edit = kwargs.get('edit_property')
+    rules = public_rules()
+    rules['original'] = {'property_type': edit.property_type, 'transaction_type': edit.transaction_type} if edit else None
+    rules['legacy_missing'] = [key for key in rules['labels'] if edit and getattr(edit, key, None) is None]
+    rules['errors'] = list(errors)
+    sections = {'transaction_type': 'purpose', 'property_type': 'property', 'property_occupancy': 'occupancy',
+                'state_ar': 'location', 'state_en': 'location', 'neighborhood_ar': 'location',
+                'coordinates': 'location', 'latitude': 'location', 'longitude': 'location',
+                'price': 'transaction', 'currency': 'transaction', 'rent_period': 'transaction',
+                'available_from_date': 'transaction', 'title_ar': 'description', 'description_ar': 'description', 'comment': 'description',
+                'contact_name': 'contact', 'whatsapp': 'contact', 'agent': 'contact'}
+    requested = request.form.get('_wizard_section', 'purpose')
+    allowed_sections = {'purpose', 'property', 'occupancy', 'location', 'details', 'transaction', 'description', 'photos', 'contact', 'review'}
+    initial = sections.get(next(iter(errors), ''), 'details') if errors else requested
+    if kwargs.get('photo_error') or request.form.get('_action', '').startswith(('upload', 'delete_', 'primary_', 'up_', 'down_')):
+        initial = 'photos'
+    if initial not in allowed_sections:
+        initial = 'purpose'
     return render_template(
         "admin/property_form.html", values=values, errors=errors,
         state_options=state_options(language), language=language,
         photo_token=token, photos=photos, max_photos=MAX_PHOTOS_PER_PROPERTY,
+        property_types={key: rule["label"] for key, rule in PROPERTY_RULES.items()}, land_uses=LAND_USES,
+        wizard_rules=rules, wizard_initial=initial, max_comment_length=MAX_COMMENT_LENGTH,
         t=lambda message: translate(message, language), **kwargs,
     )
 
@@ -89,9 +110,21 @@ def create_property():
             return render_form(values, {}, language, photo_token=token, photo_error=str(error)), 422
         return render_form(values, {}, language, photo_token=token)
     if action in ("switch_ar", "switch_en"):
+        selected = [file for file in request.files.getlist('photos') if file.filename]
+        if selected:
+            try:
+                storage.add(token, 'other', selected)
+            except PhotoError as error:
+                return render_form(values, {}, action[-2:], photo_token=token, photo_error=str(error)), 422
         return render_form(values, {}, action[-2:], photo_token=token)
     if action != "submit":
         return render_form(values, {}, language, photo_token=token), 400
+    selected = [file for file in request.files.getlist('photos') if file.filename]
+    if selected:
+        try:
+            storage.add(token, 'other', selected)
+        except PhotoError as error:
+            return render_form(values, {}, language, photo_token=token, photo_error=str(error)), 422
     values, data, errors = validate_posting(values, language)
     if errors:
         return render_form(values, errors, language, photo_token=token), 422

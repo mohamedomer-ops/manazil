@@ -203,9 +203,6 @@ html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .auth-page .auth-choice .button { margin-block-start: 10px; }
 .auth-page .button-secondary { color: var(--green); background: #fff; border-color: var(--border); }
 .auth-page .button-secondary:hover { color: var(--green); background: #f4f8f5; border-color: var(--green); }
-.auth-page .auth-facebook { padding-block-end: 14px; margin-block-end: 14px; border-block-end: 1px solid var(--border); }
-.auth-page .auth-facebook button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.auth-page .auth-facebook button img { flex: none; }
 .auth-page .auth-social-divider { display: flex; align-items: center; gap: 12px; margin-block: 20px 8px; color: var(--muted); font-size: 13px; }
 .auth-page .auth-social-divider::before, .auth-page .auth-social-divider::after { content: ""; flex: 1; border-block-start: 1px solid var(--border); }
 .auth-page .auth-google button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
@@ -593,9 +590,7 @@ html[dir="ltr"] .posting-section-heading p { margin: 2px 0 0 18px; }
 .posting-page [aria-labelledby="category-heading"] .posting-section-heading { margin-block-end: 12px; }
 .posting-page [aria-labelledby="category-heading"] h3 { margin-block: 12px 6px; }
 .posting-page [aria-labelledby="category-heading"] h3:first-of-type { margin-block-start: 0; }
-.posting-page .choice-check { display: none; position: absolute; inset-block-start: 7px; inset-inline-end: 7px; box-sizing: border-box; width: 24px; height: 24px; min-width: 0; min-height: 0; aspect-ratio: 1 / 1; padding: 0; border: 0; border-radius: 50%; place-items: center; background: var(--green); color: #fff; font-size: 14px; line-height: 1; text-align: center; }
 .posting-page .choice-button input:checked + .choice-face { border-color: var(--green); background: #f0f8f2; color: #086044; }
-.posting-page .choice-button input:checked + .choice-face .choice-check { display: grid; }
 .posting-page .choice-button input:focus-visible + .choice-face { outline: 3px solid var(--green); outline-offset: 2px; }
 .posting-page .form-field { min-width: 0; margin-block-end: 14px; }
 .posting-page .form-field label { margin-block-end: 6px; }
@@ -627,7 +622,6 @@ html[dir="ltr"] .posting-section-heading p { margin: 2px 0 0 18px; }
 .posting-page .form-actions button { min-height: 55px; border-radius: 10px; font-size: 1.1rem; }
 @media (max-width: 768px) {
   .posting-page { width: min(100% - 26px, 600px); margin-block: 16px 40px; }
-  .posting-page .choice-check { width: 22px; height: 22px; font-size: 13px; }
   .posting-page .posting-section { padding: 16px; }
   .posting-page .posting-section[aria-labelledby="category-heading"] { padding: 14px; }
   .posting-page .choice-button .choice-face { min-height: 76px; padding: 5px 10px; }
@@ -667,4 +661,159 @@ html[dir="ltr"] .posting-section-heading p { margin: 2px 0 0 18px; }
   .market-result-facts { flex-wrap: wrap; }
   .market-result-fact-location { flex-basis: 100%; }
   .poster-name-row { flex-wrap: wrap; }
+}
+
+/* Sign-in redesign: the shared site header and all authentication routes remain unchanged. */
+.signin-main {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: none;
+  min-height: calc(100vh - 88px);
+  min-height: calc(100svh - 88px);
+  margin: 0;
+  padding: clamp(28px, 5vw, 72px) clamp(24px, 6vw, 88px);
+  overflow: hidden;
+  background-color: #253d38;
+  background-image: linear-gradient(90deg, rgb(10 32 29 / 70%) 0%, rgb(10 32 29 / 48%) 44%, rgb(10 32 29 / 28%) 100%), url('../images/manazil-login-background.png');
+  background-position: center;
+  background-size: cover;
+}
+.signin-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  align-items: center;
+  gap: clamp(28px, 6vw, 96px);
+  width: min(100%, 1320px);
+  margin-inline: auto;
+  direction: ltr;
+}
+.signin-promo {
+  max-width: 650px;
+  color: #fff;
+  direction: inherit;
+  text-align: start;
+}
+.signin-eyebrow { margin: 0 0 10px; color: #e6c978; font-size: 15px; font-weight: 700; letter-spacing: .04em; }
+.signin-promo h1 { max-width: 610px; margin: 0; color: #fff; font-size: clamp(40px, 5.2vw, 68px); line-height: 1.28; font-weight: 800; text-wrap: balance; }
+.signin-promo-copy { max-width: 540px; margin: 18px 0 30px; color: rgb(255 255 255 / 91%); font-size: clamp(17px, 1.8vw, 21px); line-height: 1.9; }
+.signin-features { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.signin-features li { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 8px 12px; border: 1px solid rgb(255 255 255 / 27%); border-radius: 999px; background: rgb(255 255 255 / 10%); color: #fff; font-size: 14px; font-weight: 600; backdrop-filter: blur(5px); }
+.signin-feature-icon { display: inline-grid; place-items: center; flex: 0 0 24px; width: 24px; height: 24px; color: #e6c978; }
+.signin-feature-icon svg { display: block; width: 22px; height: 22px; }
+.signin-card {
+  width: 100%;
+  min-width: 0;
+  padding: clamp(28px, 3.4vw, 42px);
+  border: 1px solid rgb(255 255 255 / 72%);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 22px 70px rgb(8 25 21 / 25%);
+  direction: inherit;
+  text-align: start;
+  margin: 0;
+}
+html[dir="rtl"] .signin-promo, html[dir="rtl"] .signin-card { direction: rtl; }
+html[dir="ltr"] .signin-promo, html[dir="ltr"] .signin-card { direction: ltr; }
+.signin-card-brand { display: flex; justify-content: center; width: fit-content; margin: 0 auto 8px; }
+.signin-card-brand img { display: block; width: 92px; height: 92px; object-fit: contain; }
+.signin-card h2 { margin: 0; color: #202725; font-size: 27px; line-height: 1.45; font-weight: 800; text-align: center; }
+.signin-card-subtitle { margin: 4px 0 20px; color: var(--muted); font-size: 14px; text-align: center; }
+.signin-error { margin: 0 0 12px; padding: 9px 12px; border: 1px solid #e5a1a4; border-radius: 8px; background: #fff4f4; color: #a3212a; font-size: 14px; }
+.signin-card .auth-social-divider { margin-block: 17px 8px; }
+.signin-card .auth-google button { min-height: 48px; margin-block-start: 0; border-radius: 9px; }
+.signin-password-form { margin-block-start: 2px; }
+.signin-password-form > label { margin-block-start: 16px; }
+.signin-password-control { position: relative; min-width: 0; }
+.signin-password-control input { padding-inline-end: 54px !important; }
+.signin-password-control .signin-password-toggle {
+  position: absolute;
+  inset-block-start: 1px;
+  inset-inline-end: 1px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #65716b;
+}
+.signin-password-control .signin-password-toggle:hover { border-color: transparent; background: #f1f5f2; color: var(--green); }
+.signin-password-toggle svg { width: 21px; height: 21px; }
+.signin-password-toggle .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.signin-card .signin-submit { min-height: 50px; margin-block-start: 22px; border-radius: 9px; font-size: 16px; font-weight: 700; }
+.signin-card-footer { margin-block-start: 18px !important; padding-block-start: 14px !important; }
+@media (max-width: 767px) {
+  .signin-main {
+    position: relative;
+    display: block;
+    min-height: calc(100vh - 62px);
+    min-height: calc(100svh - 62px);
+    padding: 0 0 10px;
+    overflow: hidden;
+    background: #f5f7f5;
+  }
+  .signin-main::before {
+    position: absolute;
+    inset: 0 0 auto;
+    height: 300px;
+    background-image: linear-gradient(180deg, rgb(12 37 33 / 25%) 0%, rgb(12 37 33 / 42%) 62%, rgb(12 37 33 / 65%) 100%), url('../images/manazil-login-background.png');
+    background-position: center 43%;
+    background-size: cover;
+    content: "";
+  }
+  .signin-shell { position: relative; display: block; width: 100%; }
+  .signin-promo { display: none; }
+  .signin-card { width: min(calc(100% - 24px), 480px); margin: 182px auto 20px; padding: 24px 20px 20px; border-radius: 20px; box-shadow: 0 14px 44px rgb(17 41 32 / 16%); }
+  .signin-card-brand img { width: 76px; height: 76px; }
+  .signin-card h2 { font-size: 24px; }
+  .signin-card-subtitle { margin-block-end: 16px; }
+}
+@media (max-width: 370px) {
+  .signin-card { width: calc(100% - 20px); padding: 22px 16px 18px; }
+  .signin-card h2 { font-size: 22px; }
+  .signin-card .auth-country-control { flex-basis: 96px; width: 96px; }
+}
+/* Progressive posting form: native form remains usable without JavaScript. */
+.posting-page [hidden] { display: none !important; }
+.posting-page .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+#wizard-progress { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; width: 100%; max-width: 100%; padding-block: 8px 14px; box-sizing: border-box; }
+#wizard-progress button { display: inline-flex; align-items: center; gap: 7px; flex: 0 1 auto; max-width: 100%; min-height: 44px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 14px; background: #fff; color: var(--muted); font: inherit; font-size: .85rem; }
+#wizard-progress button[aria-current="step"] { background: #f0f8f2; border-color: var(--green); color: var(--green); font-weight: 700; }
+#wizard-progress button:disabled { opacity: .55; }
+.wizard-navigation { display: flex; justify-content: space-between; gap: 12px; margin-block: 18px; }
+.wizard-navigation button { min-height: 48px; padding: 10px 24px; border: 1px solid var(--green); border-radius: 10px; background: #fff; color: var(--green); font: inherit; }
+.wizard-navigation #wizard-next { background: var(--green); color: #fff; }
+.wizard-navigation button:disabled { opacity: .5; }
+.posting-page button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+.posting-page [data-wizard-step="property"] .choice-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#wizard-review > section { position: relative; padding-block: 12px; border-block-end: 1px solid var(--border); }
+#wizard-review h3 { padding-inline-end: 80px; }
+.wizard-review-edit { position: absolute; inset-inline-end: 0; inset-block-start: 12px; min-height: 44px; border: 0; background: transparent; color: var(--green); font: inherit; }
+#wizard-review dl { margin: 0; }
+#wizard-review dl > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; padding-block: 5px; }
+#wizard-review dt { color: var(--muted); }
+#wizard-review dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.wizard-review-photo { width: 100px; height: 75px; object-fit: cover; border-radius: 8px; }
+@media (max-width: 768px) {
+  .posting-page [data-wizard-step="property"] .choice-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wizard-navigation button { flex: 1; }
+}
+
+.posting-page .choice-status-dot { position: absolute; inset-block-start: 9px; inset-inline-end: 9px; width: 9px; height: 9px; aspect-ratio: 1 / 1; border-radius: 50%; background: #cbd5ce; border: 1px solid #b7c6bd; box-sizing: border-box; }
+.posting-page .choice-button input:checked + .choice-face .choice-status-dot { background: var(--green); border-color: var(--green); }
+.posting-page .choice-icon { color: #397057; }
+.wizard-progress-dot { width: 7px; height: 7px; aspect-ratio: 1 / 1; border-radius: 50%; background: #cbd5ce; flex: none; }
+#wizard-progress button[data-progress-state="completed"] .wizard-progress-dot,
+#wizard-progress button[data-progress-state="current"] .wizard-progress-dot { background: var(--green); }
+#wizard-progress button[data-progress-state="current"] .wizard-progress-dot { width: 9px; height: 9px; box-shadow: 0 0 0 3px #d9ecdf; }
+.posting-comment { margin-block-start: 20px; padding-block-start: 16px; border-block-start: 1px solid var(--border); }
+.posting-comment label { color: var(--muted); }
+@media (max-width: 768px) {
+  #wizard-progress { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-inline: contain; }
+  #wizard-progress button { flex: 0 0 auto; white-space: nowrap; }
 }

@@ -28,15 +28,12 @@ def load_user():
 @auth.app_context_processor
 def auth_template_context():
     from flask import current_app
-    from app.facebook_provider import DevelopmentFacebookAuthProvider, development_enabled
-    provider = current_app.extensions.get('facebook_auth_provider')
-    facebook_next = safe_next(request.values.get('next') or session.get('auth_next'), url_for('main.index'))
+    google_next = safe_next(request.values.get('next') or session.get('auth_next'), url_for('main.index'))
     return {'current_user': g.get('user'), 'google_auth_enabled': bool(
                 current_app.config.get('PUBLIC_GOOGLE_LOGIN_ENABLED') and current_app.extensions.get('google_auth_provider')),
-            'facebook_next': facebook_next,
+            'google_next': google_next,
             'auth_countries': AUTH_COUNTRIES,
-            'facebook_is_development': isinstance(provider, DevelopmentFacebookAuthProvider) and
-            development_enabled(current_app.config)}
+            }
 
 
 def login_required(view):
@@ -45,10 +42,10 @@ def login_required(view):
         if g.get('user') is None:
             destination = request.full_path if request.query_string else request.path
             return redirect(url_for('auth.entry', next=destination, **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
-        if (any(identity.provider in ('facebook', 'google') for identity in g.user.identities) and
+        if (any(identity.provider == 'google' for identity in g.user.identities) and
                 not g.user.social_contact_complete and request.endpoint not in (
-                    'auth.facebook_profile', 'auth.facebook_profile_post')):
-            return redirect(url_for('auth.facebook_profile', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
+                    'auth.complete_profile', 'auth.complete_profile_post')):
+            return redirect(url_for('auth.complete_profile', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if session.get('pending_setup_user_id') and request.endpoint not in ('auth.account', 'auth.account_post'):
             return redirect(url_for('auth.account', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         return view(*args, **kwargs)
@@ -91,7 +88,7 @@ def validate_contact(form):
 def save_contact(user, form):
     values, errors = validate_contact(form)
     if (not errors and user.social_contact_complete and user.phone_number and
-            any(identity.provider in ('facebook', 'google') for identity in user.identities) and
+            any(identity.provider == 'google' for identity in user.identities) and
             values['whatsapp'] != user.phone_number):
         errors['whatsapp'] = 'Change your number from the profile completion page.'
     if not errors:
@@ -108,8 +105,12 @@ def auth_destination(fallback=None):
 
 @auth.get('/auth')
 def entry():
-    return render_template('auth/entry.html', next=auth_destination(),
-                           signup_next=auth_destination(url_for('main.index')))
+    destination = auth_destination()
+    language = request.args.get('lang')
+    route_values = {'next': destination}
+    if language in ('ar', 'en'):
+        route_values['lang'] = language
+    return redirect(url_for('auth.login', **route_values))
 
 
 @auth.get('/signup')
@@ -248,39 +249,39 @@ def resend():
     return redirect(url_for('auth.verify', **({'lang': 'en'} if request.form.get('_language') == 'en' else {})), code=303)
 
 
-def facebook_profile_destination():
+def profile_completion_destination():
     destination = session.get('profile_next') or url_for('auth.account')
     if destination == url_for('main.index') and session.get('profile_language') == 'en':
         return url_for('main.index', lang='en')
     return safe_next(destination, url_for('main.index'))
 
 
-def facebook_profile_error(message, status=422):
-    return render_template('auth/facebook_profile.html', error=message,
+def profile_completion_error(message, status=422):
+    return render_template('auth/complete_profile.html', error=message,
                            whatsapp=request.form.get('whatsapp', '')), status
 
 
 @auth.get('/auth/complete-profile')
 @login_required
-def facebook_profile():
-    if not any(identity.provider in ('facebook', 'google') for identity in g.user.identities):
+def complete_profile():
+    if not any(identity.provider == 'google' for identity in g.user.identities):
         return redirect(url_for('auth.account'))
-    return render_template('auth/facebook_profile.html', whatsapp=g.user.whatsapp or '')
+    return render_template('auth/complete_profile.html', whatsapp=g.user.whatsapp or '')
 
 
 @auth.post('/auth/complete-profile')
 @login_required
-def facebook_profile_post():
-    if not any(identity.provider in ('facebook', 'google') for identity in g.user.identities):
+def complete_profile_post():
+    if not any(identity.provider == 'google' for identity in g.user.identities):
         abort(403)
     try:
         phone = normalize_phone(request.form.get('whatsapp'))
     except ValueError:
-        return facebook_profile_error('Enter a valid phone number.')
+        return profile_completion_error('Enter a valid phone number.')
     if phone == g.user.phone_number and g.user.whatsapp == phone:
-        return redirect(facebook_profile_destination(), code=303)
+        return redirect(profile_completion_destination(), code=303)
     if db.session.scalar(select(User.id).where(User.phone_number == phone, User.id != g.user.id)):
-        return facebook_profile_error('This number cannot be used for this account.')
+        return profile_completion_error('This number cannot be used for this account.')
     if phone != g.user.phone_number:
         g.user.is_verified = False
     g.user.phone_number = phone
@@ -289,9 +290,9 @@ def facebook_profile_post():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return facebook_profile_error('This number cannot be used for this account.', 409)
+        return profile_completion_error('This number cannot be used for this account.', 409)
     session['profile_language'] = 'en' if request.form.get('_language') == 'en' else 'ar'
-    destination = facebook_profile_destination()
+    destination = profile_completion_destination()
     session.pop('profile_next', None)
     session.pop('profile_language', None)
     return redirect(destination, code=303)
@@ -327,13 +328,11 @@ def account_avatar():
 
 
 def render_account(values, errors, **options):
-    facebook_identity = next((identity for identity in g.user.identities if identity.provider == 'facebook'), None)
     google_identity = next((identity for identity in g.user.identities if identity.provider == 'google'), None)
-    social_identity = google_identity or facebook_identity
-    profile_name = (g.user.contact_name or '').strip() or (social_identity.display_name if social_identity else '')
+    profile_name = (g.user.contact_name or '').strip() or (google_identity.display_name if google_identity else '')
     return render_template('auth/account.html', values=values, errors=errors,
-                           profile_name=profile_name, facebook_connected=bool(facebook_identity),
-                           google_connected=bool(google_identity), social_connected=bool(social_identity), **options)
+                           profile_name=profile_name, google_connected=bool(google_identity),
+                           social_connected=bool(google_identity), **options)
 
 
 @auth.post('/account')

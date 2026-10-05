@@ -11,17 +11,44 @@ ARABIC_MONTHS = (
     "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
     "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
 )
-PROPERTY_TYPE_NAMES = {
-    "apartment": "Apartment", "house": "House", "villa": "Villa",
-    "office": "Office", "shop": "Shop", "land": "Land",
-}
+from app.property_rules import PROPERTY_RULES
+
+PROPERTY_TYPE_NAMES = {key: rule["label"] for key, rule in PROPERTY_RULES.items()}
 
 
 ARABIC = {
+    'What do you want to do with your property?': 'ماذا تريد أن تفعل بعقارك؟',
+    'Comment': 'ملاحظة',
+    'Comment (optional)': 'ملاحظة (اختياري)',
+    'Comment must be 2000 characters or fewer.': 'يجب ألا تتجاوز الملاحظة 2000 حرف.',
+    'Completed': 'مكتمل',
+    'Current': 'الحالي',
+    'Upcoming': 'قادم',
+    'Purpose': 'الغرض',
+    'Room': 'غرفة',
+    'Transaction Details': 'تفاصيل العرض',
+    'Rent price': 'قيمة الإيجار',
+    'Review & Submit': 'المراجعة والنشر',
+    'Property posting progress': 'مراحل إضافة العقار',
+    'Please complete the highlighted fields.': 'يرجى إكمال الحقول المحددة.',
+    'Check your details before publishing. Use Back or the progress navigation to edit.': 'راجع بياناتك قبل النشر. استخدم السابق أو مراحل النموذج للتعديل.',
+    'Leave the date empty if available now.': 'اترك التاريخ فارغاً إذا كان العقار متاحاً الآن.',
+    'Enter a valid date.': 'أدخل تاريخاً صحيحاً.',
+    'Enter a valid value.': 'أدخل قيمة صحيحة.',
+    'JavaScript is unavailable. Complete the applicable fields below and submit; the server will validate your listing.': 'جافاسكريبت غير متاح. أكمل الحقول المناسبة وأرسل النموذج؛ سيتحقق الخادم من بيانات العقار.',
+    'Warehouse': 'مخزن', 'Floor': 'الطابق', 'Land use': 'استخدام الأرض',
+    'Residential': 'سكني', 'Commercial': 'تجاري', 'Agricultural': 'زراعي',
+    'Industrial': 'صناعي', 'Mixed use': 'متعدد الاستخدامات',
     'OR': 'أو',
     'Continue with Google': 'المتابعة باستخدام جوجل',
     'Google account': 'حساب جوجل',
     'Google login': 'تسجيل الدخول بجوجل',
+    'Social account': 'حساب اجتماعي',
+    'Manazil uses a session cookie to keep you signed in and security tokens to protect forms and Google Sign-In. Verification codes have a limited lifetime and are not stored in plain text.': 'يستخدم منازل ملف تعريف ارتباط للجلسة لإبقائك مسجلاً للدخول، ورموز أمان لحماية النماذج وتسجيل الدخول بجوجل. رموز التحقق محدودة الصلاحية ولا تُخزن كنص واضح.',
+    'You can edit your account contact information and manage your property listings. For an account and associated sign-in data deletion request, see our Data Deletion page. We may need to verify that the account is yours before acting on a request.': 'يمكنك تعديل بيانات التواصل في حسابك وإدارة إعلاناتك العقارية. لطلب حذف الحساب وبيانات تسجيل الدخول المرتبطة به، راجع صفحة حذف البيانات. قد نحتاج إلى التحقق من ملكيتك للحساب قبل تنفيذ الطلب.',
+    'You can request deletion of your Manazil account and associated sign-in data.': 'يمكنك طلب حذف حسابك في منازل وبيانات تسجيل الدخول المرتبطة به.',
+    'Tell us that you want your Manazil account and associated data deleted and provide enough information to identify it, such as the contact name or phone number on your account. Do not send passwords, verification codes, or access tokens.': 'اذكر أنك تريد حذف حسابك في منازل والبيانات المرتبطة به، وقدم معلومات كافية لتحديد الحساب مثل اسم التواصل أو رقم الهاتف. لا ترسل كلمات مرور أو رموز تحقق أو رموز وصول.',
+    'We will verify account ownership before deleting account information, linked social identities, saved properties, and stored profile pictures. We will review your property listings and photos as part of the request and explain any information we must retain.': 'سنتحقق من ملكيتك للحساب قبل حذف بياناته وهويات تسجيل الدخول الاجتماعية المرتبطة به والعقارات المحفوظة وصور الملف الشخصي المخزنة. سنراجع إعلاناتك العقارية وصورها ضمن الطلب ونوضح لك أي معلومات يجب الاحتفاظ بها.',
     'Google sign-in was cancelled.': 'تم إلغاء تسجيل الدخول بجوجل.',
     'Google sign-in could not be completed. Please try again.': 'تعذر إكمال تسجيل الدخول بجوجل. يرجى المحاولة مرة أخرى.',
     'For Google login, we receive your Google account ID, verified email address, display name, and profile picture when available. We use the account ID to recognize you. We do not store Google access tokens.': 'لتسجيل الدخول بجوجل، نتلقى معرّف حساب جوجل والبريد الإلكتروني المؤكد واسم العرض وصورة الملف الشخصي عند توفرها. نستخدم معرّف الحساب للتعرف عليك. لا نخزن رموز وصول جوجل.',
@@ -34,19 +61,11 @@ ARABIC = {
     'Sessions and security': 'الجلسات والأمان',
     'Your choices and deletion': 'خياراتك وحذف البيانات',
     'Manazil is a Sudanese property marketplace. This page explains the information used to provide accounts, property listings, and saved properties.': 'منازل سوق سوداني للعقارات. توضح هذه الصفحة المعلومات المستخدمة لتقديم الحسابات وإعلانات العقارات والعقارات المحفوظة.',
-    'For phone login, we process your phone number and a short-lived verification challenge. For Facebook login, we receive your app-scoped Facebook ID, display name, and profile picture when available. We do not store Facebook access tokens.': 'لتسجيل الدخول بالهاتف، نعالج رقم هاتفك ورمز تحقق قصير الصلاحية. ولتسجيل الدخول بفيسبوك، نتلقى معرّف فيسبوك الخاص بالتطبيق واسم العرض وصورة الملف الشخصي عند توفرها. لا نخزن رموز وصول فيسبوك.',
     'If you provide them, we store your account contact name, WhatsApp number, and Owner or Broker role. Listings include the property details, photos, price, location, and the contact information you choose for that listing. We also store your saved-property choices.': 'إذا قدمتها، نخزن اسم التواصل في حسابك ورقم واتساب وصفة المالك أو الوسيط. تتضمن الإعلانات تفاصيل العقار وصوره وسعره وموقعه وبيانات التواصل التي تختارها لذلك الإعلان. ونخزن أيضاً العقارات التي تحفظها.',
     'We use this information to sign you in, manage your account and listings, show public property details, and let people contact the listing contact. Public listings may show their photos and listing contact information to visitors.': 'نستخدم هذه المعلومات لتسجيل دخولك وإدارة حسابك وإعلاناتك وعرض تفاصيل العقارات العامة وتمكين الزوار من التواصل مع جهة الاتصال في الإعلان. قد تُعرض صور الإعلان العام ومعلومات التواصل الخاصة به للزوار.',
-    'Application data is stored in PostgreSQL and photos in private managed storage. Infrastructure providers process data to operate Manazil. We do not use your Facebook account to post on your behalf.': 'تُخزن بيانات التطبيق في PostgreSQL والصور في تخزين خاص مُدار. يعالج مزودو البنية التحتية البيانات لتشغيل منازل. لا نستخدم حساب فيسبوك الخاص بك للنشر نيابةً عنك.',
-    'Manazil uses a session cookie to keep you signed in and security tokens to protect forms and Facebook login. Verification codes have a limited lifetime and are not stored in plain text.': 'يستخدم منازل ملف تعريف ارتباط للجلسة لإبقائك مسجلاً للدخول، ورموز أمان لحماية النماذج وتسجيل الدخول بفيسبوك. رموز التحقق محدودة الصلاحية ولا تُخزن كنص واضح.',
-    'You can edit your account contact information and manage your property listings. For an account and associated Facebook-login data deletion request, see our Data Deletion page. We may need to verify that the account is yours before acting on a request.': 'يمكنك تعديل بيانات التواصل في حسابك وإدارة إعلاناتك العقارية. لطلب حذف الحساب وبيانات تسجيل الدخول بفيسبوك المرتبطة به، راجع صفحة حذف البيانات. قد نحتاج إلى التحقق من ملكيتك للحساب قبل تنفيذ الطلب.',
     'How to request deletion': 'كيفية طلب الحذف',
     'What happens next': 'ماذا يحدث بعد ذلك',
     'Email your request to': 'أرسل طلبك عبر البريد الإلكتروني إلى',
-    'You can request deletion of your Manazil account and associated Facebook-login data even if you no longer use Facebook Login.': 'يمكنك طلب حذف حسابك في منازل وبيانات تسجيل الدخول بفيسبوك المرتبطة به حتى إذا لم تعد تستخدم تسجيل الدخول بفيسبوك.',
-    'Tell us that you want your Manazil account deleted and provide enough information to identify it, such as the contact name or phone number on your account. Do not send passwords, verification codes, or Facebook access tokens.': 'اذكر أنك تريد حذف حسابك في منازل وقدم معلومات كافية لتحديده، مثل اسم التواصل أو رقم الهاتف في حسابك. لا ترسل كلمات مرور أو رموز تحقق أو رموز وصول فيسبوك.',
-    'We will verify account ownership before deleting account information, the linked Facebook identity, saved properties, and any stored Facebook profile picture. We will review your property listings and photos as part of the request and explain any information we must retain.': 'سنتحقق من ملكيتك للحساب قبل حذف بياناته وهوية فيسبوك المرتبطة به والعقارات المحفوظة وأي صورة ملف شخصي مخزنة من فيسبوك. سنراجع إعلاناتك العقارية وصورها ضمن الطلب ونوضح لك أي معلومات يجب الاحتفاظ بها.',
-    'Removing Manazil from your Facebook settings does not by itself delete your Manazil account. Use the request method above if you want Manazil data deleted.': 'إزالة منازل من إعدادات فيسبوك لا تحذف حسابك في منازل تلقائياً. استخدم طريقة الطلب أعلاه إذا أردت حذف بياناتك من منازل.',
     'Authentication is temporarily unavailable.': 'خدمة تسجيل الدخول غير متاحة مؤقتاً.',
     'Manazil Administration': 'إدارة منازل',
     'Administration navigation': 'التنقل في الإدارة',
@@ -131,16 +150,7 @@ ARABIC = {
     'Account & Security': 'الحساب والأمان',
     'Phone login': 'الدخول برقم الهاتف',
     'Verified phone number': 'رقم هاتف موثق',
-    'Facebook account': 'حساب فيسبوك',
-    'Facebook login': 'تسجيل الدخول بفيسبوك',
-    'Facebook sign-in was cancelled.': 'تم إلغاء تسجيل الدخول بفيسبوك.',
-    'Facebook sign-in could not be completed. Please try again.': 'تعذر إكمال تسجيل الدخول بفيسبوك. يرجى المحاولة مرة أخرى.',
-    'Development simulation': 'محاكاة تجريبية',
-    'Continue with Facebook': 'المتابعة باستخدام فيسبوك',
     'Cancel': 'إلغاء',
-    'Development simulation only. No connection to Facebook.': 'محاكاة للتطوير فقط. لا يوجد اتصال بفيسبوك.',
-    'Development Facebook Login': 'دخول فيسبوك التجريبي',
-    'This is a simulated identity for local testing, not real Facebook authentication.': 'هذه هوية تجريبية للاختبار المحلي، وليست مصادقة حقيقية من فيسبوك.',
     'Development account': 'حساب تجريبي',
     'Sign in with development account': 'الدخول بالحساب التجريبي',
     'Saved Properties': 'العقارات المحفوظة',
@@ -382,6 +392,22 @@ ARABIC.update({
 
 def property_type_label(value, language):
     return translate(PROPERTY_TYPE_NAMES.get(value, value), language)
+
+
+ARABIC.update({
+    'Manazil Sudan': 'منازل السودان',
+    'Why choose Manazil': 'لماذا تختار منازل',
+    'Manazil · Sudan': 'منازل · السودان',
+    'Homes closer to your life': 'منازل أقرب إلى حياتك',
+    'Find a suitable home in Sudan easily and safely.': 'ابحث عن منزل مناسب في السودان بسهولة وأمان',
+    'Trusted properties': 'عقارات موثوقة',
+    'A secure experience': 'تجربة آمنة',
+    'Coverage across Sudan': 'تغطية في مختلف الولايات',
+    'Welcome back': 'مرحباً بعودتك',
+    'Sign in to continue to Manazil': 'سجّل الدخول للمتابعة إلى منازل',
+    'Show password': 'إظهار كلمة المرور',
+    'Hide password': 'إخفاء كلمة المرور',
+})
 
 
 def template_language():

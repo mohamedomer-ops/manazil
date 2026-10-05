@@ -1,0 +1,14 @@
+<svg class="choice-icon" data-option-icon="{{ value }}" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+{% if value == 'rent' %}<path d="m3 15 10-8 10 8M6 13v14h12v-8"/><circle cx="23" cy="20" r="4"/><path d="m20 23-6 6m2-2 2 2"/>
+{% elif value == 'sale' %}<path d="M4 5h14l10 11-12 12L4 16V5Z"/><circle cx="10" cy="11" r="2"/>
+{% elif value == 'apartment' %}<path d="M6 28V4h20v24M3 28h26M13 28v-6h6v6M11 9h2m6 0h2M11 14h2m6 0h2M11 19h2m6 0h2"/>
+{% elif value in ('house', 'entire_property') %}<path d="m3 15 13-11 13 11M6 13v15h20V13M13 28V18h6v10M8 5h4v3"/>
+{% elif value == 'villa' %}<path d="m2 15 9-8 9 8m-3-4 7-5 7 9M5 13v15h23V13M11 28V18h6v10M22 19h3v4h-3M9 7V4h4v5"/>
+{% elif value == 'land' %}<path d="m3 21 12-8 14 7-12 9-14-8Zm0-4 12-8 14 7M8 8V3m-3 3h6M21 11V6m-3 2h6"/>
+{% elif value == 'office' %}<path d="M5 28V6h15v22M20 12h7v16M2 28h28M9 11h2m4 0h2M9 16h2m4 0h2M10 28v-6h5v6M24 17v2m0 3v2"/>
+{% elif value == 'shop' %}<path d="M4 13V7h24v6M3 13h26l-3-9H6l-3 9Zm2 0v15h22V13M4 18h24M11 28v-8h10v8M10 4l-2 9m8-9v9m6-9 2 9"/>
+{% elif value == 'warehouse' %}<path d="m3 12 13-8 13 8v16H3V12Zm5 16V15h16v13M8 19h16M8 23h16M13 9h6"/>
+{% elif value == 'room' %}<path d="M3 27V12m0 9h26v6M5 21v-8h22v8M7 13V8h7v5m4 0V8h7v5M29 21v-9"/>
+{% elif value == 'yes' %}<circle cx="11" cy="9" r="4"/><path d="M3 28v-5a8 8 0 0 1 12-7M19 18v-3h6v3M16 18h13v10H16V18Zm0 4h13"/>
+{% else %}<circle cx="16" cy="9" r="5"/><path d="M6 28v-5a10 10 0 0 1 20 0v5"/>{% endif %}
+</svg>

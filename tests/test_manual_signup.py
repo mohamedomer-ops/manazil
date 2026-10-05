@@ -1,4 +1,4 @@
-"""Public password registration and login coexist with OTP and Facebook identities."""
+"""Public password registration and login coexist with OTP and Google identities."""
 import re
 from pathlib import Path
 
@@ -11,7 +11,6 @@ from app.languages import translate
 from app.models import OTPChallenge, User, UserIdentity
 from app.phone import AUTH_COUNTRIES, normalize_auth_phone
 from test_auth import client, csrf
-from test_facebook_auth import facebook_login
 from test_properties import migrated_connection
 
 
@@ -38,7 +37,6 @@ def test_signup_form_is_bilingual_and_manual_first(client, language, direction):
     for field in ('contact_name', 'phone_number', 'password', 'confirm_password'):
         assert f'name="{field}"' in page.text
     assert 'name="email"' not in page.text and 'name="contact_role"' not in page.text
-    assert 'action="/auth/facebook"' not in page.text
     assert 'action="/auth/request-otp"' not in page.text
     assert 'name="country_code"' in page.text
     assert re.search(r'<option value="\+249"[^>]* selected>', page.text)
@@ -59,8 +57,7 @@ def test_public_sign_in_shows_only_password_authentication(client, language, dir
     assert translate('Sign In', language) in page.text
     assert translate('Sign Up', language) in page.text
     assert 'action="/auth/request-otp"' not in page.text
-    assert 'action="/auth/facebook"' not in page.text
-    assert 'action="/auth/facebook"' not in client.get('/auth?lang=' + language).text
+    assert 'auth/google' not in client.get('/auth?lang=' + language, follow_redirects=True).text
 
 
 @pytest.mark.parametrize('path', ['/signup', '/login'])
@@ -99,14 +96,6 @@ def test_country_selection_is_preserved_after_signup_validation_error(client):
     assert '🇸🇦' in closed and '+966' in closed and 'Saudi Arabia' not in closed
     assert 'aria-label="Country calling code, Saudi Arabia +966"' in response.text
     assert re.search(r'<option value="\+966"[^>]* selected>', response.text)
-
-
-def test_facebook_backend_remains_available_but_public_button_is_removed(client):
-    assert 'action="/auth/facebook"' not in client.get('/login').text
-    current_app.config['PUBLIC_FACEBOOK_LOGIN_ENABLED'] = True
-    assert 'action="/auth/facebook"' not in client.get('/login').text
-    assert 'action="/auth/facebook"' not in client.get('/signup').text
-    assert client.post('/auth/facebook').status_code == 400  # CSRF remains enforced.
 
 
 @pytest.mark.parametrize('code,local,expected', [
@@ -187,7 +176,7 @@ def test_signup_validation_is_server_side_and_localized(client, field, value, me
     assert db.session.query(User).count() == db.session.query(OTPChallenge).count() == 0
 
 
-def test_duplicate_phone_rejected_for_manual_and_facebook_accounts(client):
+def test_duplicate_phone_rejected_for_manual_accounts(client):
     existing = User(phone_number='+249912345678', whatsapp='+249912345678', is_verified=False)
     existing.set_password('existing-password')
     db.session.add(existing)
@@ -200,24 +189,34 @@ def test_duplicate_phone_rejected_for_manual_and_facebook_accounts(client):
     assert db.session.query(OTPChallenge).count() == 0
 
 
-def test_facebook_account_is_never_linked_to_manual_registration(client):
-    facebook_login(client)
-    page = client.get('/auth/complete-profile')
-    client.post('/auth/complete-profile', data={'csrf_token': csrf(page), 'whatsapp': '0912345678'})
-    facebook_user = db.session.scalar(select(UserIdentity)).user
-    client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
+def test_google_account_is_never_linked_to_manual_registration(client):
+    google_user = User(contact_name='Google Member', phone_number='+249912345678',
+                       whatsapp='+249912345678')
+    db.session.add(google_user)
+    db.session.flush()
+    db.session.add(UserIdentity(provider='google', provider_user_id='stable-google-sub',
+                                user_id=google_user.id, display_name='Google Member'))
+    db.session.commit()
     response = register(client)
     assert response.status_code == 409
     assert db.session.query(User).count() == 1
-    assert facebook_user.password_hash is None
+    assert google_user.password_hash is None
     assert db.session.query(UserIdentity).count() == 1
 
 
-def test_facebook_completion_cannot_claim_manual_account_phone(client):
+def test_google_completion_cannot_claim_manual_account_phone(client):
     register(client)
     manual_user = db.session.scalar(select(User))
     client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
-    assert facebook_login(client).location == '/auth/complete-profile?lang=en'
+    google_user = User(contact_name='Google Member')
+    db.session.add(google_user)
+    db.session.flush()
+    db.session.add(UserIdentity(provider='google', provider_user_id='stable-google-sub',
+                                user_id=google_user.id, display_name='Google Member'))
+    db.session.commit()
+    with client.session_transaction() as auth_session:
+        auth_session['user_id'] = google_user.id
+    assert client.get('/auth/complete-profile?lang=en').status_code == 200
     page = client.get('/auth/complete-profile?lang=en')
     conflict = client.post('/auth/complete-profile', data={'csrf_token': csrf(page),
         '_language': 'en', 'whatsapp': '00249912345678'})

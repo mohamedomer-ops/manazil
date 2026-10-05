@@ -102,6 +102,8 @@ def edit_property(property_id):
         return render_form(editing_values(property), {}, language, edit_property=property)
     action = request.form.get('_action', 'submit')
     values = {key: request.form.get(key, '') for key in FORM_FIELDS}
+    if 'comment' not in request.form:
+        values['comment'] = property.comment or ''
     if 'latitude' not in request.form and 'longitude' not in request.form:
         values['latitude'] = str(property.latitude) if property.latitude is not None else ''
         values['longitude'] = str(property.longitude) if property.longitude is not None else ''
@@ -115,6 +117,13 @@ def edit_property(property_id):
         return render_form(values, {}, language, edit_property=property, photo_token=token,
                            photo_error='This property has already been submitted.'), 409
     if action in ('switch_ar', 'switch_en'):
+        selected = [file for file in request.files.getlist('photos') if file.filename]
+        if selected:
+            try:
+                storage.add(token, 'other', selected, max_photos=MAX_PHOTOS_PER_PROPERTY - len(property.photos),
+                            auto_primary=not any(photo.is_primary for photo in property.photos))
+            except PhotoError as error:
+                return render_form(values, {}, action[-2:], edit_property=property, photo_token=token, photo_error=str(error)), 422
         return render_form(values, {}, action[-2:], edit_property=property, photo_token=token)
     if action == 'upload':
         try:
@@ -149,13 +158,15 @@ def edit_property(property_id):
         except PhotoError as error:
             return render_form(values, {}, language, edit_property=property, photo_token=token,
                                photo_error=str(error)), 422
-    values, data, errors = validate_posting(values, language)
+    values, data, errors = validate_posting(values, language, existing=property)
     if errors:
         return render_form(values, errors, language, edit_property=property, photo_token=token), 422
     # Posting-only defaults must never reset fields absent from the edit form.
     for key in ('title_en', 'description_en', 'city_en', 'area_en', 'city_ar', 'area_ar',
-                'availability_status', 'available_from_date'):
+                'availability_status'):
         data.pop(key, None)
+    if 'available_from_date' not in request.form and property.transaction_type == data.get('transaction_type'):
+        data.pop('available_from_date', None)
     copied = []
     try:
         # Lock the parent before counting so concurrent edits cannot exceed the total limit.

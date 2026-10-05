@@ -4,7 +4,7 @@ from test_property_creation import client, form_data
 def test_arabic_default(client):
     page = client.get('/admin/properties/new').get_data(as_text=True)
     assert 'dir="rtl"' in page
-    assert 'التصنيف' in page
+    assert 'ماذا تريد أن تفعل بعقارك؟' in page
 
 def test_english_ltr(client):
     page = client.get('/admin/properties/new?lang=en').get_data(as_text=True)

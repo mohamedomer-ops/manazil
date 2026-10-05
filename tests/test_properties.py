@@ -134,7 +134,7 @@ def test_required_text_rejected(values, field, value):
         Property(**(values | {field: value}))
 
 
-@pytest.mark.parametrize("field", ["monthly_rent", "bedrooms", "bathrooms", "furnished"])
+@pytest.mark.parametrize("field", ["monthly_rent", "furnished"])
 def test_required_numbers_and_boolean_reject_none(values, field):
     with pytest.raises(ValueError):
         Property(**(values | {field: None}))
@@ -172,7 +172,7 @@ def test_zero_values_and_optional_fields(session, values):
 
 def test_migration_creates_table_and_version(migrated_connection):
     assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "users", "otp_challenges", "saved_properties", "user_identities", "alembic_version"}
-    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0016_property_coordinates"
+    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0018_property_comment"
     columns = inspect(migrated_connection).get_columns("properties")
     assert {column["name"] for column in columns} == set(Property.__table__.columns.keys())
     assert all(column['nullable'] for column in columns if column['name'] in ('latitude', 'longitude'))

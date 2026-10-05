@@ -26,7 +26,7 @@
       </div>
       {{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}
       {{ property_facts(property, state, t, format_rent, area) }}
-      <p class="saved-card-furnishing">{{ t('Furnished') if property.furnished else t('Unfurnished') }}</p>
+      {% if property.furnishing_applicable %}<p class="saved-card-furnishing">{{ t('Furnished') if property.furnished else t('Unfurnished') }}</p>{% endif %}
     </div>
     <a class="property-card-action" href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>
     {% if caller is defined %}{{ caller() }}{% endif %}

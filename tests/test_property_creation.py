@@ -31,7 +31,7 @@ def form_data(client):
     photo_token = re.search(r'name="_photo_token" value="([^"]+)"', page).group(1)
     return {**FORM_DEFAULTS, 'csrf_token':csrf, '_photo_token':photo_token, '_language':'en',
             'property_type':'apartment', 'title_ar':'شقة', 'description_ar':'وصف شقة',
-            'bedrooms':'2', 'bathrooms':'1', 'size':'100', 'furnished':'on',
+            'bedrooms':'2', 'bathrooms':'1', 'floor':'2', 'size':'100', 'furnished':'on',
             'amenities':'Parking\nKitchen', 'price':'125000', 'currency':'SDG',
             'contact_name':'Ahmed', 'whatsapp':'+249123456789',
             'state_en':'Khartoum', 'neighborhood_ar':'الرياض'}
@@ -41,13 +41,12 @@ def property_count():
 
 def test_single_page_sections(client):
     page = client.get('/admin/properties/new').get_data(as_text=True)
-    assert page.index('التصنيف') < page.index('ماذا تعرض؟') < page.index('الصور') < page.index('تفاصيل العقار') < page.index('بيانات التواصل') < page.index('الموقع')
-    assert 'wizard-progress' not in page and 'name="_step"' not in page
-    assert 'name="city_ar"' not in page and 'name="area_ar"' not in page
-    assert 'photos_exterior' not in page
-    assert 'انشر العقار' in page and 'إرسال للمراجعة' not in page
-    assert 'name="phone"' not in page and page.count('name="whatsapp"') == 1
-    assert 'سيتم استخدام هذا الرقم للتواصل عبر واتساب أو الاتصال بك.' in page
+    assert page.count('id="property-form"') == 1
+    headings = ['category-heading', 'property-heading', 'occupancy-heading', 'location-heading',
+                'details-heading', 'transaction-heading', 'description-heading', 'photos-heading', 'contact-heading', 'review-heading']
+    assert [page.index('id="' + heading + '"') for heading in headings] == sorted(page.index('id="' + heading + '"') for heading in headings)
+    assert 'id="wizard-progress"' in page
+
 
 @pytest.mark.parametrize('transaction,period,occupancy,agent', [
     ('rent','monthly','room','yes'), ('rent','weekly','entire_property','no'),
@@ -60,7 +59,7 @@ def test_submit_for_review(client, form_data, transaction, period, occupancy, ag
     assert saved.publication_status == 'published'
     assert saved.owner_id is not None
     assert saved.transaction_type == transaction and saved.rent_period == (period or None)
-    assert saved.property_occupancy == occupancy
+    assert saved.property_occupancy == (occupancy if transaction == 'rent' else 'entire_property')
     assert saved.contact_role == ('broker' if agent == 'yes' else 'owner')
     assert saved.price == 125000 and saved.monthly_rent is None
     assert saved.neighborhood_ar == 'الرياض' and saved.city_ar is None and saved.area_ar is None

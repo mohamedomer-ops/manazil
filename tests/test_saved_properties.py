@@ -47,7 +47,10 @@ def test_logged_out_browsing_save_destination_and_private_list(client, values, l
     url = unescape(href)
     assert urlsplit(url).path == '/auth'
     assert parse_qs(urlsplit(url).query)['next'] == [destination]
-    assert client.get(url).status_code == 200
+    entry = client.get(url, follow_redirects=False)
+    assert entry.status_code == 302 and urlsplit(entry.location).path == '/login'
+    assert parse_qs(urlsplit(entry.location).query)['next'] == [destination]
+    assert 'class="signin-main"' in client.get(entry.location).text
     response = client.post(f'/properties/{property.id}/save', data={
         'csrf_token': csrf(client.get('/login')), '_language': language})
     assert response.status_code == 303

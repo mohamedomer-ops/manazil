@@ -1,9 +1,0 @@
-{% if facebook_auth_enabled %}
-<form class="auth-facebook" method="post" action="{{ url_for('facebook.start') }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <input type="hidden" name="next" value="{{ facebook_next }}">
-  <input type="hidden" name="_language" value="{{ language }}">
-  <button class="button-secondary" type="submit"><img src="{{ url_for('static', filename='images/facebook-f.svg') }}" alt="" aria-hidden="true" width="18" height="18"> <span>{{ t('Continue with Facebook') }}</span></button>
-  {% if facebook_is_development %}<p class="auth-support auth-development-note">{{ t('Development simulation only. No connection to Facebook.') }}</p>{% endif %}
-</form>
-{% endif %}
