@@ -63,7 +63,7 @@ def test_logged_out_browsing_save_destination_and_private_list(client, values, l
 
 
 @pytest.mark.parametrize('flow', ['login', 'signup'])
-def test_auth_returns_home_without_automatically_saving(client, values, flow):
+def test_auth_returns_home_without_automatically_saving(client, values, flow, isolated_email_delivery):
     property = public_listing(values)
     destination = f'/properties/{property.id}'
     if flow == 'login':
@@ -72,6 +72,11 @@ def test_auth_returns_home_without_automatically_saving(client, values, flow):
     page = client.get(destination)
     assert 'next=' + destination in unescape(page.text)
     response = (login if flow == 'login' else signup)(client, destination=destination)
+    if flow == 'signup':
+        assert response.location == '/auth/verify-email?lang=en'
+        code = re.search(r'\b[0-9]{6}\b', isolated_email_delivery.call_args.kwargs['json']['text']).group()
+        response = client.post('/auth/verify-email', data={
+            'csrf_token': csrf(client.get(response.location)), 'code': code, '_language': 'en'})
     assert response.status_code == 303 and response.location == '/?lang=en'
     assert client.get(response.location).status_code == 200
     assert db.session.query(SavedProperty).count() == 0

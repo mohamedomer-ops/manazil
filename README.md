@@ -52,6 +52,18 @@ docker compose logs web db
 
 Schema changes are managed by Flask-Migrate/Alembic. Apply all existing migrations with `docker compose exec web flask --app run db upgrade`; the repository contains revisions beyond the original property table, including users, OTP challenges, photos, and saved-property relationships.
 
+### Optional development email test
+
+Set `RESEND_API_KEY` and `MAIL_FROM` in the ignored local `.env` file. Use a sender authorized by Resend. Rebuild/recreate the local web container after changing these settings:
+
+```powershell
+docker compose up -d --build web
+docker compose exec web flask --app run test-email recipient@example.com
+```
+
+The command is available only when `MANAZIL_ENV=development`. It sends one test email. Success indicates API acceptance, not guaranteed inbox delivery. Automated tests mock the API and never send email.
+
+
 ## Homepage and public browsing
 
 The homepage has a Sudan-focused hero image slideshow with a Post Property action. Its filter form sits under Find What Fits You, followed by the newest four public properties. Search uses the same GET filters as `/properties`.
@@ -89,7 +101,19 @@ An owner can set the primary photo, move photos in display order, and delete the
 
 ## Accounts and authentication
 
-`/auth` offers Sign In and Sign Up. The public forms use a calling-code selector (Sudan +249 by default) and a local phone number. Manual Sign Up collects a full name, WhatsApp/mobile number, and password; it normalizes the combined number, stores a password hash, and signs the user in without OTP. The number is not marked verified. Password login uses the same normalized number. Google Sign-In is available when configured; phone OTP remains available internally. Authentication preserves a safe local `next` destination, such as `/properties/new` or a property detail URL. Logout ends the session.
+`/auth` redirects to the redesigned `/login`, which links to `/signup`. Manual signup collects first/last names, email, WhatsApp/mobile number, and password. It establishes a session, then sends a six-digit email code through Resend and redirects to `/auth/verify-email`. Phone verification is separate and remains false. Successful password and Google sign-in redirect Home, regardless of `next`. Phone OTP remains available internally. Logout ends the session.
+
+Email verification uses `RESEND_API_KEY` and `MAIL_FROM` (a sender authorized by Resend). Codes expire after 10 minutes, permit five attempts, are single-use, and are invalidated by a new code. Resending has a 60-second cooldown and a five-send hourly limit per account, including failed delivery attempts. Challenges store only a server-secret keyed hash, never plaintext codes. Keep `SECRET_KEY` stable; rotating it invalidates outstanding codes. Delivery failure preserves the account and offers resend. Unverified users retain existing application access and can reach verification from My Account. Google-verified email bypasses this flow; Google email that is unverified can be verified voluntarily. Email changes clear verification, and codes are bound to the address that received them.
+
+Apply migration `0020_email_verification` before using this flow (`docker compose exec web flask --app run db upgrade` locally). Downgrade removes temporary challenges only and preserves users and their email-verification flags.
+
+Forgot Password is linked from Sign In: `/auth/forgot-password` → `/auth/password-reset/code` → `/auth/reset-password` → Sign In. Only active accounts with a verified email and existing local password are eligible. Unknown, unverified, inactive and Google-only accounts receive the same public response; no accounts are merged and Google-only accounts cannot acquire a password through recovery. Email/code/user identifiers are not placed in URLs.
+
+Reset challenges are separate from email verification. Six-digit codes have a 10-minute expiry, five incorrect attempts, a 60-second send cooldown and a five-send hourly cap per account, plus supplementary signed-session request throttling. Hashes are purpose-separated and bound to the user, email and current password hash. Successful code verification creates a five-minute, database-backed single-use authorization. Passwords follow the same 8–128-character policy as signup and use the existing secure password hasher. Password replacement invalidates all outstanding reset grants/codes and clears the resetting browser's session; it does not sign the user in.
+
+Reset requests use a bounded in-memory background worker for every submitted address, keeping eligibility lookup, issuance and provider latency out of public responses. It is best-effort, not a durable queue: an interrupted process or full queue may lose delivery, and users can request a new code after the cooldown. Errors log only fixed sanitized categories. Messages include expiry, ignore-if-unrequested and Spam/Junk guidance.
+
+Apply migration `0021_password_reset` before using recovery. Downgrade removes reset challenges/grants only and preserves passwords and email verification. Other authenticated browsers cannot currently be revoked globally because Flask cookie sessions have no per-user version. The smallest future solution is a user `auth_version` stored in sessions and checked on authenticated requests, incremented on password reset; recovery grants are already invalidated server-side in this implementation.
 
 The current OTP delivery is a **development provider**. It stores the code locally for development; it does **not** send a real WhatsApp message. OTP codes are hashed in the database and protected by expiry, attempt limits, single use, and request throttling. After requesting a code locally, inspect it with:
 

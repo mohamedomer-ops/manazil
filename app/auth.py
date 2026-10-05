@@ -1,13 +1,15 @@
 from functools import wraps
 from urllib.parse import urlsplit
 
-from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
+from app.account_profile import normalize_email, normalize_name
 from app.models import User, utc_now
 from app.otp import request_code, verify_code
+from app.password_policy import password_errors
 from app.phone import AUTH_COUNTRIES, normalize_auth_phone, normalize_phone
 
 auth = Blueprint('auth', __name__)
@@ -44,7 +46,8 @@ def login_required(view):
             return redirect(url_for('auth.entry', next=destination, **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if (any(identity.provider == 'google' for identity in g.user.identities) and
                 not g.user.social_contact_complete and request.endpoint not in (
-                    'auth.complete_profile', 'auth.complete_profile_post')):
+                    'auth.complete_profile', 'auth.complete_profile_post',
+                    'auth.email_verify', 'auth.email_verify_post', 'auth.email_resend')):
             return redirect(url_for('auth.complete_profile', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
         if session.get('pending_setup_user_id') and request.endpoint not in ('auth.account', 'auth.account_post'):
             return redirect(url_for('auth.account', **({'lang': 'en'} if request.args.get('lang') == 'en' else {})))
@@ -128,12 +131,21 @@ def signup():
 
 @auth.post('/signup')
 def signup_post():
-    values = {'contact_name': request.form.get('contact_name', '').strip(),
+    values = {key: request.form.get(key, '').strip() for key in ('first_name', 'last_name', 'email')}
+    values.update({'contact_name': '',
               'country_code': request.form.get('country_code', '+249'),
-              'phone_number': request.form.get('phone_number', '').strip()}
+              'phone_number': request.form.get('phone_number', '').strip()})
     errors = {}
-    if not values['contact_name'] or '\x00' in values['contact_name']:
-        errors['contact_name'] = 'This field is required.'
+    for key in ('first_name', 'last_name'):
+        try:
+            values[key] = normalize_name(values[key])
+        except ValueError:
+            errors[key] = 'Enter a name between 1 and 100 characters.'
+    try:
+        values['email'] = normalize_email(values['email'])
+    except ValueError:
+        errors['email'] = 'Enter a valid email address.'
+    values['contact_name'] = ' '.join(values[key] for key in ('first_name', 'last_name'))
     try:
         phone = normalize_auth_phone(values['country_code'], values['phone_number'])
     except ValueError:
@@ -141,22 +153,19 @@ def signup_post():
         phone = None
     password = request.form.get('password', '')
     confirmation = request.form.get('confirm_password', '')
-    if not password:
-        errors['password'] = 'This field is required.'
-    elif len(password) < 8 or len(password) > 128:
-        errors['password'] = 'Use a password between 8 and 128 characters.'
-    if not confirmation:
-        errors['confirm_password'] = 'This field is required.'
-    elif password != confirmation:
-        errors['confirm_password'] = 'Passwords do not match.'
+    errors.update(password_errors(password, confirmation))
     destination = auth_destination(url_for('main.index'))
     if errors:
         return render_template('auth/signup.html', next=destination, values=values, errors=errors), 422
     if db.session.scalar(select(User).where(User.phone_number == phone)):
         errors['phone_number'] = 'This phone number is already associated with an account.'
         return render_template('auth/signup.html', next=destination, values=values, errors=errors), 409
+    if db.session.scalar(select(User.id).where(db.func.lower(User.email) == values['email'])):
+        errors['registration'] = 'Unable to create an account with these details.'
+        return render_template('auth/signup.html', next=destination, values=values, errors=errors), 409
     user = User(contact_name=values['contact_name'], phone_number=phone, whatsapp=phone,
-                is_verified=False)
+                first_name=values['first_name'], last_name=values['last_name'],
+                email=values['email'], email_verified=False, is_verified=False)
     user.set_password(password)
     user.last_login_at = utc_now()
     db.session.add(user)
@@ -164,9 +173,15 @@ def signup_post():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        errors['phone_number'] = 'This phone number is already associated with an account.'
+        errors['registration'] = 'Unable to create an account with these details.'
         return render_template('auth/signup.html', next=destination, values=values, errors=errors), 409
-    return establish_session(user)
+    establish_session(user)
+    from app.email_verification import issue_code
+    from app.languages import current_language
+    result = issue_code(user.id, current_language())
+    if result == 'delivery_failed':
+        flash('Unable to send the email. Please try requesting another code shortly.')
+    return redirect(url_for('auth.email_verify', **({'lang': 'en'} if current_language() == 'en' else {})), code=303)
 
 
 @auth.get('/login')
@@ -174,6 +189,125 @@ def login():
     if g.get('user'):
         return redirect(home_destination(), code=303)
     return render_template('auth/login.html', next=auth_destination(), values={})
+
+
+def recovery_url(endpoint):
+    from app.languages import current_language
+    return url_for(endpoint, **({'lang': 'en'} if current_language() == 'en' else {}))
+
+
+@auth.route('/auth/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        from app.password_reset import begin_request
+        from app.languages import current_language
+        begin_request(request.form.get('email', ''), current_language())
+        return redirect(recovery_url('auth.reset_code'), code=303)
+    return render_template('auth/forgot_password.html', page_title='Forgot password?')
+
+
+@auth.route('/auth/password-reset/code', methods=['GET', 'POST'])
+def reset_code():
+    from app.password_reset import pending_request, verify_code, GENERIC_NOTICE
+    pending = pending_request()
+    if pending is None:
+        return redirect(recovery_url('auth.forgot_password'), code=303)
+    error = None
+    if request.method == 'POST':
+        grant = verify_code(pending.get('email'), request.form.get('code', ''))
+        if grant:
+            session['password_reset_authorization'] = grant
+            session.pop('password_reset_pending', None)
+            return redirect(recovery_url('auth.reset_password'), code=303)
+        error = 'Invalid or expired verification code.'
+    return render_template('auth/reset_code.html', page_title='Password reset code',
+                           notice=GENERIC_NOTICE, error=error), (422 if error else 200)
+
+
+@auth.post('/auth/password-reset/resend')
+def reset_resend():
+    from app.password_reset import pending_request, begin_request
+    from app.languages import current_language
+    pending = pending_request()
+    if pending is None:
+        return redirect(recovery_url('auth.forgot_password'), code=303)
+    begin_request(pending.get('email'), current_language())
+    return redirect(recovery_url('auth.reset_code'), code=303)
+
+
+@auth.route('/auth/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    from app.password_reset import authorized_challenge, set_new_password
+    grant = session.get('password_reset_authorization')
+    authorized = authorized_challenge(grant)
+    db.session.commit()
+    if not authorized:
+        session.pop('password_reset_authorization', None)
+        return redirect(recovery_url('auth.forgot_password'), code=303)
+    errors = {}
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        errors = password_errors(password, request.form.get('confirm_password', ''))
+        if not errors:
+            if not set_new_password(grant, password):
+                session.pop('password_reset_authorization', None)
+                return redirect(recovery_url('auth.forgot_password'), code=303)
+            destination = recovery_url('auth.login')
+            csrf_value = session.get('csrf_token')
+            session.clear()
+            if csrf_value:
+                session['csrf_token'] = csrf_value
+            flash('Your password has been updated. Please sign in.')
+            return redirect(destination, code=303)
+    return render_template('auth/reset_password.html', page_title='Set a new password',
+                           errors=errors), (422 if errors else 200)
+
+
+@auth.after_request
+def private_email_verification(response):
+    if request.endpoint in ('auth.email_verify', 'auth.email_verify_post', 'auth.email_resend',
+                            'auth.forgot_password', 'auth.reset_code', 'auth.reset_resend', 'auth.reset_password'):
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['Referrer-Policy'] = 'no-referrer'
+    return response
+
+
+@auth.get('/auth/verify-email')
+@login_required
+def email_verify():
+    if g.user.email_verified or not g.user.email:
+        return redirect(home_destination(), code=303)
+    return render_template('auth/verify_email.html')
+
+
+@auth.post('/auth/verify-email')
+@login_required
+def email_verify_post():
+    from app.email_verification import verify_email_code
+    if g.user.email_verified:
+        return redirect(home_destination(), code=303)
+    if not verify_email_code(g.user.id, request.form.get('code', '')):
+        return render_template('auth/verify_email.html', error='Invalid or expired verification code.'), 422
+    flash('Your email has been verified successfully.')
+    return redirect(home_destination(), code=303)
+
+
+@auth.post('/auth/verify-email/resend')
+@login_required
+def email_resend():
+    from app.email_verification import issue_code
+    from app.languages import current_language
+    if g.user.email_verified or not g.user.email:
+        return redirect(home_destination(), code=303)
+    result = issue_code(g.user.id, current_language())
+    messages = {
+        'sent': 'A new verification code has been sent. Check your inbox.',
+        'limited': 'Please wait before requesting another code.',
+        'delivery_failed': 'Unable to send the email. Please try requesting another code shortly.',
+        'unavailable': 'Unable to send the email. Please try requesting another code shortly.',
+    }
+    flash(messages[result])
+    return redirect(url_for('auth.email_verify', **({'lang': 'en'} if current_language() == 'en' else {})), code=303)
 
 
 @auth.post('/auth/password-login')

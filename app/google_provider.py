@@ -48,6 +48,10 @@ class GoogleIdentity:
     provider_user_id: str
     display_name: str
     picture_url: str | None
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    email_verified: bool = False
 
 
 class GoogleAuthProvider:
@@ -108,17 +112,24 @@ class GoogleAuthProvider:
         if (not isinstance(subject, str) or not 1 <= len(subject) <= 255 or
                 any(ord(char) < 33 for char in subject)):
             raise GoogleProviderError('malformed_required_claims')
-        if not email:
-            raise GoogleProviderError('missing_email')
-        if (not isinstance(email, str) or len(email) > 254 or
-                not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email)):
-            raise GoogleProviderError('malformed_required_claims')
-        if claims.get('email_verified') is not True:
-            raise GoogleProviderError('email_verified_failure')
+        from app.account_profile import normalize_email, normalize_name
+        if email is not None:
+            try:
+                email = normalize_email(email)
+            except ValueError:
+                raise GoogleProviderError('malformed_required_claims') from None
+        def profile_name(key):
+            try:
+                return normalize_name(claims.get(key))
+            except ValueError:
+                return None
+        first_name, last_name = profile_name('given_name'), profile_name('family_name')
         name = claims.get('name')
-        display_name = name.strip() if isinstance(name, str) and 0 < len(name.strip()) <= 255 else email
+        display_name = name.strip() if isinstance(name, str) and 0 < len(name.strip()) <= 255 else ' '.join(filter(None, (first_name, last_name))) or 'Google Member'
         picture = claims.get('picture')
-        return GoogleIdentity(subject, display_name, picture if isinstance(picture, str) else None)
+        return GoogleIdentity(subject, display_name, picture if isinstance(picture, str) else None,
+                              first_name, last_name, email, bool(email and claims.get('email_verified') is True))
+
 
 
 def configure_google(app):

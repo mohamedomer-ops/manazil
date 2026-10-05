@@ -44,6 +44,7 @@
         <span class="mobile-menu-label">{{ t('Menu') }}</span>
       </button>
     </header>
+    {% for message in get_flashed_messages() %}<p class="site-notice" role="status">{{ t(message) }}</p>{% endfor %}
     {% block content %}{% endblock %}
     {% block footer %}<footer class="site-footer">{{ t('Manazil') }} <span aria-hidden="true">·</span> {{ t('Sudan Property Rental Platform') }}<nav class="site-footer-legal" aria-label="{{ t('Legal information') }}">{% include 'components/legal_links.html' %}</nav></footer>{% endblock %}
   </body>

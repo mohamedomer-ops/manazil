@@ -1,0 +1,20 @@
+{% extends 'auth/recovery_base.html' %}
+{% block recovery_content %}
+<p class="signin-card-subtitle" role="status">{{ t(notice) }}</p>
+<p class="auth-field-help">{{ t('Enter the 6-digit code. It expires in 10 minutes.') }}</p>
+<p class="auth-field-help">{{ t('Check Spam or Junk if the email is not in your Inbox.') }}</p>
+{% if error %}<p id="reset-code-error" role="alert">{{ t(error) }}</p>{% endif %}
+<form method="post" action="{{ url_for('auth.reset_code') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="_language" value="{{ language }}">
+  <label for="code">{{ t('Verification code') }}</label>
+  <input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" required autocomplete="one-time-code" {% if error %}aria-invalid="true" aria-describedby="reset-code-error"{% endif %}>
+  <button class="signin-submit" type="submit">{{ t('Verify') }}</button>
+</form>
+<form class="auth-resend" method="post" action="{{ url_for('auth.reset_resend') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="_language" value="{{ language }}">
+  <button type="submit">{{ t('Resend code') }}</button>
+</form>
+<p class="auth-field-help">{{ t('Wait at least 60 seconds before requesting another code.') }}</p>
+{% endblock %}

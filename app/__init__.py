@@ -47,6 +47,8 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=102 * 1024 * 1024,
         OTP_DEVELOPMENT_MODE=os.environ.get('OTP_DEVELOPMENT_MODE') == '1',
         ENVIRONMENT=environment,
+        RESEND_API_KEY=os.environ.get('RESEND_API_KEY'),
+        MAIL_FROM=os.environ.get('MAIL_FROM'),
         GOOGLE_CLIENT_ID=os.environ.get('GOOGLE_CLIENT_ID'),
         GOOGLE_CLIENT_SECRET=os.environ.get('GOOGLE_CLIENT_SECRET'),
         GOOGLE_REDIRECT_URI=os.environ.get('GOOGLE_REDIRECT_URI'),
@@ -144,6 +146,8 @@ def create_app(test_config=None):
     configure_google(app)
     app.add_url_rule("/properties/new", endpoint="property_new", view_func=new_property, methods=["GET"])
     register_cli(app)
+    from app.dev_email import register_email_cli
+    register_email_cli(app)
     app.context_processor(template_language)
     @app.cli.command('dev-otp')
     @__import__('click').argument('phone')

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{{ t(page_title) }} · {{ t('Manazil') }}{% endblock %}
+{% block content %}
+<main id="main-content" class="signin-main">
+  <div class="signin-shell">
+    {% include 'auth/_signin_promo.html' %}
+    <section class="auth-page signin-card" aria-labelledby="recovery-title">
+      <a class="signin-card-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}"><img src="{{ url_for('static', filename='images/manazil-logo.png') }}" alt="{{ t('Manazil Sudan') }}" width="1254" height="1254"></a>
+      <h2 id="recovery-title">{{ t(page_title) }}</h2>
+      {% block recovery_content %}{% endblock %}
+      <p class="auth-footer signin-card-footer"><a href="{{ url_for('auth.login', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Back to Sign In') }}</a></p>
+    </section>
+  </div>
+</main>
+{% endblock %}

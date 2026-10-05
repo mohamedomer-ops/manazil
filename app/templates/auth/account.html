@@ -52,6 +52,7 @@
     </section>
     <section class="account-card account-security" aria-labelledby="account-security-heading">
       <h2 id="account-security-heading">{{ t('Account & Security') }}</h2>
+      {% if current_user.email and not current_user.email_verified %}<p><a href="{{ url_for('auth.email_verify', **suffix) }}">{{ t('Verify your email') }}</a></p>{% endif %}
       {% if current_user.phone_number %}<div class="account-field">
         <label for="phone_number">{{ t('Verified Phone Number') if current_user.is_verified else t('Phone Number') }} <span class="account-readonly-label">{{ t('Read-only') }}</span></label>
         <input id="phone_number" type="tel" value="{{ current_user.phone_number }}" readonly {% if current_user.is_verified %}aria-describedby="phone-verified"{% endif %}>

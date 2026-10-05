@@ -15,10 +15,10 @@ from test_properties import migrated_connection
 
 
 def register(client, *, phone='0912345678', country_code='+249', name='Mohamed Ahmed',
-             password='correct-horse-password', confirmation=None, destination=None, language='en'):
+             password='correct-horse-password', confirmation=None, destination=None, language='en', email='member@example.test'):
     query = '?lang=' + language + ('&next=' + destination if destination else '')
     page = client.get('/signup' + query)
-    data = {'csrf_token': csrf(page), '_language': language, 'contact_name': name,
+    data = {'csrf_token': csrf(page), '_language': language, 'first_name': name.split(' ', 1)[0], 'last_name': name.split(' ', 1)[1] if ' ' in name else '', 'email': email,
             'country_code': country_code, 'phone_number': phone, 'password': password,
             'confirm_password': password if confirmation is None else confirmation}
     if destination is not None:
@@ -31,12 +31,12 @@ def test_signup_form_is_bilingual_and_manual_first(client, language, direction):
     page = client.get('/signup?lang=' + language)
     assert page.status_code == 200
     assert f'<html lang="{language}" dir="{direction}">' in page.text
-    for label in ('Full name', 'WhatsApp/mobile number', 'Password', 'Confirm password',
+    for label in ('First name', 'Last name', 'Email address', 'WhatsApp/mobile number', 'Password', 'Confirm password',
                   'Create Account', 'Already have an account?'):
         assert translate(label, language) in page.text
-    for field in ('contact_name', 'phone_number', 'password', 'confirm_password'):
+    for field in ('first_name', 'last_name', 'email', 'phone_number', 'password', 'confirm_password'):
         assert f'name="{field}"' in page.text
-    assert 'name="email"' not in page.text and 'name="contact_role"' not in page.text
+    assert 'name="email"' in page.text and 'name="contact_role"' not in page.text
     assert 'action="/auth/request-otp"' not in page.text
     assert 'name="country_code"' in page.text
     assert re.search(r'<option value="\+249"[^>]* selected>', page.text)
@@ -141,7 +141,7 @@ def test_unsupported_country_code_is_rejected_server_side(client):
 
 def test_successful_signup_normalizes_hashes_and_signs_in_without_otp(client):
     response = register(client, phone='912345678')
-    assert response.status_code == 303 and response.location == '/?lang=en'
+    assert response.status_code == 303 and response.location == '/auth/verify-email?lang=en'
     user = db.session.scalar(select(User))
     assert user.contact_name == 'Mohamed Ahmed'
     assert user.phone_number == user.whatsapp == '+249912345678'
@@ -158,7 +158,7 @@ def test_successful_signup_normalizes_hashes_and_signs_in_without_otp(client):
 
 
 @pytest.mark.parametrize('field,value,message', [
-    ('contact_name', '', 'This field is required.'),
+    ('first_name', '', 'Enter a name between 1 and 100 characters.'),
     ('phone_number', 'bad', 'Enter a valid phone number.'),
     ('password', '', 'This field is required.'),
     ('password', 'short', 'Use a password between 8 and 128 characters.'),
@@ -167,7 +167,7 @@ def test_successful_signup_normalizes_hashes_and_signs_in_without_otp(client):
 ])
 def test_signup_validation_is_server_side_and_localized(client, field, value, message):
     page = client.get('/signup')
-    data = {'csrf_token': csrf(page), 'contact_name': 'Member', 'phone_number': '0912345678',
+    data = {'first_name': 'Test', 'last_name': 'Member', 'email': 'member@example.test', 'csrf_token': csrf(page), 'contact_name': 'Member', 'phone_number': '0912345678',
             'password': 'correct-horse-password', 'confirm_password': 'correct-horse-password'}
     data[field] = value
     response = client.post('/signup', data=data)
@@ -257,7 +257,7 @@ def test_password_login_normalizes_phone_and_rejects_bad_credentials(client):
 def test_signup_next_rejects_external_destinations(client, destination, expected):
     response = register(client, destination=destination)
     assert response.status_code == 303
-    assert response.location == '/?lang=en'
+    assert response.location == '/auth/verify-email?lang=en'
 
 
 def test_signup_works_without_production_otp_provider(client):

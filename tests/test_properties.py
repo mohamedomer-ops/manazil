@@ -171,8 +171,8 @@ def test_zero_values_and_optional_fields(session, values):
 
 
 def test_migration_creates_table_and_version(migrated_connection):
-    assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "users", "otp_challenges", "saved_properties", "user_identities", "alembic_version"}
-    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0018_property_comment"
+    assert set(inspect(migrated_connection).get_table_names()) == {"properties", "property_photos", "users", "otp_challenges", "saved_properties", "user_identities", "email_verification_challenges", "password_reset_challenges", "alembic_version"}
+    assert migrated_connection.scalar(text("SELECT version_num FROM alembic_version")) == "0021_password_reset"
     columns = inspect(migrated_connection).get_columns("properties")
     assert {column["name"] for column in columns} == set(Property.__table__.columns.keys())
     assert all(column['nullable'] for column in columns if column['name'] in ('latitude', 'longitude'))

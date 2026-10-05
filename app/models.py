@@ -246,10 +246,18 @@ class PropertyPhoto(db.Model):
 
 class User(db.Model):
     __tablename__ = 'users'
+    first_name = db.Column(db.String(100), nullable=True)
+    last_name = db.Column(db.String(100), nullable=True)
+    email = db.Column(db.String(254), nullable=True)
+    email_verified = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     __table_args__ = (
         db.CheckConstraint("role IN ('user', 'admin')", name='ck_users_role'),
         db.CheckConstraint("avatar_source IN ('facebook', 'google', 'manual')", name='ck_users_avatar_source'),
+        db.Index('uq_users_email_lower', db.func.lower(email), unique=True),
+        db.CheckConstraint('email IS NULL OR email = lower(trim(email))', name='ck_users_email_normalized'),
+        db.CheckConstraint('NOT email_verified OR email IS NOT NULL', name='ck_users_email_verification'),
     )
+
     id = db.Column(db.Integer, primary_key=True)
     phone_number = db.Column(db.String(16), nullable=True, unique=True)
     password_hash = db.Column(db.String(255), nullable=True)
@@ -267,6 +275,19 @@ class User(db.Model):
     properties = db.relationship('Property', back_populates='owner')
     saved_properties = db.relationship('Property', secondary='saved_properties', back_populates='saved_by', passive_deletes=True)
     identities = db.relationship('UserIdentity', back_populates='user', cascade='all, delete-orphan')
+
+    @validates('email')
+    def validate_email(self, key, value):
+        from app.account_profile import normalize_email
+        normalized = normalize_email(value) if value is not None else None
+        if self.email != normalized:
+            self.email_verified = False
+        return normalized
+
+    @validates('first_name', 'last_name')
+    def validate_profile_name(self, key, value):
+        from app.account_profile import normalize_name
+        return normalize_name(value) if value is not None else None
 
     @property
     def has_authenticated_identity(self):
@@ -297,6 +318,48 @@ class UserIdentity(db.Model):
     display_name = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, server_default=db.func.now())
     user = db.relationship('User', back_populates='identities')
+
+
+class EmailVerificationChallenge(db.Model):
+    __tablename__ = 'email_verification_challenges'
+    __table_args__ = (
+        db.CheckConstraint('attempts BETWEEN 0 AND 5', name='ck_email_verification_attempts'),
+        db.Index('uq_email_verification_active_user', 'user_id', unique=True,
+                 postgresql_where=db.text('consumed_at IS NULL'),
+                 sqlite_where=db.text('consumed_at IS NULL')),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    email = db.Column(db.String(254), nullable=False)
+    code_hash = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    consumed_at = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class PasswordResetChallenge(db.Model):
+    __tablename__ = 'password_reset_challenges'
+    __table_args__ = (
+        db.CheckConstraint('attempts BETWEEN 0 AND 5', name='ck_password_reset_attempts'),
+        db.CheckConstraint('(authorization_hash IS NULL) = (authorization_expires_at IS NULL)',
+                           name='ck_password_reset_authorization'),
+        db.Index('uq_password_reset_active_user', 'user_id', unique=True,
+                 postgresql_where=db.text('consumed_at IS NULL'),
+                 sqlite_where=db.text('consumed_at IS NULL')),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    email = db.Column(db.String(254), nullable=False)
+    credential_hash = db.Column(db.String(64), nullable=False)
+    code_hash = db.Column(db.String(64), nullable=False)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    code_verified_at = db.Column(db.DateTime(timezone=True))
+    authorization_hash = db.Column(db.String(64))
+    authorization_expires_at = db.Column(db.DateTime(timezone=True))
+    consumed_at = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
 
 
 class OTPChallenge(db.Model):

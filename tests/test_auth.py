@@ -39,7 +39,7 @@ def login(client, phone='0912345678', destination='/account'):
 
 def signup(client, phone='0912345678', destination='/account', role='owner'):
     page = client.get('/signup?lang=en&next=' + destination)
-    response = client.post('/signup', data={'csrf_token': csrf(page), 'phone_number': phone,
+    response = client.post('/signup', data={'first_name': 'Mohamed', 'last_name': 'Ahmed', 'email': 'member@example.test', 'csrf_token': csrf(page), 'phone_number': phone,
         'contact_name': 'Mohamed Ahmed', 'password': 'password-for-tests',
         'confirm_password': 'password-for-tests',
         'next': destination, '_language': 'en'})
@@ -76,7 +76,7 @@ def test_protected_posting_and_public_access(client):
     assert client.get('/properties').status_code == 200
     response = client.get('/admin/properties/new')
     assert response.status_code == 302 and '/auth?' in response.location
-    assert signup(client, destination='/admin/properties/new').location == '/?lang=en'
+    assert signup(client, destination='/admin/properties/new').location == '/auth/verify-email?lang=en'
     assert client.get('/admin/properties/new').location == '/account'
     complete_account(client)
     assert client.get('/admin/properties/new').status_code == 200
@@ -141,7 +141,7 @@ def test_language_and_no_code_in_html(client):
 @pytest.mark.parametrize('role', ['owner', 'broker'])
 def test_new_account_setup_and_listing_defaults(client, role):
     saved = signup(client, destination='/properties/new?lang=en', role=role)
-    assert saved.status_code == 303 and saved.location == '/?lang=en'
+    assert saved.status_code == 303 and saved.location == '/auth/verify-email?lang=en'
     with client.session_transaction() as auth_session:
         assert 'user_id' in auth_session and 'pending_setup_user_id' not in auth_session
     user = db.session.scalar(select(User).where(User.phone_number == '+249912345678'))
@@ -245,7 +245,7 @@ def test_duplicate_and_returning_profile(client):
     profile = (user.contact_name, user.whatsapp, user.contact_role)
     client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
     page = client.get('/signup?next=/properties/new')
-    response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
+    response = client.post('/signup', data={'first_name': 'Mohamed', 'last_name': 'Ahmed', 'email': 'member@example.test', 'csrf_token': csrf(page), 'next': '/properties/new',
         'phone_number': '00249912345678', 'contact_name': 'Overwrite',
         'password': 'another-password', 'confirm_password': 'another-password', '_language': 'en'})
     assert response.status_code == 409
@@ -271,10 +271,10 @@ def test_login_unknown_does_not_create_user(client):
     assert '/signup?next=/properties/new' in response.get_data(as_text=True)
 
 
-@pytest.mark.parametrize('field,value', [('contact_name', ''), ('phone_number', 'bad'),
+@pytest.mark.parametrize('field,value', [('first_name', ''), ('phone_number', 'bad'),
                                          ('password', ''), ('confirm_password', 'wrong')])
 def test_signup_validation_before_account_creation(client, field, value):
-    data = {'csrf_token': csrf(client.get('/signup')), 'phone_number': '0912345678',
+    data = {'first_name': 'Mohamed', 'last_name': 'Ahmed', 'email': 'member@example.test', 'csrf_token': csrf(client.get('/signup')), 'phone_number': '0912345678',
             'contact_name': 'Name', 'password': 'password-for-tests',
             'confirm_password': 'password-for-tests', 'next': '/properties/new'}
     data[field] = value
@@ -284,10 +284,10 @@ def test_signup_validation_before_account_creation(client, field, value):
 
 def test_manual_signup_creates_no_otp_challenge(client):
     page = client.get('/signup?next=/properties/new&lang=en')
-    response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
+    response = client.post('/signup', data={'first_name': 'Mohamed', 'last_name': 'Ahmed', 'email': 'member@example.test', 'csrf_token': csrf(page), 'next': '/properties/new',
         'phone_number': '0912345678', 'contact_name': 'Name', 'password': 'password-for-tests',
         'confirm_password': 'password-for-tests', '_language': 'en'})
-    assert response.status_code == 303 and response.location == '/?lang=en'
+    assert response.status_code == 303 and response.location == '/auth/verify-email?lang=en'
     user = db.session.scalar(select(User))
     assert user.phone_number == user.whatsapp == '+249912345678' and not user.is_verified
     assert user.check_password('password-for-tests')
@@ -302,7 +302,7 @@ def test_signup_existing_phone_does_not_overwrite(client):
     db.session.add(existing)
     db.session.commit()
     page = client.get('/signup')
-    response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
+    response = client.post('/signup', data={'first_name': 'Mohamed', 'last_name': 'Ahmed', 'email': 'member@example.test', 'csrf_token': csrf(page), 'next': '/properties/new',
         'phone_number': '00249912345678', 'contact_name': 'Overwrite',
         'password': 'password-for-tests', 'confirm_password': 'password-for-tests'})
     assert response.status_code == 409
@@ -314,7 +314,7 @@ def test_signup_existing_phone_does_not_overwrite(client):
 
 
 def test_signup_csrf_and_safe_destination(client):
-    assert client.post('/signup', data={'phone_number': '0912345678'}).status_code == 400
+    assert client.post('/signup', data={'first_name': 'Mohamed', 'last_name': 'Ahmed', 'email': 'member@example.test', 'phone_number': '0912345678'}).status_code == 400
     page = client.get('/signup?next=https://example.com').get_data(as_text=True)
     assert 'name="next" value="/"' in page
 
@@ -378,7 +378,7 @@ def test_compact_auth_ui_and_actions(client, language, direction):
         assert 'next=/properties/new' in content
     signup_page = client.get('/signup?lang=' + language).get_data(as_text=True)
     assert f'<button type="submit">{translate("Create Account", language)}</button>' in signup_page
-    assert translate('Full name', language) in signup_page
+    assert translate('First name', language) in signup_page
     assert translate('Password', language) in signup_page
     assert translate('Confirm password', language) in signup_page
     login_page = client.get('/login?lang=' + language).get_data(as_text=True)

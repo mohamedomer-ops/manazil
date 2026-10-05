@@ -5,6 +5,8 @@ import pytest
 from sqlalchemy.exc import OperationalError
 
 from app import create_app, db
+from test_auth import client
+from test_properties import migrated_connection
 
 
 @pytest.fixture
@@ -17,8 +19,8 @@ def app():
     })
 
 
-def test_index(app):
-    response = app.test_client().get("/")
+def test_index(client):
+    response = client.get("/")
     assert response.status_code == 200
     assert "منازل" in response.get_data(as_text=True)
 

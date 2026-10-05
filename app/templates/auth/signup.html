@@ -12,9 +12,12 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="next" value="{{ next }}">
     <input type="hidden" name="_language" value="{{ language }}">
-    <label for="contact_name">{{ t('Full name') }}</label>
-    <input id="contact_name" name="contact_name" type="text" autocomplete="name" value="{{ values.get('contact_name', '') }}" {% if errors.get('contact_name') %}aria-invalid="true" aria-describedby="contact-name-error"{% endif %} required>
-    {% if errors.get('contact_name') %}<p id="contact-name-error" role="alert">{{ t(errors.contact_name) }}</p>{% endif %}
+    {% if errors.get('registration') %}<p role="alert">{{ t(errors.registration) }}</p>{% endif %}
+    {% for name, label, autocomplete, type in [('first_name', 'First name', 'given-name', 'text'), ('last_name', 'Last name', 'family-name', 'text'), ('email', 'Email address', 'email', 'email')] %}
+    <label for="{{ name }}">{{ t(label) }}</label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ type }}" autocomplete="{{ autocomplete }}" maxlength="{{ 254 if name == 'email' else 100 }}" value="{{ values.get(name, '') }}" {% if name == 'email' %}dir="ltr"{% endif %} {% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %} required>
+    {% if errors.get(name) %}<p id="{{ name }}-error" role="alert">{{ t(errors[name]) }}</p>{% endif %}
+    {% endfor %}
     {% set phone_error = errors.get('phone_number') %}
     {% include 'auth/_country_phone.html' %}
     <label for="password">{{ t('Password') }}</label>

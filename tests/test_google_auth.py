@@ -267,8 +267,6 @@ def test_provider_validates_signed_claims_and_network_failures(monkeypatch):
     ({'iss': 'https://evil.example'}, 'issuer_validation_failure'),
     ({'exp': 0}, 'expiration_validation_failure'),
     ({'nonce': 'wrong'}, 'nonce_validation_failure'),
-    ({'email': None}, 'missing_email'),
-    ({'email_verified': False}, 'email_verified_failure'),
     ({'sub': ''}, 'malformed_required_claims'),
     ({'email': 'invalid'}, 'malformed_required_claims'),
 ])

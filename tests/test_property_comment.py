@@ -123,7 +123,7 @@ def test_comment_migration_roundtrip(migrated_connection):
     command.upgrade(config, 'head')
     column = next(c for c in inspect(migrated_connection).get_columns('properties') if c['name'] == 'comment')
     assert column['nullable']
-    assert migrated_connection.scalar(text('SELECT version_num FROM alembic_version')) == '0018_property_comment'
+    assert migrated_connection.scalar(text('SELECT version_num FROM alembic_version')) == '0021_password_reset'
     assert migrated_connection.scalar(text('SELECT comment FROM properties')) is None
     migrated_connection.execute(text("UPDATE properties SET comment = 'Manual note'"))
     command.downgrade(config, '0017_property_rules')

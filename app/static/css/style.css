@@ -198,6 +198,7 @@ h3 { font-size: 1rem; margin: 0 0 4px; }
 .auth-page input[type="tel"] { direction: ltr; text-align: left; }
 html[dir="rtl"] .auth-page input[type="tel"] { text-align: right; }
 .auth-page #code { direction: ltr; text-align: center; letter-spacing: .2em; }
+.site-notice { max-width: 720px; margin: 16px auto; padding: 12px 16px; background: #eef7f1; border: 1px solid var(--border); border-radius: 8px; color: var(--green); overflow-wrap: anywhere; }
 .auth-page button, .auth-page .button { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 46px; margin-block: 18px 0; padding: 10px 12px; background: var(--green); color: #fff; border: 1px solid var(--green); border-radius: 6px; font-size: 15px; font-weight: 600; line-height: 1.5; text-decoration: none; cursor: pointer; }
 .auth-page button:hover, .auth-page .button:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 .auth-page .auth-choice .button { margin-block-start: 10px; }
@@ -738,6 +739,8 @@ html[dir="ltr"] .signin-promo, html[dir="ltr"] .signin-card { direction: ltr; }
 .signin-password-toggle .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .signin-card .signin-submit { min-height: 50px; margin-block-start: 22px; border-radius: 9px; font-size: 16px; font-weight: 700; }
 .signin-card-footer { margin-block-start: 18px !important; padding-block-start: 14px !important; }
+.signin-forgot { display: block; width: fit-content; margin-inline-start: auto; min-height: 36px; padding-block: 8px; color: var(--green); font-size: 14px; text-underline-offset: 3px; }
+.signin-forgot:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; border-radius: 4px; }
 @media (max-width: 767px) {
   .signin-main {
     position: relative;

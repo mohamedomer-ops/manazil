@@ -5,31 +5,13 @@
 <script defer src="{{ url_for('static', filename='js/auth-password-toggle.js') }}"></script>
 {% endblock %}
 {% block language_switcher %}
-<a href="{{ url_for('auth.login', next=next, lang='ar') }}" lang="ar">العربية</a>
+<a href="{{ url_for('auth.login', next=next, lang='ar') }}" lang="ar">Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©</a>
 <a href="{{ url_for('auth.login', next=next, lang='en') }}" lang="en">English</a>
 {% endblock %}
 {% block content %}
 <main id="main-content" class="signin-main">
   <div class="signin-shell">
-    <section class="signin-promo" aria-label="{{ t('Why choose Manazil') }}">
-      <p class="signin-eyebrow">{{ t('Manazil · Sudan') }}</p>
-      <h1>{{ t('Homes closer to your life') }}</h1>
-      <p class="signin-promo-copy">{{ t('Find a suitable home in Sudan easily and safely.') }}</p>
-      <ul class="signin-features">
-        <li>
-          <span class="signin-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-7h6v7"/><path d="m8 10 2 2 5-5"/></svg></span>
-          <span>{{ t('Trusted properties') }}</span>
-        </li>
-        <li>
-          <span class="signin-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-          <span>{{ t('A secure experience') }}</span>
-        </li>
-        <li>
-          <span class="signin-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3.5 7.8 8.5 4.4 8.5-4.4M12 12.2V21"/><path d="M7 5.5v4l5 2.7"/></svg></span>
-          <span>{{ t('Coverage across Sudan') }}</span>
-        </li>
-      </ul>
-    </section>
+    {% include 'auth/_signin_promo.html' %}
 
     <section class="auth-page signin-card" aria-labelledby="signin-title">
       <a class="signin-card-brand" href="{{ url_for('main.index', **({'lang': 'en'} if language == 'en' else {})) }}">
@@ -55,6 +37,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
+        <a class="signin-forgot" href="{{ url_for('auth.forgot_password', **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Forgot password?') }}</a>
         <button class="signin-submit" type="submit">{{ t('Sign In') }}</button>
       </form>
       <p class="auth-footer signin-card-footer">{{ t("Don't have an account?") }} <a href="{{ url_for('auth.signup', next=next, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('Sign Up') }}</a></p>

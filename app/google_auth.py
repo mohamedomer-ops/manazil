@@ -5,6 +5,7 @@ import secrets
 import time
 
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -85,6 +86,29 @@ def find_or_create_user(identity):
         raise
 
 
+def populate_google_profile(user, identity):
+    # Enrich only this sub-linked account; never look up an identity by email.
+    for field in ('first_name', 'last_name'):
+        if not getattr(user, field) and getattr(identity, field):
+            setattr(user, field, getattr(identity, field))
+    from app.account_profile import normalize_email
+    email = normalize_email(identity.email) if identity.email else None
+    if not email or (user.email and user.email != email):
+        return
+    try:
+        with db.session.begin_nested():
+            if user.email == email:
+                if identity.email_verified is True:
+                    user.email_verified = True
+            elif not db.session.scalar(select(User.id).where(db.func.lower(User.email) == email)):
+                user.email = email
+                user.email_verified = identity.email_verified is True
+            db.session.flush()
+    except IntegrityError:
+        # A concurrent claim keeps its email. Authentication by sub remains valid.
+        pass
+
+
 def failure(pending, message, status):
     pending = pending if isinstance(pending, dict) else {}
     language = pending.get('language') if pending.get('language') in ('ar', 'en') else current_language()
@@ -118,6 +142,7 @@ def callback():
     user = find_or_create_user(identity)
     if not user.is_active:
         abort(403)
+    populate_google_profile(user, identity)
     user.last_login_at = utc_now()
     db.session.commit()
     from app.avatar_storage import sync_google_avatar
