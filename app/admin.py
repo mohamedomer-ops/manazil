@@ -44,8 +44,10 @@ def render_form(values, errors, language, **kwargs):
     requested = request.form.get('_wizard_section', 'purpose')
     allowed_sections = {'purpose', 'property', 'occupancy', 'location', 'details', 'transaction', 'description', 'photos', 'contact', 'review'}
     initial = sections.get(next(iter(errors), ''), 'details') if errors else requested
-    if kwargs.get('photo_error') or request.form.get('_action', '').startswith(('upload', 'delete_', 'primary_', 'up_', 'down_')):
+    if kwargs.get('photo_error'):
         initial = 'photos'
+    elif request.form.get('_action', '').startswith(('upload', 'delete_', 'primary_', 'up_', 'down_')):
+        initial = requested if requested in ('contact', 'review') else 'photos'
     if initial not in allowed_sections:
         initial = 'purpose'
     return render_template(

@@ -76,7 +76,7 @@ def test_protected_posting_and_public_access(client):
     assert client.get('/properties').status_code == 200
     response = client.get('/admin/properties/new')
     assert response.status_code == 302 and '/auth?' in response.location
-    assert signup(client, destination='/admin/properties/new').location == '/admin/properties/new'
+    assert signup(client, destination='/admin/properties/new').location == '/?lang=en'
     assert client.get('/admin/properties/new').location == '/account'
     complete_account(client)
     assert client.get('/admin/properties/new').status_code == 200
@@ -141,16 +141,16 @@ def test_language_and_no_code_in_html(client):
 @pytest.mark.parametrize('role', ['owner', 'broker'])
 def test_new_account_setup_and_listing_defaults(client, role):
     saved = signup(client, destination='/properties/new?lang=en', role=role)
-    assert saved.status_code == 303 and saved.location == '/properties/new?lang=en'
+    assert saved.status_code == 303 and saved.location == '/?lang=en'
     with client.session_transaction() as auth_session:
         assert 'user_id' in auth_session and 'pending_setup_user_id' not in auth_session
     user = db.session.scalar(select(User).where(User.phone_number == '+249912345678'))
     assert (user.contact_name, user.whatsapp, user.contact_role) == ('Mohamed Ahmed', '+249912345678', None)
-    assert client.get(saved.location).location.startswith('/account')
+    assert client.get('/properties/new?lang=en').location.startswith('/account')
     page = client.get('/account?lang=en')
     client.post('/account', data={'csrf_token': csrf(page), '_language': 'en',
         'contact_name': 'Mohamed Ahmed', 'whatsapp': '0912345678', 'contact_role': role})
-    listing = client.get(saved.location).get_data(as_text=True)
+    listing = client.get('/properties/new?lang=en').get_data(as_text=True)
     assert 'name="contact_name" type="text" value="Mohamed Ahmed"' in listing
     assert 'name="phone"' not in listing
     assert 'name="whatsapp" type="tel" value="+249912345678"' in listing
@@ -174,7 +174,7 @@ def test_existing_account_edit_and_verified_phone(client):
     for challenge in db.session.scalars(select(OTPChallenge)).all():
         challenge.created_at = utc_now() - timedelta(seconds=31)
     db.session.commit()
-    assert login(client, destination='/admin/properties/new').location == '/admin/properties/new'
+    assert login(client, destination='/admin/properties/new').location == '/?lang=en'
     page = client.get('/account?lang=en')
     changed = client.post('/account', data={'csrf_token': csrf(page), '_language': 'en',
         'contact_name': 'New Name', 'whatsapp': '0912222222', 'contact_role': 'broker',
@@ -192,7 +192,7 @@ def test_legacy_incomplete_account_must_complete_before_posting(client):
     user = User(phone_number='+249912345678', is_verified=True, is_active=True)
     db.session.add(user)
     db.session.commit()
-    assert login(client, destination='/admin/properties/new').location == '/admin/properties/new'
+    assert login(client, destination='/admin/properties/new').location == '/?lang=en'
     response = client.get('/admin/properties/new')
     assert response.status_code == 302 and '/account' in response.location
     assert client.post('/admin/properties', data={'csrf_token': csrf(client.get('/account'))}).status_code == 303
@@ -254,7 +254,7 @@ def test_duplicate_and_returning_profile(client):
     for challenge in db.session.scalars(select(OTPChallenge)):
         challenge.created_at = utc_now() - timedelta(seconds=31)
     db.session.commit()
-    assert login(client, '+249912345678', '/properties/new').location == '/properties/new'
+    assert login(client, '+249912345678', '/properties/new').location == '/?lang=en'
     db.session.refresh(user)
     assert db.session.query(User).count() == 1 and user.id == identity
     assert (user.contact_name, user.whatsapp, user.contact_role) == profile
@@ -287,7 +287,7 @@ def test_manual_signup_creates_no_otp_challenge(client):
     response = client.post('/signup', data={'csrf_token': csrf(page), 'next': '/properties/new',
         'phone_number': '0912345678', 'contact_name': 'Name', 'password': 'password-for-tests',
         'confirm_password': 'password-for-tests', '_language': 'en'})
-    assert response.status_code == 303 and response.location == '/properties/new'
+    assert response.status_code == 303 and response.location == '/?lang=en'
     user = db.session.scalar(select(User))
     assert user.phone_number == user.whatsapp == '+249912345678' and not user.is_verified
     assert user.check_password('password-for-tests')

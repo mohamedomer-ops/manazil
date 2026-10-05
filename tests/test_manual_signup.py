@@ -243,7 +243,7 @@ def test_password_login_normalizes_phone_and_rejects_bad_credentials(client):
     signed_in = client.post('/auth/password-login', data={'csrf_token': csrf(page),
         'phone_number': '00249912345678', 'password': 'correct-horse-password',
         'next': '/saved-properties'})
-    assert signed_in.status_code == 303 and signed_in.location == '/saved-properties'
+    assert signed_in.status_code == 303 and signed_in.location == '/'
     with client.session_transaction() as auth_session:
         assert auth_session['user_id'] == user.id
     assert not user.is_verified
@@ -257,7 +257,7 @@ def test_password_login_normalizes_phone_and_rejects_bad_credentials(client):
 def test_signup_next_rejects_external_destinations(client, destination, expected):
     response = register(client, destination=destination)
     assert response.status_code == 303
-    assert response.location == (expected + '?lang=en' if expected == '/' else expected)
+    assert response.location == '/?lang=en'
 
 
 def test_signup_works_without_production_otp_provider(client):
@@ -276,3 +276,35 @@ def test_existing_otp_only_user_is_not_accepted_by_password_login(client):
         'phone_number': '0912345678', 'password': 'anything'})
     assert response.status_code == 422
     assert db.session.query(User).count() == 1
+
+
+@pytest.mark.parametrize('language,home', [('ar', '/'), ('en', '/?lang=en')])
+@pytest.mark.parametrize('destination', ['', '/saved-properties', '/properties/new', 'https://evil.example/', '//evil.example/'])
+def test_password_login_always_home(client, language, home, destination):
+    register(client, language=language)
+    user = db.session.scalar(select(User))
+    client.post('/logout', data={'csrf_token': csrf(client.get('/account'))})
+    page = client.get('/login', query_string={'lang': language, 'next': destination})
+    response = client.post('/auth/password-login', data={'csrf_token': csrf(page),
+        '_language': language, 'phone_number': '0912345678',
+        'password': 'correct-horse-password', 'next': destination})
+    assert response.status_code == 303 and response.location == home
+    with client.session_transaction() as state:
+        assert state['user_id'] == user.id
+    already = client.get('/login', query_string={'lang': language, 'next': destination})
+    assert already.status_code == 303 and already.location == home
+    assert client.get(already.location).status_code == 200
+
+
+def test_inactive_password_login_does_not_redirect_home(client):
+    register(client)
+    user = db.session.scalar(select(User))
+    user.is_active = False
+    db.session.commit()
+    page = client.get('/login?lang=en')
+    result = client.post('/auth/password-login', data={'csrf_token': csrf(page),
+        'phone_number': '0912345678', 'password': 'correct-horse-password', '_language': 'en'})
+    assert result.status_code == 422
+    with client.session_transaction() as state:
+        assert 'user_id' not in state
+    assert client.get('/properties/new').status_code == 302

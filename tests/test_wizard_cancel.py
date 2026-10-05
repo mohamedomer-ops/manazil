@@ -12,24 +12,23 @@ from test_property_creation import client, form_data
 @pytest.mark.parametrize('lang,cancel,continue_label', [('en', 'Cancel', 'Continue Editing'), ('ar', 'إلغاء', 'متابعة التعديل')])
 def test_cancel_outside_every_wizard_section(client, lang, cancel, continue_label):
     page = client.get('/properties/new?lang=' + lang).text
-    assert f'>{cancel}</a>' in page
     assert continue_label in page
-    assert page.count('id="wizard-cancel"') == 1
-    # The action bar sits after all stage sections, including Review.
-    assert page.index('id="wizard-cancel"') > page.index('data-wizard-step="review"')
-    bar = re.search(r'<div class="wizard-action-bar">(.*?)<dialog', page, re.S).group(1)
-    assert '<a id="wizard-cancel" class="wizard-cancel"' in bar
-    assert 'data-staged-count="0"' in bar
-    assert 'id="wizard-cancel-dialog"' in page
-    assert 'type="button" id="wizard-confirm-cancel"' in page
+    assert page.count('id="property-leave"') == 1
+    assert page.index('id="property-leave"') < page.index('id="property-form"')
+    assert 'aria-label="' in page[page.index('id="property-leave"'):page.index('id="property-form"')]
+    assert 'wizard-cancel-area' not in page and 'id="wizard-cancel"' not in page
+    assert 'data-staged-count="0"' in page
+    assert 'id="property-leave-dialog"' in page
+    assert 'type="button" id="property-confirm-leave"' in page
     assert 'type="button" id="wizard-continue-editing"' in page
 
 
 def test_cancel_styles_and_non_submission():
     css = Path('app/static/css/style.css').read_text(encoding='utf-8')
-    assert '.wizard-action-bar' in css and 'position: sticky' in css
+    assert '.wizard-cancel-area' not in css
+    assert '.property-leave' in css and 'rotate(180deg)' in css
     assert 'background: #fff2f2' in css and 'color: #9b3333' in css
-    assert '.wizard-cancel:hover' in css and '.wizard-cancel:focus-visible' in css
+    assert '.property-leave:hover' in css and '.property-leave:focus-visible' in css
     js = Path('app/static/js/property-form.js').read_text(encoding='utf-8')
     cancel = js[js.index('const cancel ='):js.index('const completed =')]
     assert 'cancelDialog.close()' in cancel
@@ -56,5 +55,5 @@ def test_cancel_preserves_rerendered_data(client, form_data, action, status):
     assert response.status_code == status
     assert 'data-rerendered="true"' in response.text
     assert 'Keep my note</textarea>' in response.text
-    assert 'id="wizard-cancel"' in response.text
+    assert 'id="property-leave"' in response.text
     assert db.session.scalar(select(Property)) is None

@@ -161,7 +161,7 @@ def test_mobile_hero_actions_keep_shared_content_start_and_desktop_layout():
     assert '.home-hero-content { display: flex; flex-direction: column;' in styles
 
 
-def test_mobile_homepage_search_and_bottom_navigation_keep_existing_routes(client):
+def test_mobile_homepage_search_preserved_without_bottom_navigation(client):
     for suffix, language, direction in (('', 'ar', 'rtl'), ('?lang=en', 'en', 'ltr')):
         html = client.get('/' + suffix).text
         assert f'<html lang="{language}" dir="{direction}">' in html
@@ -175,12 +175,13 @@ def test_mobile_homepage_search_and_bottom_navigation_keep_existing_routes(clien
         assert '<select id="home-state" name="state">' in html
         assert '<select id="home-property-type" name="property_type">' in html
         assert f'<h2 class="home-search-mobile-title">{translate("Find a property", language)}</h2>' in html
-        navigation = re.search(r'<nav class="home-mobile-bottom-nav".*?</nav>', html, re.S).group()
-        assert f'aria-label="{translate("Mobile navigation", language)}"' in navigation
-        assert navigation.count('<a href=') == 4
-        for route in ('/', '/properties', '/properties/new', '/auth'):
-            assert f'href="{route}{suffix}"' in navigation
-        assert 'aria-current="page"' in navigation
+        assert 'home-mobile-bottom-nav' not in html
+        assert f'aria-label="{translate("Mobile navigation", language)}"' not in html
+        assert 'class="mobile-account-link"' in html
+        assert 'class="mobile-menu-toggle"' in html
+        for route in ('/properties', '/properties/new', '/auth'):
+            assert f'href="{route}{suffix}"' in html
+
 
 
 def test_mobile_latest_cards_use_real_price_period_size_and_existing_save(client, values):
@@ -207,12 +208,11 @@ def test_mobile_homepage_css_stacks_full_width_cards_without_page_overflow():
     assert 'white-space: nowrap; overflow-wrap: normal;' in mobile
     assert 'width: 44px; min-height: 44px;' in mobile
     assert '.home-search-field { position: relative; min-width: 0; }' in mobile
-    assert '.home-mobile-bottom-nav { position: fixed;' in mobile
-    assert 'env(safe-area-inset-bottom)' in mobile
+    assert 'home-mobile-bottom-nav' not in styles
+    assert '.home-page ~ .home-footer { padding-block-end:' not in mobile
     assert '.home-search { grid-template-columns: minmax(0, 1fr);' in mobile
     assert '.home-page .home-hero { min-height: 225px;' in mobile
     assert '.home-footer' in mobile
-    assert '.home-mobile-bottom-nav { display: none; }' in styles
     assert '.home-search-segments { display: none; }' in styles
     assert '.home-search-transaction.home-search-enhanced .home-search-segments { display: grid;' in mobile
     script = Path('app/static/js/home-search.js').read_text(encoding='utf-8')
@@ -401,3 +401,22 @@ def test_empty_homepage_cta_auth_and_navigation(client):
     assert '/saved-properties?lang=en' in authenticated
     assert '/account?lang=en' in authenticated
     assert 'href="/auth?lang=en"' not in authenticated
+
+
+def test_home_navigation_removed_without_affecting_authenticated_routes(client):
+    sign_in(client)
+    for language, direction in [('ar', 'rtl'), ('en', 'ltr')]:
+        suffix = '?lang=en' if language == 'en' else ''
+        home = client.get('/' + suffix)
+        assert home.status_code == 200
+        assert 'home-mobile-bottom-nav' not in home.text
+        assert f'dir="{direction}"' in home.text
+        assert f'href="/account{suffix}"' in home.text
+        assert f'href="/properties/new{suffix}"' in home.text
+        for route in ('/properties', '/properties/new', '/account'):
+            page = client.get(route + suffix)
+            assert page.status_code == 200
+            assert 'class="mobile-menu-toggle"' in page.text
+            assert 'class="mobile-account-link"' in page.text
+            assert f'href="/properties{suffix}"' in page.text
+            assert f'href="/account{suffix}"' in page.text

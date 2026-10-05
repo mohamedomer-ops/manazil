@@ -63,7 +63,7 @@ def test_logged_out_browsing_save_destination_and_private_list(client, values, l
 
 
 @pytest.mark.parametrize('flow', ['login', 'signup'])
-def test_auth_returns_to_property_without_automatically_saving(client, values, flow):
+def test_auth_returns_home_without_automatically_saving(client, values, flow):
     property = public_listing(values)
     destination = f'/properties/{property.id}'
     if flow == 'login':
@@ -72,7 +72,7 @@ def test_auth_returns_to_property_without_automatically_saving(client, values, f
     page = client.get(destination)
     assert 'next=' + destination in unescape(page.text)
     response = (login if flow == 'login' else signup)(client, destination=destination)
-    assert response.status_code == 303 and response.location == destination
+    assert response.status_code == 303 and response.location == '/?lang=en'
     assert client.get(response.location).status_code == 200
     assert db.session.query(SavedProperty).count() == 0
     assert save(client, property).status_code == 303
@@ -202,6 +202,6 @@ def test_saved_survives_logout_and_login(client, values):
     page = client.get('/saved-properties')
     client.post('/logout', data={'csrf_token': csrf(page)})
     assert client.get('/saved-properties').status_code == 302
-    assert login(client, destination='/saved-properties').location == '/saved-properties'
+    assert login(client, destination='/saved-properties').location == '/?lang=en'
     assert db.session.get(SavedProperty, (user.id, property.id))
     assert property.title_ar in client.get('/saved-properties').text

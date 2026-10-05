@@ -51,7 +51,7 @@ def test_admin_login_separate_and_authorization(client):
         state['user_id'] = admin.id
         state['admin_authenticated'] = False
     admin_result = admin_login(client)
-    assert admin_result.location == '/admin', (admin_result.status_code, admin_result.get_data(as_text=True))
+    assert admin_result.location == '/?lang=en', (admin_result.status_code, admin_result.get_data(as_text=True))
     for path in ('/admin', '/admin/properties', '/admin/users', '/admin/reports', '/admin/admins'):
         assert client.get(path).status_code == 200
     assert client.post('/admin/logout', data={'csrf_token': csrf(client.get('/admin'))}).status_code == 303
@@ -68,7 +68,7 @@ def test_admin_login_otp_and_safe_destination(client):
     verify_page = client.get('/admin/verify')
     assert client.post('/admin/verify', data={'csrf_token': csrf(verify_page), 'code': '000000'}).status_code == 422
     code = current_app.extensions['development_otps']['+249912345678']
-    assert client.post('/admin/verify', data={'csrf_token': csrf(verify_page), 'code': code}).location == '/admin'
+    assert client.post('/admin/verify', data={'csrf_token': csrf(verify_page), 'code': code}).location == '/'
     assert client.post('/admin/properties/1/moderate', data={'action': 'disable'}).status_code == 400
 
 

@@ -8,7 +8,7 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.auth import auth_destination, establish_session, safe_next
+from app.auth import auth_destination, establish_session, home_destination, safe_next
 from app.google_provider import GoogleProviderError
 from app.languages import current_language, translate
 from app.models import User, UserIdentity, utc_now
@@ -124,11 +124,8 @@ def callback():
     sync_google_avatar(user, identity.picture_url)
     language = pending['language'] if pending['language'] in ('ar', 'en') else 'ar'
     if not user.social_contact_complete:
-        response = establish_session(user, url_for('auth.complete_profile', **({'lang': 'en'} if language == 'en' else {})))
-        session['profile_next'] = safe_next(pending['next'], url_for('main.index'))
+        response = establish_session(user, language=language)
+        session['profile_next'] = home_destination(language)
         session['profile_language'] = language
         return response
-    destination = safe_next(pending['next'], url_for('main.index'))
-    if destination == url_for('main.index') and language == 'en':
-        destination = url_for('main.index', lang='en')
-    return establish_session(user, destination)
+    return establish_session(user, language=language)

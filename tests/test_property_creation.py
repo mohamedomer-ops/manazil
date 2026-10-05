@@ -29,7 +29,7 @@ def form_data(client):
     page = client.get('/admin/properties/new?lang=en').get_data(as_text=True)
     csrf = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
     photo_token = re.search(r'name="_photo_token" value="([^"]+)"', page).group(1)
-    return {**FORM_DEFAULTS, 'csrf_token':csrf, '_photo_token':photo_token, '_language':'en',
+    return {**FORM_DEFAULTS, 'transaction_type':'rent', 'csrf_token':csrf, '_photo_token':photo_token, '_language':'en',
             'property_type':'apartment', 'title_ar':'شقة', 'description_ar':'وصف شقة',
             'bedrooms':'2', 'bathrooms':'1', 'floor':'2', 'size':'100', 'furnished':'on',
             'amenities':'Parking\nKitchen', 'price':'125000', 'currency':'SDG',
@@ -45,7 +45,7 @@ def test_single_page_sections(client):
     headings = ['category-heading', 'property-heading', 'occupancy-heading', 'location-heading',
                 'details-heading', 'transaction-heading', 'description-heading', 'photos-heading', 'contact-heading', 'review-heading']
     assert [page.index('id="' + heading + '"') for heading in headings] == sorted(page.index('id="' + heading + '"') for heading in headings)
-    assert 'id="wizard-progress"' in page
+    assert 'id="wizard-progress"' not in page
 
 
 @pytest.mark.parametrize('transaction,period,occupancy,agent', [

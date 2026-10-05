@@ -1,8 +1,19 @@
 "use strict";
 // Pure flow helpers consume server metadata; there is no client property matrix.
 const ManazilPropertyWizard = {
+  showContinue(section, current) { return section === current; },
+  changedSinceAcceptance(approved, value) { return approved !== undefined && approved !== value; },
   shouldConfirmCancel({changed, choice, stagedCount, editing, entered}) {
     return Boolean(changed || choice || stagedCount > 0 || (!editing && entered));
+  },
+  progressive(path, completed, valid, through = null) {
+    // A single contiguous prefix is visible; its final section is the frontier.
+    const accepted = path.filter(key => completed.has(key) && valid[key]);
+    let end = 0;
+    while (end < path.length - 1 && accepted.includes(path[end])) end++;
+    end = Math.max(end, path.indexOf(through));
+    return {visible: path.slice(0, end + 1), current: path[end],
+      accepted, completed: path.slice(0, end).filter(key => accepted.includes(key))};
   },
   applicability(metadata, type, transaction) {
     return metadata.types[type]?.transactions[transaction] || {};
@@ -27,20 +38,16 @@ const form = document.getElementById("property-form");
 if (form) {
 const metadata = JSON.parse(document.getElementById("property-wizard-rules").textContent);
 const sections = [...form.querySelectorAll("[data-wizard-step]")];
-const progress = document.getElementById("wizard-progress");
-const navigation = document.getElementById("wizard-navigation");
-const back = document.getElementById("wizard-back");
-const next = document.getElementById("wizard-next");
 const state = document.getElementById("wizard-section");
 const review = document.getElementById("wizard-review");
-const cancel = document.getElementById("wizard-cancel");
-const cancelDialog = document.getElementById("wizard-cancel-dialog");
+const cancel = document.getElementById("property-leave");
+const cancelDialog = document.getElementById("property-leave-dialog");
 // Compare controls without resetting the form or touching staged photo records.
 const cancelSnapshot = () => JSON.stringify([...form.querySelectorAll("input,select,textarea")]
   .filter(control => control.name && !control.name.startsWith("_") && control.name !== "csrf_token")
   .map(control => [control.name, control.type === "file" ? [...control.files].map(file => [file.name, file.size, file.lastModified]) :
     control.type === "radio" || control.type === "checkbox" ? control.checked : control.value]));
-const originalSnapshot = cancelSnapshot();
+let originalSnapshot = cancelSnapshot();
 let meaningfulChoice = false;
 form.querySelectorAll('.choice-button input').forEach(control => control.addEventListener('click', () => { meaningfulChoice = true; }));
 function hasUnsavedPosting() {
@@ -57,9 +64,19 @@ cancel.addEventListener('click', event => {
   else if (window.confirm(cancelDialog.querySelector('p').textContent)) window.location.assign(cancel.href);
 });
 document.getElementById('wizard-continue-editing').addEventListener('click', () => cancelDialog.close());
-cancelDialog.addEventListener('close', () => cancel.focus());
-document.getElementById('wizard-confirm-cancel').addEventListener('click', () => { window.location.assign(cancel.href); });
+cancelDialog.addEventListener('close', () => cancel.focus({preventScroll: true}));
+document.getElementById('property-confirm-leave').addEventListener('click', () => { window.location.assign(cancel.href); });
 const completed = new Set();
+const approved = new Map();
+const sectionSnapshot = section => JSON.stringify([...section.querySelectorAll('input,select,textarea')]
+  .filter(control => control.name && !control.disabled)
+  .map(control => [control.name, control.type === 'radio' || control.type === 'checkbox' ? control.checked :
+    control.type === 'file' ? [...control.files].map(file => [file.name, file.size, file.lastModified]) : control.value]));
+function invalidateChangedSection(section) {
+  if (!section) return;
+  const key = section.dataset.wizardStep;
+  if (completed.has(key) && ManazilPropertyWizard.changedSinceAcceptance(approved.get(key), sectionSnapshot(section))) completed.delete(key);
+}
 const value = name => {
   const controls = [...form.querySelectorAll(`[name="${name}"]`)];
   if (controls[0]?.type === "radio") return controls.find(control => control.checked)?.value || "";
@@ -67,7 +84,8 @@ const value = name => {
 };
 const choices = () => [value("property_type"), value("transaction_type")];
 const flow = () => ManazilPropertyWizard.flow(metadata, ...choices());
-let current = flow().includes(form.dataset.initialSection) ? form.dataset.initialSection : "purpose";
+let current = "purpose";
+let revealed = [];
 function updateApplicability() {
   const [type, transaction] = choices();
   const rules = ManazilPropertyWizard.applicability(metadata, type, transaction);
@@ -77,6 +95,10 @@ function updateApplicability() {
     group.hidden = !applicable;
     group.querySelectorAll("input, select, textarea").forEach(control => {
       control.disabled = !applicable;
+      if (rules[name] === "inapplicable") {
+        if (control.type === "radio" || control.type === "checkbox") control.checked = false;
+        else control.value = "";
+      }
       if (name in metadata.labels) control.required = applicable && ManazilPropertyWizard.required(metadata, name, type, transaction);
     });
   });
@@ -121,7 +143,10 @@ function renderReview() {
     edit.type = "button"; edit.className = "wizard-review-edit";
     edit.textContent = review.dataset.edit;
     edit.setAttribute("aria-label", `${review.dataset.edit}: ${section.dataset.stepLabel}`);
-    edit.addEventListener("click", () => show(section.dataset.wizardStep));
+    edit.addEventListener("click", () => {
+      section.querySelector("h2").focus({preventScroll: true});
+      section.scrollIntoView({block: "start", behavior: "auto"});
+    });
     block.append(heading, edit);
     const list = document.createElement("dl");
     const entries = [...section.querySelectorAll("[data-field]")].filter(group => !group.hidden).map(group => {
@@ -146,55 +171,71 @@ function renderReview() {
     block.append(list); review.append(block);
   });
 }
-function show(key, focus = true) {
+function sectionValid(section) {
+  return [...section.querySelectorAll("input, select, textarea")]
+    .every(control => control.disabled || control.type === "hidden" || control.checkValidity());
+}
+function reveal(through = null, move = false) {
   updateApplicability();
   const path = flow();
-  current = path.includes(key) ? key : "property";
+  const valid = Object.fromEntries(path.map(key => [key, sectionValid(sections.find(section => section.dataset.wizardStep === key))]));
+  const result = ManazilPropertyWizard.progressive(path, completed, valid, through);
+  completed.clear(); result.accepted.forEach(key => completed.add(key));
+  const previous = revealed;
+  revealed = result.visible;
+  current = result.current;
   state.value = current;
-  sections.forEach(section => { section.hidden = section.dataset.wizardStep !== current; });
-  progress.replaceChildren();
-  path.forEach((key, index) => {
-    const section = sections.find(section => section.dataset.wizardStep === key);
-    const button = document.createElement("button"); button.type = "button";
-    const progressState = key === current ? "current" : completed.has(key) ? "completed" : "upcoming";
-    button.dataset.progressState = progressState;
-    const dot = document.createElement("span");
-    dot.className = "wizard-progress-dot";
-    dot.setAttribute("aria-hidden", "true");
-    const label = document.createElement("span");
-    label.textContent = section.dataset.stepLabel;
-    button.append(dot, label);
-    button.setAttribute("aria-label", `${section.dataset.stepLabel}: ${review.dataset[progressState]}`);
-    button.disabled = index > path.indexOf(current) && !completed.has(key);
-    if (key === current) button.setAttribute("aria-current", "step");
-    button.addEventListener("click", () => show(key)); progress.append(button);
+  sections.forEach(section => {
+    const key = section.dataset.wizardStep;
+    section.hidden = !revealed.includes(key);
+    const button = section.querySelector('.wizard-continue');
+    if (button) button.hidden = !ManazilPropertyWizard.showContinue(key, current) || section.hidden;
+    if (completed.has(key)) approved.set(key, sectionSnapshot(section));
   });
-  progress.querySelector('[aria-current="step"]')?.scrollIntoView({block: "nearest", inline: "nearest", behavior: "auto"});
-  back.disabled = current === path[0]; next.hidden = current === "review";
-  const active = sections.find(section => section.dataset.wizardStep === current);
-  document.getElementById("wizard-status").textContent = active.dataset.stepLabel;
-  if (current === "review") renderReview();
-  if (focus) active.querySelector("h2").focus();
-  document.dispatchEvent(new CustomEvent("property-wizard-section", {detail: current}));
+  const status = document.getElementById("wizard-status");
+  const currentLabel = sections.find(section => section.dataset.wizardStep === current).dataset.stepLabel;
+  if (status.textContent !== currentLabel) status.textContent = currentLabel;
+  if (revealed.includes("review")) renderReview();
+  if (!previous.includes("location") && revealed.includes("location")) {
+    document.dispatchEvent(new CustomEvent("property-wizard-section", {detail: "location"}));
+  }
+  // Keep context: scroll only a newly revealed heading into view, without moving focus.
+  const newlyRevealed = revealed.find(key => !previous.includes(key));
+  if (move && newlyRevealed) {
+    const heading = sections.find(section => section.dataset.wizardStep === newlyRevealed).querySelector("h2");
+    if (heading.getBoundingClientRect().bottom > window.innerHeight) {
+      heading.scrollIntoView({block: "nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
+    }
+  }
 }
-function advance() {
-  const active = sections.find(section => section.dataset.wizardStep === current);
-  if (!validate(active)) return;
-  completed.add(current);
-  const path = flow(); show(path[path.indexOf(current) + 1] || "review");
+function advance(section) {
+  if (!validate(section)) return;
+  completed.add(section.dataset.wizardStep);
+  approved.set(section.dataset.wizardStep, sectionSnapshot(section));
+  reveal(null, true);
 }
-back.addEventListener("click", () => { const path = flow(); show(path[Math.max(0, path.indexOf(current) - 1)]); });
-next.addEventListener("click", advance);
+sections.forEach(section => {
+  section.querySelector(".wizard-continue")?.addEventListener("click", () => advance(section));
+});
 ["transaction_type", "property_type", "property_occupancy"].forEach(name => {
-  form.querySelectorAll(`[name="${name}"]`).forEach(control => control.addEventListener("click", () => {
-    const index = flow().indexOf(current);
-    flow().slice(index).forEach(key => completed.delete(key));
-    updateApplicability(); advance();
-  }));
+  form.querySelectorAll(`[name="${name}"]`).forEach(control => {
+    const select = () => advance(control.closest("[data-wizard-step]"));
+    control.addEventListener("click", select);
+    control.addEventListener("change", select); // Radio arrow-key changes are also supported.
+  });
+});
+form.addEventListener("input", event => {
+  const section = event.target.closest("[data-wizard-step]");
+  if (section) { invalidateChangedSection(section); reveal(); }
+});
+form.addEventListener("change", event => {
+  const section = event.target.closest("[data-wizard-step]");
+  if (section) { invalidateChangedSection(section); reveal(); }
 });
 form.addEventListener("keydown", event => {
-  if (event.key === "Enter" && event.target.matches("input:not([type=radio]):not([type=file]), select") && current !== "review") {
-    event.preventDefault(); advance();
+  if (event.key === "Enter" && event.target.matches("input:not([type=radio]):not([type=file]), select")) {
+    const section = event.target.closest("[data-wizard-step]");
+    if (section?.querySelector(".wizard-continue")) { event.preventDefault(); advance(section); }
   }
 });
 form.addEventListener("submit", event => {
@@ -202,15 +243,31 @@ form.addEventListener("submit", event => {
   updateApplicability();
   for (const key of flow().filter(key => key !== "review")) {
     const section = sections.find(section => section.dataset.wizardStep === key);
-    // Reveal before validation so an invalid control can receive focus.
-    const invalid = [...section.querySelectorAll("input,select,textarea")].some(control => !control.disabled && !control.checkValidity());
-    if (invalid) { event.preventDefault(); show(key); validate(section); return; }
+    if (!sectionValid(section)) {
+      event.preventDefault(); reveal(key); validate(section); return;
+    }
+    completed.add(key);
   }
-  if (current !== "review") { event.preventDefault(); show("review"); }
+  // Enter/programmatic submission cannot skip the explicit final Review action.
+  if (!revealed.includes("review")) {
+    event.preventDefault(); reveal("review", true);
+  }
 });
 form.classList.add("wizard-enhanced");
-progress.hidden = false; navigation.hidden = false;
-show(current, false);
+updateApplicability();
+const initial = form.dataset.initialSection;
+if (metadata.original && cancel.dataset.rerendered !== "true") {
+  flow().filter(key => key !== "review").forEach(key => {
+    if (sectionValid(sections.find(section => section.dataset.wizardStep === key))) completed.add(key);
+  });
+  reveal();
+} else if (cancel.dataset.rerendered === "true") {
+  flow().slice(0, Math.max(0, flow().indexOf(initial))).forEach(key => {
+    if (sectionValid(sections.find(section => section.dataset.wizardStep === key))) completed.add(key);
+  });
+  reveal(initial);
+} else reveal();
+originalSnapshot = cancelSnapshot(); // Initial canonicalization is not a user edit.
 metadata.errors.forEach(name => {
   const message = document.getElementById(`${name}-error`);
   form.querySelectorAll(`[name="${name}"]`).forEach(control => {
@@ -266,6 +323,8 @@ function updateSelectedPhotos() {
   });
   previews.hidden = selected.length === 0;
   if (uploadButton) uploadButton.hidden = selected.length === 0;
+  invalidateChangedSection(photos.closest('[data-wizard-step]'));
+  reveal();
 }
 photos?.addEventListener("change", updateSelectedPhotos);
 if (uploadButton) uploadButton.hidden = !photos?.files.length;

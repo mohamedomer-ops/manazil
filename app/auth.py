@@ -57,13 +57,20 @@ def safe_next(value, fallback=None):
     return value if value and value.startswith('/') and not value.startswith('//') and '\\' not in value and not any(ord(char) < 32 for char in value) and not parsed.scheme and not parsed.netloc else (fallback or url_for('auth.account'))
 
 
-def establish_session(user, destination):
+def home_destination(language=None):
+    from app.languages import current_language
+    language = language or current_language()
+    return url_for('main.index', **({'lang': 'en'} if language == 'en' else {}))
+
+
+def establish_session(user, language=None):
+    destination = home_destination(language)
     csrf_value = session.get('csrf_token')
     session.clear()
     if csrf_value:
         session['csrf_token'] = csrf_value
     session['user_id'] = user.id
-    return redirect(safe_next(destination), code=303)
+    return redirect(destination, code=303)
 
 
 def contact_values(user):
@@ -159,13 +166,13 @@ def signup_post():
         db.session.rollback()
         errors['phone_number'] = 'This phone number is already associated with an account.'
         return render_template('auth/signup.html', next=destination, values=values, errors=errors), 409
-    if destination == url_for('main.index') and request.form.get('_language') == 'en':
-        destination = url_for('main.index', lang='en')
-    return establish_session(user, destination)
+    return establish_session(user)
 
 
 @auth.get('/login')
 def login():
+    if g.get('user'):
+        return redirect(home_destination(), code=303)
     return render_template('auth/login.html', next=auth_destination(), values={})
 
 
@@ -184,8 +191,7 @@ def password_login():
                                error='Invalid phone number or password.'), 422
     user.last_login_at = utc_now()
     db.session.commit()
-    destination = auth_destination()
-    return establish_session(user, destination)
+    return establish_session(user)
 
 
 @auth.post('/auth/request-otp')
@@ -237,8 +243,7 @@ def verify_post():
         session.pop('pending_signup', None)
         return render_template('auth/login.html', next=auth_destination(),
                                error='An account with this number already exists. Please log in.'), 409
-    destination = safe_next(session.get('auth_next'))
-    return establish_session(user, destination)
+    return establish_session(user)
 
 
 @auth.post('/auth/resend')
@@ -250,10 +255,7 @@ def resend():
 
 
 def profile_completion_destination():
-    destination = session.get('profile_next') or url_for('auth.account')
-    if destination == url_for('main.index') and session.get('profile_language') == 'en':
-        return url_for('main.index', lang='en')
-    return safe_next(destination, url_for('main.index'))
+    return home_destination(session.get('profile_language'))
 
 
 def profile_completion_error(message, status=422):

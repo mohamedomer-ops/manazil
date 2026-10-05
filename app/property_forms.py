@@ -15,7 +15,7 @@ FORM_FIELDS = (
     "state_ar", "state_en", "neighborhood_ar",
     "latitude", "longitude", "floor", "land_use", "available_from_date", "comment",
 )
-FORM_DEFAULTS = {"currency": "SDG", "transaction_type": "rent", "property_occupancy": "entire_property", "agent": "no", "rent_period": "monthly"}
+FORM_DEFAULTS = {"currency": "SDG", "transaction_type": "", "property_occupancy": "entire_property", "agent": "no", "rent_period": "monthly"}
 PROPERTY_TYPES = frozenset(PROPERTY_RULES)
 
 

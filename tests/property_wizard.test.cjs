@@ -13,6 +13,29 @@ for (const type of Object.keys(metadata.types)) {
     assert.equal(flow[0], 'purpose');
     assert.equal(flow.at(-1), 'review');
     assert.ok(flow.indexOf('location') < flow.indexOf('details'));
+    const valid = Object.fromEntries(flow.map(key => [key, true]));
+    let accepted = new Set();
+    assert.deepEqual(wizard.progressive(flow, accepted, valid).visible, ['purpose']);
+    for (const key of flow.slice(0, -1)) {
+      accepted.add(key);
+      const state = wizard.progressive(flow, accepted, valid);
+      assert.ok(state.visible.includes(key)); // Completed content never disappears.
+      assert.equal(state.current, flow[flow.indexOf(key) + 1]);
+    }
+    assert.deepEqual(wizard.progressive(flow, accepted, valid).visible, flow);
+    const invalid = {...valid, details: false};
+    const stopped = wizard.progressive(flow, accepted, invalid);
+    assert.equal(stopped.current, 'details');
+    assert.ok(stopped.visible.includes('location'));
+    assert.ok(!stopped.visible.includes('review'));
+    assert.ok(!stopped.accepted.includes('details'));
+    assert.ok(stopped.accepted.includes('description')); // Retain unrelated valid work.
+    accepted = new Set(stopped.accepted);
+    assert.equal(wizard.progressive(flow, accepted, valid).current, 'details');
+    accepted.add('details');
+    assert.equal(wizard.progressive(flow, accepted, valid).current, 'review');
+    const restored = wizard.progressive(flow, new Set(), valid, 'description');
+    assert.deepEqual(restored.visible, flow.slice(0, flow.indexOf('description') + 1));
     const entries = Object.keys(metadata.labels).map(name => ({name, value: '0'}));
     assert.deepEqual(wizard.reviewFields(metadata, type, transaction, entries).map(entry => entry.name),
       entries.filter(entry => rules[entry.name] !== 'inapplicable').map(entry => entry.name));
@@ -23,6 +46,16 @@ assert.equal(wizard.required(metadata, 'floor', 'apartment', 'rent'), true);
 assert.equal(wizard.required(metadata, 'floor', 'house', 'rent'), false);
 assert.equal(wizard.applicability(metadata, 'land', 'sale').bedrooms, 'inapplicable');
 assert.equal(wizard.applicability(metadata, 'warehouse', 'rent').bedrooms, 'inapplicable');
+const apartment = wizard.flow(metadata, 'apartment', 'rent');
+const allDone = new Set(apartment.slice(0, -1));
+const sale = wizard.flow(metadata, 'apartment', 'sale');
+assert.equal(sale.includes('occupancy'), false);
+assert.equal(wizard.progressive(sale, allDone, Object.fromEntries(sale.map(key => [key, true]))).current, 'review');
+const land = wizard.flow(metadata, 'land', 'rent');
+const landState = wizard.progressive(land, allDone, Object.fromEntries(land.map(key => [key, key !== 'details'])));
+assert.equal(landState.current, 'details');
+assert.equal(landState.visible.includes('occupancy'), false);
+assert.equal(landState.visible.includes('location'), true);
 metadata.original = {property_type: 'apartment', transaction_type: 'rent'};
 metadata.legacy_missing = ['floor', 'size'];
 assert.equal(wizard.required(metadata, 'floor', 'apartment', 'rent'), false);
@@ -44,4 +77,38 @@ for (const change of [{changed: true}, {choice: true}, {stagedCount: 1}, {entere
 }
 assert.equal(wizard.shouldConfirmCancel({...emptyPosting, editing: true, entered: true}), false);
 assert.equal(wizard.shouldConfirmCancel({...emptyPosting, editing: true, stagedCount: 1}), true);
-console.log(`${checks} type/transaction paths and legacy/Review/comment/cancellation checks passed`);
+console.log(`${checks} progressive type/transaction paths and legacy/Review/comment/cancellation checks passed`);
+
+const initialPath = wizard.flow(metadata, '', '');
+assert.deepEqual(wizard.progressive(initialPath, new Set(), {purpose: false}).visible, ['purpose']);
+for (const active of apartment) {
+  assert.equal(apartment.filter(section => wizard.showContinue(section, active)).length, 1);
+}
+assert.equal(wizard.changedSinceAcceptance('same', 'same'), false);
+assert.equal(wizard.changedSinceAcceptance('old', 'new'), true);
+assert.equal(wizard.changedSinceAcceptance(undefined, 'new'), false);
+
+const dataSections = new Set(['location', 'details', 'transaction', 'description', 'photos', 'contact']);
+for (const type of Object.keys(metadata.types)) {
+  for (const transaction of metadata.transactions) {
+    const path = wizard.flow(metadata, type, transaction);
+    const valid = Object.fromEntries(path.map(key => [key, true]));
+    const accepted = new Set();
+    for (const section of path.slice(0, -1)) {
+      const before = wizard.progressive(path, accepted, valid);
+      assert.equal(path.filter(key => dataSections.has(key) && wizard.showContinue(key, before.current)).length, dataSections.has(before.current) ? 1 : 0);
+      accepted.add(section);
+      const after = wizard.progressive(path, accepted, valid);
+      assert.ok(after.visible.includes(section));
+      assert.equal(wizard.showContinue(section, after.current), false);
+    }
+    if (wizard.changedSinceAcceptance('accepted location', 'changed location')) accepted.delete('location');
+    const changed = wizard.progressive(path, accepted, valid);
+    assert.equal(changed.current, 'location');
+    assert.equal(wizard.showContinue('location', changed.current), true);
+    assert.equal(changed.visible.includes('details'), false);
+    accepted.add('location');
+    assert.equal(wizard.progressive(path, accepted, valid).current, 'review');
+  }
+}
+console.log('Single active Continue, completion/invalidation, and untouched initial-state checks passed');

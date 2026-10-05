@@ -98,8 +98,7 @@ def verify_post():
         abort(403)
     user.last_login_at = utc_now()
     db.session.commit()
-    destination = admin_destination(session.pop('admin_next', None))
-    response = establish_session(user, destination)
+    response = establish_session(user)
     session['admin_authenticated'] = True
     return response
 

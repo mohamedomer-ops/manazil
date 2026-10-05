@@ -94,11 +94,10 @@ def test_wizard_visual_structure(client, language, heading, direction):
     assert f'maxlength="{MAX_COMMENT_LENGTH}"' in page
     assert 'name="comment"' in page
     js = Path('app/static/js/property-form.js').read_text(encoding='utf-8')
-    assert 'wizard-progress-dot' in js and 'button.dataset.progressState' in js
+    assert 'wizard-progress' not in js and 'wizard-progress' not in page
     assert '"? "' not in js and 'textContent' in js
     css = Path('app/static/css/style.css').read_text(encoding='utf-8')
-    assert '[data-progress-state="completed"]' in css
-    assert '[data-progress-state="current"]' in css
+    assert '.choice-status-dot' in css
 
 
 def test_comment_model_validation(values):

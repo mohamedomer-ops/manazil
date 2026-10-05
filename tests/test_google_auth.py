@@ -72,6 +72,8 @@ def isolated_google_environment(monkeypatch):
 
 def begin(client, destination='/', language='en'):
     page = client.get('/login', query_string={'next': destination, 'lang': language})
+    if page.status_code == 303:
+        page = client.get('/signup', query_string={'lang': language})
     result = client.post('/auth/google', data={'csrf_token': csrf(page), 'next': destination,
                                                '_language': language})
     assert result.status_code == 303
@@ -139,11 +141,12 @@ def test_new_identity_profile_completion_and_returning_login(google_client, monk
     fake_identity(monkeypatch)
     _, state = begin(google_client, '/properties/new')
     result = google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'})
-    assert result.location == '/auth/complete-profile?lang=en'
+    assert result.location == '/?lang=en'
     identity = db.session.get(UserIdentity, ('google', 'stable-sub'))
     assert identity and identity.user.role == 'user' and not identity.user.is_verified
     assert identity.user.phone_number is None and identity.user.password_hash is None
-    assert complete(google_client).location == '/properties/new'
+    assert '/auth/complete-profile' in google_client.get('/properties/new').location
+    assert complete(google_client).location == '/?lang=en'
     assert identity.user.phone_number == '+249912222222' and not identity.user.is_verified
     first_id = identity.user.id
     identity.user.contact_name = 'Edited Manazil Name'
@@ -217,10 +220,10 @@ def test_google_failure_returns_to_redesigned_login_and_keeps_safe_next(google_c
 def test_unsafe_next_and_incomplete_user_on_return(google_client, monkeypatch):
     fake_identity(monkeypatch)
     _, state = begin(google_client, 'https://evil.example/')
-    assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).location == '/auth/complete-profile?lang=en'
+    assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).location == '/?lang=en'
     google_client.post('/logout', data={'csrf_token': csrf(google_client.get('/auth/complete-profile'))})
     _, state = begin(google_client)
-    assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).location == '/auth/complete-profile?lang=en'
+    assert google_client.get('/auth/google/callback', query_string={'state': state, 'code': 'mock-code'}).location == '/?lang=en'
     assert complete(google_client).location == '/?lang=en'
 
 

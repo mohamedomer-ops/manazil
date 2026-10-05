@@ -29,6 +29,7 @@ if (mapElement && window.L) {
     if (marker) marker.setLatLng(position);
     else marker = L.marker(position).addTo(map);
     clearButton.hidden = false;
+    latitude.dispatchEvent(new Event('input', {bubbles: true}));
   }
   map.on("click", event => selectLocation(event.latlng));
   mapElement.addEventListener("keydown", event => {
@@ -43,5 +44,6 @@ if (mapElement && window.L) {
     if (marker) map.removeLayer(marker);
     marker = null;
     clearButton.hidden = true;
+    latitude.dispatchEvent(new Event('input', {bubbles: true}));
   });
 }
