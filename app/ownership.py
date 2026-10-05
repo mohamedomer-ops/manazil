@@ -102,6 +102,9 @@ def edit_property(property_id):
         return render_form(editing_values(property), {}, language, edit_property=property)
     action = request.form.get('_action', 'submit')
     values = {key: request.form.get(key, '') for key in FORM_FIELDS}
+    if 'latitude' not in request.form and 'longitude' not in request.form:
+        values['latitude'] = str(property.latitude) if property.latitude is not None else ''
+        values['longitude'] = str(property.longitude) if property.longitude is not None else ''
     storage = photo_storage()
     token = request.form.get('_photo_token') or storage.new_token()
     try:

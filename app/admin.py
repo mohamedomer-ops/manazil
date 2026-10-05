@@ -8,7 +8,7 @@ from app.models import Property, PropertyPhoto
 from app.property_forms import FORM_DEFAULTS, FORM_FIELDS, validate_posting
 from app.languages import current_language, translate
 from app.states import STATE_BY_NAME, state_options
-from app.photo_storage import photo_storage, PhotoError
+from app.photo_storage import MAX_PHOTOS_PER_PROPERTY, photo_storage, PhotoError
 from app.auth import login_required
 from flask import g
 
@@ -32,7 +32,7 @@ def render_form(values, errors, language, **kwargs):
     return render_template(
         "admin/property_form.html", values=values, errors=errors,
         state_options=state_options(language), language=language,
-        photo_token=token, photos=photos,
+        photo_token=token, photos=photos, max_photos=MAX_PHOTOS_PER_PROPERTY,
         t=lambda message: translate(message, language), **kwargs,
     )
 

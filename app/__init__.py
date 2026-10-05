@@ -139,7 +139,8 @@ def create_app(test_config=None):
     from app.auth import auth
     from app.ownership import ownership
     from app.saved import saved
-    from app.languages import template_language
+    from app.languages import template_language, relative_posting_age
+    app.jinja_env.globals['posting_age'] = relative_posting_age
 
     app.register_blueprint(main)
     app.register_blueprint(admin)

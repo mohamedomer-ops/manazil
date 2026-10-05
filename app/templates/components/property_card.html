@@ -1,4 +1,6 @@
 {% from 'components/availability_badge.html' import availability_badge %}
+{% from 'components/poster_identity.html' import poster_identity %}
+{% from 'components/property_facts.html' import property_facts %}
 {% macro property_card(property, language, t, today, availability_label, format_rent, property_type_label) -%}
   {% set title = property.title_ar if language == 'ar' or not property.title_en else property.title_en %}
   {% set city = property.city_ar if language == 'ar' or not property.city_en else property.city_en %}
@@ -6,15 +8,16 @@
   {% set area = property.neighborhood_ar or (property.area_ar if language == 'ar' or not property.area_en else property.area_en) %}
   {% set primary_photo = (property.photos | selectattr('is_primary') | first) or (property.photos | first) %}
   <article class="property-card">
+    {{ poster_identity(property, t) }}
     <div class="property-card-media">
       <div class="property-card-image-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if primary_photo %}aria-hidden="true"{% endif %}>
         <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 30 32 11l23 19"/><path d="M15 27v26h34V27M27 53V37h10v16"/></svg>
       </div>
       {% if primary_photo %}<img class="property-card-image" src="{{ url_for('main.public_photo', photo_id=primary_photo.id) }}" alt="{{ title }}" loading="lazy" decoding="async" onerror="this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true">
       {% if property.photos|length > 1 %}<span class="property-card-photo-count" aria-label="{{ property.photos|length }} {{ t('photos') }}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="3.5"/></svg><span>{{ property.photos|length }}</span></span>{% endif %}{% endif %}
+      <span class="home-card-transaction {{ 'is-sale' if property.transaction_type == 'sale' else 'is-rent' }}">{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span>
     </div>
     <div class="property-card-content">
-      <p class="property-card-location">{% if city and state != city %}{{ state }} · {{ city }}{% else %}{{ state }}{% endif %}{% if area %} · {{ area }}{% endif %}</p>
       <h2>{{ title }}</h2>
       <p class="property-card-type">{{ property_type_label(property.property_type, language) }}</p>
       <div class="property-card-price">
@@ -22,11 +25,8 @@
         <strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong>
       </div>
       {{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}
-      <dl class="property-card-facts">
-        <div><dt>{{ t('Bedrooms') }}</dt><dd>{{ property.bedrooms }}</dd></div>
-        <div><dt>{{ t('Bathrooms') }}</dt><dd>{{ property.bathrooms }}</dd></div>
-        <div><dt>{{ t('Furnishing') }}</dt><dd>{{ t('Furnished') if property.furnished else t('Unfurnished') }}</dd></div>
-      </dl>
+      {{ property_facts(property, state, t, format_rent, area) }}
+      <p class="saved-card-furnishing">{{ t('Furnished') if property.furnished else t('Unfurnished') }}</p>
     </div>
     <a class="property-card-action" href="{{ url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) }}">{{ t('View Property') }}</a>
     {% if caller is defined %}{{ caller() }}{% endif %}

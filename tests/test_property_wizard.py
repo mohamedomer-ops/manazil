@@ -5,9 +5,12 @@ def test_no_wizard_navigation(client):
     page = client.get('/admin/properties/new?lang=en').get_data(as_text=True)
     assert 'Step 1' not in page and 'wizard-progress' not in page
     assert 'value="next"' not in page and 'value="back"' not in page
-    headings = ['Category','What are you renting?','Photos','Property Details','Contact Details','Location']
-    positions = [page.index(f'<h2>{heading}</h2>') for heading in headings]
+    headings = ['id="category-heading"', 'What are you renting?', 'id="photos-heading"',
+                'id="details-heading"', 'id="amenities-heading"', 'id="contact-heading"',
+                'id="location-heading"']
+    positions = [page.index(heading) for heading in headings]
     assert positions == sorted(positions)
+    assert page.count('id="property-form"') == 1
 
 def test_language_switch_preserves_entries(client, form_data):
     response = client.post('/admin/properties', data=form_data | {'_action':'switch_ar'})

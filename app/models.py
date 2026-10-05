@@ -53,6 +53,9 @@ class Property(db.Model):
         db.CheckConstraint("moderation_status IN ('clear', 'disabled')", name="ck_properties_moderation_status"),
         db.CheckConstraint("availability_status IN ('available', 'rented')", name="ck_properties_availability_status"),
         db.CheckConstraint("jsonb_typeof(amenities) = 'array'", name="ck_properties_amenities_array"),
+        db.CheckConstraint("(latitude IS NULL AND longitude IS NULL) OR (latitude IS NOT NULL AND longitude IS NOT NULL)", name="ck_properties_coordinate_pair"),
+        db.CheckConstraint("latitude IS NULL OR latitude BETWEEN -90 AND 90", name="ck_properties_latitude_range"),
+        db.CheckConstraint("longitude IS NULL OR longitude BETWEEN -180 AND 180", name="ck_properties_longitude_range"),
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -70,6 +73,8 @@ class Property(db.Model):
     area_en = db.Column(db.String, nullable=False)
     area_ar = db.Column(db.String, nullable=True)
     neighborhood_ar = db.Column(db.String, nullable=True)
+    latitude = db.Column(db.Numeric(9, 6), nullable=True)
+    longitude = db.Column(db.Numeric(9, 6), nullable=True)
     property_type = db.Column(db.String, nullable=False)
     transaction_type = db.Column(db.String, nullable=False, default="rent", server_default="rent")
     property_occupancy = db.Column(db.String, nullable=False, default="entire_property", server_default="entire_property")
@@ -146,6 +151,19 @@ class Property(db.Model):
             raise ValueError("amenities must be a list of strings")
         return value
 
+    @validates("latitude", "longitude")
+    def validate_coordinate(self, key, value):
+        if value is None:
+            return None
+        try:
+            number = Decimal(str(value))
+        except (InvalidOperation, ValueError):
+            raise ValueError(f"{key} must be a valid coordinate") from None
+        limit = 90 if key == "latitude" else 180
+        if not number.is_finite() or abs(number) > limit or number.as_tuple().exponent < -6:
+            raise ValueError(f"{key} must be a valid coordinate")
+        return number
+
 
 @event.listens_for(Property, "before_insert")
 @event.listens_for(Property, "before_update")
@@ -167,6 +185,10 @@ def validate_property(mapper, connection, target):
         target.validate_integer(key, getattr(target, key))
     target.validate_boolean("furnished", target.furnished)
     target.validate_amenities("amenities", target.amenities)
+    if (target.latitude is None) != (target.longitude is None):
+        raise ValueError("latitude and longitude must be supplied together")
+    for key in ("latitude", "longitude"):
+        target.validate_coordinate(key, getattr(target, key))
 
 
 class PropertyPhoto(db.Model):

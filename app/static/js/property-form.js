@@ -17,6 +17,8 @@ const countError = document.getElementById("photo-count-error");
 const count = document.getElementById("photo-total-count");
 const previews = document.getElementById("selected-photo-previews");
 const existingCount = Number(count?.dataset.currentCount || 0);
+const maxPhotos = Number(count?.dataset.maxPhotos || 20);
+const uploadButton = document.querySelector('.photo-upload-button');
 let previewUrls = [];
 function updateSelectedPhotos() {
   previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -24,7 +26,7 @@ function updateSelectedPhotos() {
   previews.replaceChildren();
   const selected = Array.from(photos.files);
   count.textContent = String(existingCount + selected.length);
-  const exceeded = existingCount + selected.length > 20;
+  const exceeded = existingCount + selected.length > maxPhotos;
   countError.hidden = !exceeded;
   photos.setCustomValidity(exceeded ? countError.textContent.trim() : "");
   selected.forEach((file, index) => {
@@ -53,5 +55,7 @@ function updateSelectedPhotos() {
     previews.append(item);
   });
   previews.hidden = selected.length === 0;
+  if (uploadButton) uploadButton.hidden = selected.length === 0;
 }
 photos?.addEventListener("change", updateSelectedPhotos);
+if (uploadButton) uploadButton.hidden = !photos?.files.length;

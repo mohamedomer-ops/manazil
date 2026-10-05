@@ -1,0 +1,39 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" fill="none" aria-hidden="true">
+  <!-- Original decorative house scene; transparent outside the soft ground. -->
+  <ellipse cx="121" cy="145" rx="110" ry="9" fill="#e7eee4"/>
+  <path d="M17 144h210" stroke="#97b89b" stroke-width="2" stroke-linecap="round"/>
+  <g stroke="#8c7960" stroke-width="3" stroke-linecap="round">
+    <path d="M24 142v-32m17 32v-20m142 19V89m25 53v-36m15 37v-21"/>
+  </g>
+  <path d="M23 92c-7-2-12 5-10 12-7 5-6 17 0 20-2 10 17 14 23 4 5-7 0-14-3-17 4-9-2-20-10-19Z" fill="#488950"/>
+  <path d="M40 111c-8-1-12 7-8 13-7 13 14 19 19 7 3-7-2-11-3-12 1-5-3-8-8-8Z" fill="#76a762"/>
+  <path d="M180 66c-10 0-15 10-12 19-10 6-11 19-5 25-8 13 5 27 17 23 14 4 25-10 19-23 7-10 2-21-5-25 3-10-3-19-14-19Z" fill="#639948"/>
+  <path d="M174 82c-5 5-5 11-2 16-7 8-7 18-2 23" stroke="#7bab54" stroke-width="6" stroke-linecap="round"/>
+  <path d="M208 92c-8-1-12 6-10 13-8 8-6 14-3 18-5 14 18 18 24 6 3-8-3-14-4-16 5-10 1-20-7-21Z" fill="#397c48"/>
+  <path d="M225 117c-6-1-11 6-8 11-5 9 9 14 15 7 5-6 0-16-7-18Z" fill="#7caa63"/>
+  <!-- Cream front elevation and softly shaded gable side. -->
+  <path d="M54 78h72v65H57a3 3 0 0 1-3-3V78Z" fill="#eee2bf"/>
+  <path d="m126 78 21-29 22 30v61a3 3 0 0 1-3 3h-40V78Z" fill="#ddcea6"/>
+  <path d="M51 79 72 47h75l-21 32H51Z" fill="#376f68"/>
+  <path d="m126 79 21-32 24 32" stroke="#52877b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M52 80h73" stroke="#b6c4ab" stroke-width="3" stroke-linecap="round"/>
+  <path d="M82 48v-9h11v9" fill="#d9c69e"/>
+  <path d="M80 39h15" stroke="#c1b18c" stroke-width="3" stroke-linecap="round"/>
+  <path d="M57 110h68m3 0h37" stroke="#d5c89f" stroke-width="2"/>
+  <g fill="#a8c7c5" stroke="#faf2d9" stroke-width="3" stroke-linejoin="round">
+    <rect x="65" y="89" width="15" height="15" rx="2"/>
+    <rect x="96" y="89" width="15" height="15" rx="2"/>
+    <rect x="65" y="120" width="15" height="15" rx="2"/>
+    <rect x="139" y="88" width="15" height="16" rx="2"/>
+    <rect x="140" y="119" width="14" height="16" rx="2"/>
+  </g>
+  <g stroke="#eaf0dd" stroke-width="1.5">
+    <path d="M72.5 90v13m-6-6h12m25-7v13m-6-6h12m-36.5 24v13m74-45v14m-6-7h12m-5 24v14"/>
+  </g>
+  <path d="M94 142v-19a10 10 0 0 1 20 0v19" fill="#afbd9b" stroke="#f8edce" stroke-width="3"/>
+  <path d="M101 142v-20a4 4 0 0 1 8 0v20" fill="#719b91"/>
+  <circle cx="107" cy="131" r="1.2" fill="#f7e9b7"/>
+  <path d="M96 144h18l7 5H89l7-5Z" fill="#d3d6bf"/>
+  <path d="M49 141c0-9 10-12 14-6 5-7 14-3 14 6m76 1c-1-10 8-13 13-7 8-8 18-2 17 7" fill="#86ac6b"/>
+  <path d="M55 145h26m70 0h28" stroke="#bdcfa9" stroke-width="3" stroke-linecap="round"/>
+</svg>

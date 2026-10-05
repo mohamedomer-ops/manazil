@@ -1,12 +1,6 @@
 {% from 'components/availability_badge.html' import availability_badge %}
-{% macro result_facts(property, state, t, format_rent, home_layout=false) -%}
-<div class="market-result-facts">
-  <span class="market-result-fact" role="img" aria-label="{{ property.bedrooms }} {{ t('bedrooms') }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 20V5m0 11h18v4M3 10h18v6M7 10V7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v3"/></svg><span aria-hidden="true">{{ property.bedrooms }}</span></span>
-  <span class="market-result-fact" role="img" aria-label="{{ property.bathrooms }} {{ t('bathrooms') }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 13h18v2a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-2Zm3 0V6a3 3 0 0 1 6 0M5 21l1-2m13 2-1-2"/></svg><span aria-hidden="true">{{ property.bathrooms }}</span></span>
-  <span class="market-result-fact market-result-fact-location"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg><bdi>{{ state }}{% if property.neighborhood_ar %} · {{ property.neighborhood_ar }}{% endif %}</bdi></span>
-  {% if home_layout and property.size is not none %}<span class="market-result-fact home-card-size" role="img" aria-label="{{ t('Size in square meters') }}: {{ format_rent(property.size) }}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 20 12 4l9 16H3Zm9-16v16"/></svg><span aria-hidden="true">{{ format_rent(property.size) }} m²</span></span>{% endif %}
-</div>
-{%- endmacro %}
+{% from 'components/poster_identity.html' import poster_identity %}
+{% from 'components/property_facts.html' import property_facts %}
 {% macro result_price(property, language, t, today, availability_label, format_rent, home_layout=false) -%}
 <div class="market-result-bottom"><p class="market-result-price"><span>{{ t('Sale price' if property.transaction_type == 'sale' else 'Weekly rent' if property.rent_period == 'weekly' else 'Monthly rent') }}</span><strong dir="ltr">{{ format_rent(property.price) }} {{ property.currency }}</strong>{% if home_layout and property.transaction_type == 'rent' %}<small class="home-card-period">/ {{ t('Weekly' if property.rent_period == 'weekly' else 'Monthly') }}</small>{% endif %}</p>{{ availability_badge(property.available_from_date, language, today, availability_label, 'property-card-availability') }}</div>
 {%- endmacro %}
@@ -23,23 +17,22 @@
   {% endif %}
   {% set detail_url = url_for('main.property_detail', property_id=property.id, **({'lang': 'en'} if language == 'en' else {})) %}
   <article class="market-result">
-    <a class="market-result-link" href="{{ detail_url }}" aria-label="{{ t('View Property') }}: {{ title }}; {{ property.bedrooms }} {{ t('bedrooms') }}; {{ property.bathrooms }} {{ t('bathrooms') }}; {{ state }}{% if property.neighborhood_ar %} · {{ property.neighborhood_ar }}{% endif %}" draggable="false">
+    {{ poster_identity(property, t) }}
+    <div class="market-result-content">
+    <a class="market-result-link" href="{{ detail_url }}" aria-label="{{ t('View Property') }}: {{ title }}{% if property.bedrooms is not none and property.bedrooms != '' %}; {{ property.bedrooms }} {{ t('bedrooms') }}{% endif %}{% if property.bathrooms is not none and property.bathrooms != '' %}; {{ property.bathrooms }} {{ t('bathrooms') }}{% endif %}{% if state %}; {{ state }}{% endif %}{% if property.neighborhood_ar %}{% if state %} · {% else %}; {% endif %}{{ property.neighborhood_ar }}{% endif %}" draggable="false">
       <div class="property-card-media">
         <div class="property-card-image-placeholder" role="img" aria-label="{{ t('No photo available') }}" {% if photo %}aria-hidden="true"{% endif %}>
           <svg viewBox="0 0 64 64" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 30 32 11l23 19"/><path d="M15 27v26h34V27M27 53V37h10v16"/></svg>
         </div>
         {% if photo %}<img class="property-card-image" src="{{ url_for('main.public_photo', photo_id=photo.id) }}" alt="{{ title }}" loading="lazy" decoding="async" draggable="false" onerror="this.previousElementSibling.removeAttribute('aria-hidden');this.hidden=true">
         <span class="property-card-photo-count" aria-live="polite"><span class="market-photo-current">1</span> / <span>{{ carousel.photos|length }}</span></span>{% endif %}
-        {% if home_layout %}<span class="home-card-transaction {{ 'is-sale' if property.transaction_type == 'sale' else 'is-rent' }}">{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span>{% endif %}
+        <span class="home-card-transaction {{ 'is-sale' if property.transaction_type == 'sale' else 'is-rent' }}">{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span>
       </div>
       <div class="market-result-info">
         <h2>{{ title }}</h2>
         {% if home_layout %}{{ result_price(property, language, t, today, availability_label, format_rent, true) }}{% endif %}
-        {% if not home_layout %}
-        <p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>
-        {% endif %}
-        {{ result_facts(property, state, t, format_rent, home_layout) }}
-        {% if home_layout %}<p class="market-result-meta"><span>{{ t('For Sale') if property.transaction_type == 'sale' else t('For Rent') }}</span><span>{{ t('Owner') if property.contact_role == 'owner' else t('Broker') }}</span></p>{% else %}{{ result_price(property, language, t, today, availability_label, format_rent) }}{% endif %}
+        {{ property_facts(property, state, t, format_rent) }}
+        {% if not home_layout %}{{ result_price(property, language, t, today, availability_label, format_rent) }}{% endif %}
         {% if not home_layout %}<span class="market-result-open">{{ t('View Property') }} <span aria-hidden="true">›</span></span>{% endif %}
       </div>
     </a>
@@ -62,6 +55,7 @@
       {% else %}
       <a href="{{ url_for('auth.entry', next=detail_url, **({'lang': 'en'} if language == 'en' else {})) }}"><span aria-hidden="true">♡</span> {{ t('Save Property') }}</a>
       {% endif %}
+    </div>
     </div>
   </article>
 {%- endmacro %}

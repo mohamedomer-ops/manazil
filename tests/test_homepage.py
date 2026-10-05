@@ -196,11 +196,17 @@ def test_mobile_latest_cards_use_real_price_period_size_and_existing_save(client
     assert 'Save Property' in card
 
 
-def test_mobile_homepage_css_is_scoped_and_scrolls_cards_without_page_overflow():
+def test_mobile_homepage_css_stacks_full_width_cards_without_page_overflow():
     styles = Path('app/static/css/style.css').read_text(encoding='utf-8')
-    mobile = styles.split('@media (max-width: 767px) {\n  .home-page', 1)[1].split('\n}', 1)[0]
-    assert '.home-latest-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 87%);' in mobile
-    assert 'overflow-x: auto' in mobile and 'scroll-snap-type: x proximity' in mobile
+    mobile = styles.split('@media (max-width: 768px) {\n  .home-page', 1)[1].split('\n}', 1)[0]
+    assert '.home-latest-grid { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: row;' in mobile
+    assert 'grid-auto-flow: column' not in mobile and 'grid-auto-columns' not in mobile
+    assert '.home-latest-grid { grid-template-columns: none; }' not in styles
+    assert 'grid-template-columns: repeat(4, minmax(0, 1fr))' in styles
+    assert 'grid-template-columns: repeat(2, minmax(0, 1fr))' in styles
+    assert 'white-space: nowrap; overflow-wrap: normal;' in mobile
+    assert 'width: 44px; min-height: 44px;' in mobile
+    assert '.home-search-field { position: relative; min-width: 0; }' in mobile
     assert '.home-mobile-bottom-nav { position: fixed;' in mobile
     assert 'env(safe-area-inset-bottom)' in mobile
     assert '.home-search { grid-template-columns: minmax(0, 1fr);' in mobile
@@ -288,7 +294,7 @@ def test_latest_cards_share_listing_facts_with_homepage_order(client, values):
         state_only = next(card for card in cards if 'State only' in card)
         assert with_neighborhood.index('<h2>') < with_neighborhood.index('class="market-result-bottom"')
         assert with_neighborhood.index('class="market-result-bottom"') < with_neighborhood.index('class="market-result-facts"')
-        assert with_neighborhood.index('class="market-result-facts"') < with_neighborhood.index('class="market-result-meta"')
+        assert 'class="market-result-meta"' not in with_neighborhood
         assert f'role="img" aria-label="{bed_label}"' in with_neighborhood
         assert f'role="img" aria-label="{bath_label}"' in with_neighborhood
         assert f'; {bed_label}; {bath_label}; {state} · الرياض"' in with_neighborhood
@@ -300,7 +306,7 @@ def test_latest_cards_share_listing_facts_with_homepage_order(client, values):
         assert 'Al Riyadh' not in with_neighborhood
 
     listing_card = re.search(r'<article class="market-result">(.*?)</article>', client.get('/properties?lang=en').text, re.S).group(1)
-    assert listing_card.index('class="market-result-meta"') < listing_card.index('class="market-result-facts"')
+    assert 'class="market-result-meta"' not in listing_card
     assert listing_card.index('class="market-result-facts"') < listing_card.index('class="market-result-bottom"')
 
 

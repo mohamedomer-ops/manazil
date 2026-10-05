@@ -12,6 +12,7 @@ FORM_FIELDS = (
     "description_ar", "bedrooms", "bathrooms", "size", "furnished", "amenities",
     "rent_period", "price", "currency", "contact_name", "whatsapp",
     "state_ar", "state_en", "neighborhood_ar",
+    "latitude", "longitude",
 )
 FORM_DEFAULTS = {"currency": "SDG", "transaction_type": "rent", "property_occupancy": "entire_property", "agent": "no", "rent_period": "monthly"}
 PROPERTY_TYPES = {"apartment", "house", "villa", "office", "shop", "land"}
@@ -76,6 +77,20 @@ def validate_posting(form, language="ar"):
             data[key] = number
         except (InvalidOperation, ValueError):
             errors[key] = "Enter a valid, finite number of 0 or greater."
+    coordinates = {key: values[key].strip() for key in ("latitude", "longitude")}
+    if any(coordinates.values()) and not all(coordinates.values()):
+        errors["coordinates"] = "Select both latitude and longitude on the map."
+    elif not any(coordinates.values()):
+        data.update(latitude=None, longitude=None)
+    else:
+        for key, limit in (("latitude", 90), ("longitude", 180)):
+            try:
+                number = Decimal(coordinates[key])
+                if not number.is_finite() or abs(number) > limit or number.as_tuple().exponent < -6:
+                    raise ValueError
+                data[key] = number
+            except (InvalidOperation, ValueError):
+                errors[key] = "Select a valid location on the map."
     data["furnished"] = values["furnished"] == "on"
     if values["furnished"] not in ("", "on"):
         errors["furnished"] = "Choose checked or unchecked."

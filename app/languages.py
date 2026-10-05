@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from flask import request
 
 
@@ -289,6 +291,29 @@ ARABIC = {
 }
 
 
+ARABIC.update({
+    'Verified account': 'حساب موثق',
+    'Property poster': 'ناشر العقار',
+    'Enter your property details to publish on Manazil': 'أدخل بيانات عقارك لنشره على منازل',
+    'Choose the offer and property type': 'اختر نوع العرض ونوع العقار',
+    'Transaction type': 'نوع العرض',
+    'Add clear photos of your property': 'أضف صورًا واضحة للعقار',
+    'Add property photos': 'أضف صور العقار',
+    'Choose photos from your device': 'اختر الصور من جهازك',
+    'Upload selected photos': 'رفع الصور المحددة',
+    'Enter the basic information about your property': 'أدخل المعلومات الأساسية عن العقار',
+    'List the amenities available at your property': 'اذكر المرافق المتوفرة في العقار',
+    'Enter one amenity per line': 'أدخل مرفقًا واحدًا في كل سطر',
+    'Enter contact details for this listing': 'أدخل بيانات التواصل معك',
+    'Set your property location': 'حدد موقع العقار',
+    'Property location on map (optional)': 'موقع العقار على الخريطة (اختياري)',
+    'Select a location on the map': 'تحديد الموقع على الخريطة',
+    'Clear selected map location': 'إزالة الموقع المحدد على الخريطة',
+    'Select both latitude and longitude on the map.': 'حدد خط العرض وخط الطول معًا على الخريطة.',
+    'Select a valid location on the map.': 'حدد موقعًا صالحًا على الخريطة.',
+})
+
+
 def current_language():
     return "en" if request.form.get("_language", request.args.get("lang")) == "en" else "ar"
 
@@ -310,6 +335,49 @@ def availability_label(available_from_date, language, today):
 def format_rent(amount):
     formatted = format(amount, ",f")
     return formatted.rstrip("0").rstrip(".") if "." in formatted else formatted
+
+
+def relative_posting_age(timestamp, language=None, now=None):
+    """UTC listing age, using whole 30-day months without converting to years."""
+    if not isinstance(timestamp, datetime):
+        return None
+    language = language or current_language()
+    now = now or datetime.now(timezone.utc)
+    # Older naive timestamps represent UTC, matching the application's storage strategy.
+    timestamp = timestamp.replace(tzinfo=timezone.utc) if timestamp.tzinfo is None else timestamp
+    now = now.replace(tzinfo=timezone.utc) if now.tzinfo is None else now
+    seconds = max(0, (now - timestamp).total_seconds())
+    if seconds < 60:
+        return translate('Just now', language)
+    for limit, divisor, unit in ((3600, 60, 'minute'), (86400, 3600, 'hour'),
+                                 (604800, 86400, 'day'), (2592000, 604800, 'week'),
+                                 (float('inf'), 2592000, 'month')):
+        if seconds < limit:
+            count = int(seconds // divisor)
+            if count == 1:
+                pattern = f'1 {unit} ago'
+            elif count == 2:
+                pattern = f'2 {unit}s ago'
+            elif language == 'ar' and count > 10:
+                pattern = '{count} ' + unit + ' ago'
+            else:
+                pattern = '{count} ' + unit + 's ago'
+            return translate(pattern, language).format(count=count)
+
+
+ARABIC.update({
+    'Just now': 'الآن',
+    '1 minute ago': 'منذ دقيقة', '2 minutes ago': 'منذ دقيقتين',
+    '{count} minutes ago': 'منذ {count} دقائق', '{count} minute ago': 'منذ {count} دقيقة',
+    '1 hour ago': 'منذ ساعة', '2 hours ago': 'منذ ساعتين',
+    '{count} hours ago': 'منذ {count} ساعات', '{count} hour ago': 'منذ {count} ساعة',
+    '1 day ago': 'منذ يوم', '2 days ago': 'منذ يومين',
+    '{count} days ago': 'منذ {count} أيام', '{count} day ago': 'منذ {count} يوم',
+    '1 week ago': 'منذ أسبوع', '2 weeks ago': 'منذ أسبوعين',
+    '{count} weeks ago': 'منذ {count} أسابيع', '{count} week ago': 'منذ {count} أسبوع',
+    '1 month ago': 'منذ شهر', '2 months ago': 'منذ شهرين',
+    '{count} months ago': 'منذ {count} أشهر', '{count} month ago': 'منذ {count} شهر',
+})
 
 
 def property_type_label(value, language):

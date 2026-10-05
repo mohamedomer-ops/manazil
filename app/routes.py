@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app import db
 from app.languages import PROPERTY_TYPE_NAMES, availability_label, format_rent, property_type_label
-from app.models import Property, PropertyPhoto, SavedProperty
+from app.models import Property, PropertyPhoto, SavedProperty, User
 from app.property_filters import STATE_OPTIONS, apply_filters, validated_filters
 from app.photo_storage import photo_storage, PhotoError, category_label
 from app.property_forms import sudan_today
@@ -39,7 +39,8 @@ def index():
 
 
 def public_properties():
-    return select(Property).options(selectinload(Property.photos)).where(
+    return select(Property).options(selectinload(Property.photos),
+                                    selectinload(Property.owner).selectinload(User.identities)).where(
         Property.publication_status == "published", Property.availability_status == "available",
         Property.moderation_status == "clear"
     )
@@ -112,6 +113,20 @@ def public_photo(photo_id):
         return photo_storage().send(photo.storage_key, photo.content_type)
     except (PhotoError, OSError):
         abort(404)
+
+
+@main.get('/properties/<int:property_id>/poster-avatar')
+def poster_avatar(property_id):
+    property = db.session.scalar(public_properties().where(Property.id == property_id))
+    if property is None or property.owner is None or not property.owner.avatar_storage_key:
+        abort(404)
+    try:
+        response = photo_storage().send_avatar(property.owner.avatar_storage_key, property.owner.id)
+    except (PhotoError, OSError):
+        abort(404)
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @main.get("/api/health")
